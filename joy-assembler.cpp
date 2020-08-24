@@ -27,6 +27,7 @@ typedef uint32_t mem_t;
 #define MAP_ON_INSTRUCTION_NAMES(M) \
     M(NOP), \
     M(LDA), M(LDB), M(STA), M(STB), \
+    M(LIA), M(SIA), \
     M(JMP), M(JNZ), M(JZ), M(JNN), M(JNG), \
     M(MOV), M(INC), M(DEC), M(INV), M(SHL), M(SHR), M(SWP), \
     M(ADD), M(SUB), M(AND), M(OR), \
@@ -176,6 +177,16 @@ class ComputationState {
                 storeMemory4(mem_t{instruction.argument}
                             , (bytes >> 24) & 0xff, (bytes >> 16) & 0xff
                             , (bytes >> 8) & 0xff, bytes & 0xff);
+                }; break;
+            case InstructionName::LIA: {
+                    byte b3, b2, b1, b0;
+                    loadMemory4(mem_t{registerB}, b3, b2, b1, b0);
+                    registerA = combineUInt32(b3, b2, b1, b0);
+                }; break;
+            case InstructionName::SIA: {
+                    byte b3, b2, b1, b0;
+                    splitUInt32(registerA, b3, b2, b1, b0);
+                    storeMemory4(mem_t{registerB}, b3, b2, b1, b0);
                 }; break;
             case InstructionName::MOV:
                 registerA = static_cast<reg_t>(instruction.argument); break;

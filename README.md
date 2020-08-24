@@ -25,6 +25,8 @@ Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` whi
 | `ldb`            | memory location               | Load the value at the specified memory location into register `B`. |
 | `sta`            | memory location               | Store the value in register `A` to the specified memory location.  |
 | `stb`            | memory location               | Store the value in register `B` to the specified memory location.  |
+| `lia`            | -                             | Load the value at the memory location identified by register `B` into register `A`. |
+| `sia`            | -                             | Store the value in register `A` at the memory location identified by register `B`. |
 | `jmp`            | program position `@label`     | Jump to program position `@label`.                                 |
 | `jnz`            | program position `@label`     | Jump to program position `@label` if register `A` holds a non-zero value, otherwise perform no operation.     |
 | `jz`             | program position `@label`     | Jump to program position `@label` if register `A` holds a zero value, otherwise perform no operation.         |
