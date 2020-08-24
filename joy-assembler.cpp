@@ -8,7 +8,7 @@
 
 enum class MemoryMode { LittleEndian, BigEndian };
 
-size_t MEMORY_SIZE = 0x10000;
+std::size_t MEMORY_SIZE = 0x10000;
 MemoryMode MEMORY_MODE = MemoryMode::LittleEndian;
 
 bool DO_WAIT_FOR_USER = false;
@@ -16,34 +16,48 @@ bool DO_VISUALIZE_STEPS = false;
 
 enum class Register { RegisterA, RegisterB };
 typedef uint8_t byte;
-typedef uint32_t ProgramCounter;
+typedef uint32_t programCounter_t;
 
 typedef int32_t reg_t;
 typedef uint32_t ureg_t;
 typedef uint32_t arg_t;
 typedef uint32_t mem_t;
 
+
+#define MAP_ON_INSTRUCTION_NAMES(M) \
+    M(NOP), \
+    M(LDA), M(LDB), M(STA), M(STB), \
+    M(JMP), M(JNZ), M(JZ), M(JNN), M(JNG), \
+    M(MOV), M(INC), M(DEC), M(INV), M(SHL), M(SHR), M(SWP), \
+    M(ADD), M(SUB), M(AND), M(OR), \
+    M(PUT), \
+    M(HLT)
+
 enum class InstructionName {
-    NOP,
-    LDA, LDB, STA, STB,
-    JMP, JNZ, JZ, JNN, JNG,
-    MOV, INC, DEC, INV, SHL, SHR,
-    SWP, ADD, SUB, AND, OR,
-    PUT };
+    #define ID(ACT) ACT
+    MAP_ON_INSTRUCTION_NAMES(ID)
+    #undef ID
+};
 
-struct Instruction { InstructionName name; arg_t argument; };
-
-
-namespace InstructionNameStringHandler {
+namespace InstructionNameRepresentationHandler {
     std::map<InstructionName, std::string> representation = {
-        #define R(ACT) {InstructionName::ACT, #ACT}
-        R(NOP),
-        R(LDA), R(LDB), R(STA), R(STB),
-        R(JMP), R(JNZ), R(JZ), R(JNN), R(JNG),
-        R(MOV), R(INC), R(DEC), R(INV), R(SHL), R(SHR), R(SWP),
-        R(ADD), R(SUB), R(AND), R(OR), R(PUT)
-        #undef R
+        #define REPR(ACT) {InstructionName::ACT, #ACT}
+        MAP_ON_INSTRUCTION_NAMES(REPR)
+        #undef REPR
     };
+    std::array<std::optional<InstructionName>, 256> instructions = {
+        #define NAMESPACE_ID(ACT) InstructionName::ACT
+        MAP_ON_INSTRUCTION_NAMES(NAMESPACE_ID)
+        #undef NAMESPACE_ID
+    };
+
+    std::optional<InstructionName> fromByteCode(byte opCode) {
+        return instructions[opCode]; }
+    byte toByteCode(InstructionName name) {
+        for (uint16_t opCode = 0; opCode < 0x100; opCode++)
+            if (instructions[opCode].has_value() && instructions[opCode].value() == name)
+                return static_cast<byte>(opCode);
+        return 0x00; }
 
     std::string to_string(InstructionName name) {
         if (representation.contains(name))
@@ -62,36 +76,67 @@ namespace InstructionNameStringHandler {
                 return std::optional<InstructionName>{in};
         return std::nullopt; }
 }
+#undef MAP_ON_INSTRUCTION_NAMES
 
-namespace InstructionStringHandler {
+struct Instruction { InstructionName name; arg_t argument; };
+
+namespace InstructionRepresentationHandler {
     std::string to_string(Instruction instruction) {
         char buffer[11];
         std::snprintf(buffer, 11, "0x%08x", instruction.argument);
-        return InstructionNameStringHandler::to_string(instruction.name) + " "
+        return InstructionNameRepresentationHandler::to_string(instruction.name) + " "
                + std::string{buffer}; }
 }
 
 
+void splitUInt32(uint32_t bytes, byte &b3, byte &b2, byte &b1, byte &b0) {
+    b3 = static_cast<byte>((bytes >> 24) & 0xff);
+    b2 = static_cast<byte>((bytes >> 16) & 0xff);
+    b1 = static_cast<byte>((bytes >>  8) & 0xff);
+    b0 = static_cast<byte>( bytes        & 0xff); }
+
 class ComputationState {
     public:
 
-    ComputationState(std::vector<Instruction> program) :
+    ComputationState() :
         memory{std::vector<byte>(MEMORY_SIZE)},
-        programCounter{0},
-        registerA{0}, registerB{0},
+        registerA{0}, registerB{0}, registerPC{0},
         flagAZero{true}, flagANonNegative{true},
-        program{program},
         highestUsedMemoryLocation{0}
     { ; }
 
-    bool step() {
-        if (programCounter >= program.size())
-            return false;
+    Instruction nextInstruction() {
+        byte opCode = loadMemory(static_cast<mem_t>(registerPC++));
+        byte arg3, arg2, arg1, arg0;
+        loadMemory4(static_cast<mem_t>((registerPC += 4) - 4), arg3, arg2, arg1, arg0);
 
-        auto instruction = program[programCounter++];
+        auto oInstructionName = InstructionNameRepresentationHandler::fromByteCode(opCode);
+        if (!oInstructionName.has_value())
+            return Instruction{InstructionName::NOP, 0x00000000};
+
+        InstructionName name = oInstructionName.value();
+        arg_t argument = arg3 << 24 | arg2 << 16 | arg1 << 8 | arg0;
+
+        //std::cout << "read instruction: " << InstructionRepresentationHandler::to_string(Instruction{name, argument});
+
+        return Instruction{name, argument};
+    }
+
+    void loadInstructions(std::vector<Instruction> instructions) {
+        programCounter_t pc = 0;
+        for (auto i : instructions) {
+            storeMemory(static_cast<mem_t>(pc++), InstructionNameRepresentationHandler::toByteCode(i.name));
+            byte arg3, arg2, arg1, arg0;
+            splitUInt32(i.argument, arg3, arg2, arg1, arg0);
+            storeMemory4(static_cast<mem_t>((pc += 4) - 4), arg3, arg2, arg1, arg0);
+        }
+    }
+
+    bool step() {
+        auto instruction = nextInstruction();
         auto jmp = [&](bool cnd) {
             if (cnd)
-                programCounter = ProgramCounter{instruction.argument}; };
+                registerPC = programCounter_t{instruction.argument}; };
 
         switch (instruction.name) {
             case InstructionName::LDA: {
@@ -148,10 +193,11 @@ class ComputationState {
             case InstructionName::PUT: std::cout << registerA << "\n"; break;
 
             case InstructionName::NOP: break;
+            case InstructionName::HLT: return false;
 
             default:
                 std::cerr << "unknown instruction: "
-                          << InstructionStringHandler
+                          << InstructionRepresentationHandler
                              ::to_string(instruction) << "\n";
                 return false;
         }
@@ -160,30 +206,29 @@ class ComputationState {
         return true;
     }
 
-    bool didComputationFinish() {
-        return programCounter >= program.size(); }
-
     void visualize() {
         std::printf("\n\n\n");
+        /*
         std::printf("\n=== PROGRAM ===\n");
-        for (ProgramCounter pc = 0; pc < program.size(); pc++) {
+        for (programCounter_t pc = 0; pc < program.size(); pc++) {
             if (programCounter == pc)
                 std::printf("    > ");
             else
                 std::printf("    . ");
-            std::cout << InstructionStringHandler::to_string(program[pc]);
+            std::cout << InstructionRepresentationHandler::to_string(program[pc]);
             std::printf("\n"); }
         if (programCounter >= program.size())
             std::printf("    > program ended\n");
+        */
 
         std::printf("\n=== MEMORY ===\n");
-        size_t h = 16, w = 16;
+        std::size_t h = 16, w = 16;
         std::printf("       ");
-        for (size_t x = 0; x < w; x++)
+        for (std::size_t x = 0; x < w; x++)
             std::printf("_%01X ", (int) x);
-        for (size_t y = 0; y < h; y++) {
+        for (std::size_t y = 0; y < h; y++) {
             std::printf("\n    %01X_", (int) y);
-            for (size_t x = 0; x < w; x++) {
+            for (std::size_t x = 0; x < w; x++) {
                 mem_t m = y *w+ x;
                 if (m <= highestUsedMemoryLocation)
                     std::cout << "\33[1m";
@@ -204,8 +249,8 @@ class ComputationState {
     private:
 
     std::vector<byte> memory;
-    ProgramCounter programCounter;
-    reg_t registerA, registerB;
+    programCounter_t programCounter;
+    reg_t registerA, registerB, registerPC;
     bool flagAZero, flagANonNegative;
     std::vector<Instruction> program;
 
@@ -249,7 +294,7 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
 
     std::vector<std::tuple<std::string, std::string>> preParsed{};
     std::map<std::string, std::string> definitions{};
-    ProgramCounter pc = 0;
+    programCounter_t pc = 0;
     for (std::string ln; std::getline(is, ln); ) {
         ln = std::regex_replace(ln, std::regex{";.*"}, "");
         ln = std::regex_replace(ln, std::regex{"  +"}, " ");
@@ -285,26 +330,41 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
             if (_arg.size() == 2)
                 arg = _arg[1];
             preParsed.push_back(std::make_tuple(instr, arg));
-            pc++; }
+            pc += 5; }
     }
 
     for (auto na : preParsed) {
-        std::optional oName = InstructionNameStringHandler
+        std::optional oName = InstructionNameRepresentationHandler
                               ::from_string(std::get<0>(na));
         if (!oName.has_value()) {
             std::cout << "invalid instruction: " << std::get<0>(na) << "\n";
             return false; }
         InstructionName name = oName.value();
-        arg_t argument;
+        arg_t argument = 0;
 
         std::string preArg = std::get<1>(na);
+
+        std::smatch _offset;
+        std::regex_search(preArg, _offset, std::regex{"^prg+(.*)$"});
+        if (_offset.size() == 2) {
+            argument += 5 * static_cast<arg_t>(preParsed.size());
+            preArg = _offset[1]; }
+
         if (definitions.contains(preArg))
             preArg = definitions[preArg];
+
+        std::regex_search(preArg, _offset, std::regex{"^prg+(.*)$"});
+        if (_offset.size() == 2) {
+            argument += 5 * static_cast<arg_t>(preParsed.size());
+            preArg = _offset[1]; }
+
         try {
-            argument = std::stol(preArg, nullptr, 0); }
+            argument += std::stol(preArg, nullptr, 0); }
         catch (std::invalid_argument const&_) {
             std::cout << "invalid value: " << preArg << "\n";
             return false; }
+
+        //std::cout << "parsed instruction: " << InstructionRepresentationHandler::to_string(Instruction{name, argument}) << "\n";
 
         instructions.push_back(Instruction{name, argument});
     }
@@ -320,7 +380,7 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
             return false; }}
     if (definitions.contains("pragma_memory-size")) {
         std::string ms = definitions["pragma_memory-size"];
-        size_t memorySize;
+        std::size_t memorySize;
         try {
             memorySize = std::stol(ms, nullptr, 0); }
         catch (std::invalid_argument const&_) {
@@ -347,7 +407,8 @@ int main(int argc, char **argv) {
         std::cerr << "faulty joy assembly file\n";
         return EXIT_FAILURE; }
 
-    ComputationState cs{instructions};
+    ComputationState cs{};
+    cs.loadInstructions(instructions);
 
     do {
         if (DO_VISUALIZE_STEPS)

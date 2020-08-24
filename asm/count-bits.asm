@@ -1,8 +1,8 @@
 ; Jonathan Frech, 23rd of August 2020
 ; Joy Assembly code which calculates the number of bits in a given value
 
-addr_temporary-value-a := 0
-addr_temporary-value-b := 4
+addr_temporary-value-a := prg+0
+addr_temporary-value-b := prg+4
 
 jmp @main
 
@@ -43,3 +43,4 @@ main:
     back:
     put
 end:
+    hlt

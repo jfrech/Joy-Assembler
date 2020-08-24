@@ -2,9 +2,9 @@
 ; Joy Assembly code to multiply two integers
 
 ; memory layout
-addr_multiply-x := 0
-addr_multiply-y := 4
-addr_multiply-z := 8
+addr_multiply-x := prg+0
+addr_multiply-y := prg+4
+addr_multiply-z := prg+8
 
 ; input values to be multiplied
 x := 342
@@ -65,5 +65,6 @@ main:
 
     jmp @multiply
 
+; end of program
 end:
-    ; end of program
+    hlt

@@ -2,9 +2,9 @@
 ; Joy Assembly code which calculates the Fibonacci sequence
 
 ; memory layout
-addr_fibonacci-x := 0
-addr_fibonacci-y := 4
-addr_fibonacci-n := 8
+addr_fibonacci-x := prg+0
+addr_fibonacci-y := prg+4
+addr_fibonacci-n := prg+8
 
 ; sequence length
 n := 32
@@ -49,5 +49,6 @@ main:
 
     jmp @fibonacci
 
+; end of program
 end:
-    ; end of program
+    hlt

@@ -2,8 +2,8 @@
 ; Joy Assembly code which calculates successive powers of five
 
 ; memory layout
-addr_powers-of-five-x := 0
-addr_powers-of-five-n := 4
+addr_powers-of-five-x := prg+0
+addr_powers-of-five-n := prg+4
 
 ; sequence length
 n := 10
@@ -44,5 +44,6 @@ main:
 
     jmp @powers-of-five
 
+; end of program
 end:
-    ; end of program
+    hlt
