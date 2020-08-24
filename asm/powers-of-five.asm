@@ -25,7 +25,7 @@ powers-of-five:
 
         ; output and multiply by five
         lda addr_powers-of-five-x
-        put
+        ptu
         shl 2
         ldb addr_powers-of-five-x
         add

@@ -41,6 +41,6 @@ main:
     mov 0xab
     jmp @count-bits
     back:
-    put
+    ptu
 end:
     hlt

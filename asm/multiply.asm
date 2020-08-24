@@ -51,17 +51,17 @@ multiply:
 
     ; load the result into register A
     lda addr_multiply-z
-    put
+    ptu
 
 jmp @end
 main:
     mov x
     sta addr_multiply-x
-    put
+    ptu
 
     mov y
     sta addr_multiply-y
-    put
+    ptu
 
     jmp @multiply
 

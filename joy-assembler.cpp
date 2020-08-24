@@ -29,6 +29,7 @@ typedef uint32_t mem_t;
     M(NOP), \
     M(LDA), M(LDB), M(STA), M(STB), M(LIA), M(SIA), M(LPC), M(SPC), \
     M(JMP), M(JNZ), M(JZ), M(JNN), M(JN), M(JE), M(JNE), \
+    M(CAL), M(RET), \
     M(MOV), M(NOT), M(SHL), M(SHR), M(INC), M(DEC), M(NEG), \
     M(SWP), M(ADD), M(SUB), M(AND), M(OR), M(XOR), \
     M(PTU), M(GTU), M(PTS), M(GTS), M(PTB), M(GTB), M(PTC), M(GTC), \
@@ -127,8 +128,9 @@ class ComputationState {
     private:
 
     std::vector<byte> memory;
-    programCounter_t programCounter;
-    reg_t registerA, registerB, registerPC;
+    reg_t registerA, registerB;
+    uint32_t registerPC;
+
     bool flagAZero, flagANegative, flagAParityEven;
     std::vector<Instruction> program;
 
@@ -216,7 +218,7 @@ class ComputationState {
                     storeMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
                 }; break;
             case InstructionName::LPC: registerPC = registerA; break;
-            case InstructionName::SPC: registerPC = registerA; break;
+            case InstructionName::SPC: registerA = registerPC; break;
 
             case InstructionName::JMP: jmp(true); break;
             case InstructionName::JZ: jmp(flagAZero); break;
@@ -226,16 +228,30 @@ class ComputationState {
             case InstructionName::JE: jmp(flagAParityEven); break;
             case InstructionName::JNE: jmp(!flagAParityEven); break;
 
+            case InstructionName::CAL: {
+                byte b3, b2, b1, b0;
+                Util::splitUInt32(registerPC, b3, b2, b1, b0);
+                storeMemory4(static_cast<mem_t>(registerA), b3, b2, b1, b0);
+                registerPC = instruction.argument;
+            }; break;
+            case InstructionName::RET: {
+                byte b3, b2, b1, b0;
+                loadMemory4(static_cast<mem_t>(registerA), b3, b2, b1, b0);
+                registerPC = Util::combineUInt32(b3, b2, b1, b0);
+            }; break;
+
             case InstructionName::MOV:
                 registerA = static_cast<reg_t>(instruction.argument); break;
             case InstructionName::NOT: registerA = ~registerA; break;
             case InstructionName::SHL: {
                 uint8_t shift = static_cast<uint8_t>(instruction.argument);
-                registerA <<= shift > 0 ? shift : 1;
+                registerA = static_cast<uint32_t>(registerA)
+                          << (shift > 0 ? shift : 1);
             }; break;
             case InstructionName::SHR: {
                 uint8_t shift = static_cast<uint8_t>(instruction.argument);
-                registerA >>= shift > 0 ? shift : 1;
+                registerA = static_cast<uint32_t>(registerA)
+                          >> (shift > 0 ? shift : 1);
             }; break;
             case InstructionName::INC: registerA++; break;
             case InstructionName::DEC: registerA--; break;
@@ -302,18 +318,6 @@ class ComputationState {
 
     void visualize() {
         std::printf("\n\n\n");
-        /*
-        std::printf("\n=== PROGRAM ===\n");
-        for (programCounter_t pc = 0; pc < program.size(); pc++) {
-            if (programCounter == pc)
-                std::printf("    > ");
-            else
-                std::printf("    . ");
-            std::cout << InstructionRepresentationHandler::to_string(program[pc]);
-            std::printf("\n"); }
-        if (programCounter >= program.size())
-            std::printf("    > program ended\n");
-        */
 
         std::printf("\n=== MEMORY ===\n");
         programCounter_t pc = 0, rPC = static_cast<programCounter_t>(registerPC);

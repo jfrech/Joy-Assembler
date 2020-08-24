@@ -28,7 +28,7 @@ fibonacci:
 
         ; output x
         lda addr_fibonacci-x
-        put
+        ptu
 
         ; add y to x, call it y and move y to x
         ldb addr_fibonacci-y
