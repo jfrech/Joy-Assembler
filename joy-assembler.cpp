@@ -180,13 +180,13 @@ class ComputationState {
                 }; break;
             case InstructionName::LIA: {
                     byte b3, b2, b1, b0;
-                    loadMemory4(mem_t{registerB}, b3, b2, b1, b0);
+                    loadMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
                     registerA = combineUInt32(b3, b2, b1, b0);
                 }; break;
             case InstructionName::SIA: {
                     byte b3, b2, b1, b0;
                     splitUInt32(registerA, b3, b2, b1, b0);
-                    storeMemory4(mem_t{registerB}, b3, b2, b1, b0);
+                    storeMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
                 }; break;
             case InstructionName::MOV:
                 registerA = static_cast<reg_t>(instruction.argument); break;
