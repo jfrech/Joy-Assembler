@@ -89,6 +89,14 @@ namespace InstructionRepresentationHandler {
                + std::string{buffer}; }
 }
 
+namespace Util {
+    template<typename T>
+    void swap_values(T &x, T &y) {
+        auto tmp = x;
+        x = y;
+        y = tmp; }
+}
+
 
 void splitUInt32(uint32_t bytes, byte &b3, byte &b2, byte &b1, byte &b0) {
     b3 = static_cast<byte>((bytes >> 24) & 0xff);
@@ -105,7 +113,7 @@ class ComputationState {
     std::vector<byte> memory;
     programCounter_t programCounter;
     reg_t registerA, registerB, registerPC;
-    bool flagAZero, flagANonNegative;
+    bool flagAZero, flagANegative, flagAParityEven;
     std::vector<Instruction> program;
 
     mem_t debugProgramTextSize;
@@ -195,18 +203,12 @@ class ComputationState {
             case InstructionName::SPC: registerPC = registerA; break;
 
             case InstructionName::JMP: jmp(true); break;
-            case InstructionName::JNZ: jmp(!flagAZero); break;
             case InstructionName::JZ: jmp(flagAZero); break;
-            case InstructionName::JNN: jmp(flagANonNegative); break;
-            case InstructionName::JN: jmp(!flagANonNegative); break;
-            case InstructionName::JE:
-                jmp(std::bitset<32>{
-                    static_cast<uint32_t>(registerA)}.count() % 2 == 0);
-                break;
-            case InstructionName::JNE:
-                jmp(std::bitset<32>{
-                    static_cast<uint32_t>(registerA)}.count() % 2 != 0);
-                break;
+            case InstructionName::JNZ: jmp(!flagAZero); break;
+            case InstructionName::JN: jmp(flagANegative); break;
+            case InstructionName::JNN: jmp(!flagANegative); break;
+            case InstructionName::JE: jmp(flagAParityEven); break;
+            case InstructionName::JNE: jmp(!flagAParityEven); break;
 
             case InstructionName::MOV:
                 registerA = static_cast<reg_t>(instruction.argument); break;
@@ -223,12 +225,9 @@ class ComputationState {
             case InstructionName::DEC: registerA--; break;
             case InstructionName::NEG: registerA = -registerA; break;
 
-            case InstructionName::SWP: {
-                    auto tmp = registerA;
-                    registerA = registerB;
-                    registerB = tmp;
-                    updateFlags();
-                }; break;
+            case InstructionName::SWP:
+                Util::swap_values(registerA, registerB);
+                break;
             case InstructionName::AND: registerA &= registerB; break;
             case InstructionName::OR: registerA |= registerB; break;
             case InstructionName::XOR: registerA ^= registerB; break;
@@ -310,8 +309,9 @@ class ComputationState {
         std::printf("    A: 0x%08x,    B: 0x%08x,    PC: 0x%08x\n", registerA, registerB, registerPC);
 
         std::printf("\n=== FLAGS ===\n");
-        std::printf("    flagAZero: %d,    flagANonNegative: %d\n"
-                   , flagAZero, flagANonNegative);
+        std::printf("    flagAZero: %d,    flagANegative: %d,    "
+                    "flagAParityEven: %d\n", flagAZero, flagANegative
+                   , flagAParityEven);
     }
 
 
@@ -319,7 +319,9 @@ class ComputationState {
 
     void updateFlags() {
         flagAZero = registerA == 0;
-        flagANonNegative = registerA >= 0; }
+        flagANegative = registerA < 0;
+        flagAParityEven = std::bitset<32>{static_cast<uint32_t>(registerA)}.count() % 2 == 0;
+    }
 
     byte loadMemory(mem_t m) {
         debugHighestUsedMemoryLocation = std::max(debugHighestUsedMemoryLocation, m);
