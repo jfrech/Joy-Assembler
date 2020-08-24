@@ -29,6 +29,7 @@ typedef uint32_t mem_t;
     M(LDA), M(LDB), M(STA), M(STB), \
     M(LIA), M(SIA), \
     M(JMP), M(JNZ), M(JZ), M(JNN), M(JNG), \
+    M(LPC), M(SPC), \
     M(MOV), M(INC), M(DEC), M(INV), M(SHL), M(SHR), M(SWP), \
     M(ADD), M(SUB), M(AND), M(OR), \
     M(PUT), \
@@ -188,6 +189,8 @@ class ComputationState {
                     splitUInt32(registerA, b3, b2, b1, b0);
                     storeMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
                 }; break;
+            case InstructionName::LPC: registerPC = registerA; break;
+            case InstructionName::SPC: registerPC = registerA; break;
             case InstructionName::MOV:
                 registerA = static_cast<reg_t>(instruction.argument); break;
             case InstructionName::SWP: {
