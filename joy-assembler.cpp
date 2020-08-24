@@ -94,16 +94,31 @@ void splitUInt32(uint32_t bytes, byte &b3, byte &b2, byte &b1, byte &b0) {
     b2 = static_cast<byte>((bytes >> 16) & 0xff);
     b1 = static_cast<byte>((bytes >>  8) & 0xff);
     b0 = static_cast<byte>( bytes        & 0xff); }
+uint32_t combineUInt32(byte b3, byte b2, byte b1, byte b0) {
+    return b3 << 24 | b2 << 16 | b1 << 8 | b0; }
 
 class ComputationState {
+    private:
+
+    std::vector<byte> memory;
+    programCounter_t programCounter;
+    reg_t registerA, registerB, registerPC;
+    bool flagAZero, flagANonNegative;
+    std::vector<Instruction> program;
+
+    mem_t debugProgramTextSize;
+    mem_t debugHighestUsedMemoryLocation;
+
     public:
 
     ComputationState() :
         memory{std::vector<byte>(MEMORY_SIZE)},
         registerA{0}, registerB{0}, registerPC{0},
-        flagAZero{true}, flagANonNegative{true},
-        highestUsedMemoryLocation{0}
-    { ; }
+
+        debugProgramTextSize{0},
+        debugHighestUsedMemoryLocation{0}
+    {
+        updateFlags(); }
 
     Instruction nextInstruction() {
         byte opCode = loadMemory(static_cast<mem_t>(registerPC++));
@@ -129,6 +144,7 @@ class ComputationState {
             byte arg3, arg2, arg1, arg0;
             splitUInt32(i.argument, arg3, arg2, arg1, arg0);
             storeMemory4(static_cast<mem_t>((pc += 4) - 4), arg3, arg2, arg1, arg0);
+            debugProgramTextSize += 5;
         }
     }
 
@@ -222,6 +238,7 @@ class ComputationState {
         */
 
         std::printf("\n=== MEMORY ===\n");
+        programCounter_t pc = 0, rPC = static_cast<programCounter_t>(registerPC);
         std::size_t h = 16, w = 16;
         std::printf("       ");
         for (std::size_t x = 0; x < w; x++)
@@ -230,15 +247,45 @@ class ComputationState {
             std::printf("\n    %01X_", (int) y);
             for (std::size_t x = 0; x < w; x++) {
                 mem_t m = y *w+ x;
-                if (m <= highestUsedMemoryLocation)
+                if (m < debugProgramTextSize)
+                    if (rPC <= pc && pc < rPC + 5)
+                        if (pc == rPC)
+                            std::cout << "\33[48;5;119m";
+                        else
+                            std::cout << "\33[48;5;121m";
+                    else if ((pc / 5) % 2 == 0)
+                        if (pc % 5 == 0)
+                            std::cout << "\33[48;5;33m";
+                        else
+                            std::cout << "\33[48;5;104m";
+                    else
+                        if (pc % 5 == 0)
+                            std::cout << "\33[48;5;205m";
+                        else
+                            std::cout << "\33[48;5;168m";
+                else if (m <= debugHighestUsedMemoryLocation)
                     std::cout << "\33[1m";
                 std::printf(" %02X", memory[y *w+ x]);
-                if (m <= highestUsedMemoryLocation)
-                    std::cout << "\33[0m"; }}
+                std::cout << "\33[0m";
+                pc++;
+            }
+        }
         std::printf("\n");
 
+        std::printf("\n=== CURRENT INSTRUCTION ===\n");
+        byte opCode = loadMemory(static_cast<mem_t>(registerPC));
+        std::string opCodeName = "(err. NOP)";
+        auto oInstructionName = InstructionNameRepresentationHandler::fromByteCode(opCode);
+        if (oInstructionName.has_value())
+            opCodeName = InstructionNameRepresentationHandler::to_string(oInstructionName.value());
+        byte arg3, arg2, arg1, arg0;
+        loadMemory4(static_cast<mem_t>(registerPC) + 1, arg3, arg2, arg1, arg0);
+        arg_t argument = combineUInt32(arg3, arg2, arg1, arg0);
+        //std::printf("    op code 0x%02x (%s) with argument 0x%08x\n", opCode, opCodeName.c_str(), argument);
+        std::printf("    %s 0x%08X\n", opCodeName.c_str(), argument);
+
         std::printf("\n=== REGISTERS ===\n");
-        std::printf("    A: %08X,    B: %08X\n", registerA, registerB);
+        std::printf("    A: 0x%08x,    B: 0x%08x,    PC: 0x%08x\n", registerA, registerB, registerPC);
 
         std::printf("\n=== FLAGS ===\n");
         std::printf("    flagAZero: %d,    flagANonNegative: %d\n"
@@ -248,24 +295,16 @@ class ComputationState {
 
     private:
 
-    std::vector<byte> memory;
-    programCounter_t programCounter;
-    reg_t registerA, registerB, registerPC;
-    bool flagAZero, flagANonNegative;
-    std::vector<Instruction> program;
-
-    mem_t highestUsedMemoryLocation;
-
     void updateFlags() {
         flagAZero = registerA == 0;
         flagANonNegative = registerA >= 0; }
 
     byte loadMemory(mem_t m) {
-        highestUsedMemoryLocation = std::max(highestUsedMemoryLocation, m);
+        debugHighestUsedMemoryLocation = std::max(debugHighestUsedMemoryLocation, m);
         return m < MEMORY_SIZE ? memory[m] : 0; }
 
     void storeMemory(mem_t m, byte b) {
-        highestUsedMemoryLocation = std::max(highestUsedMemoryLocation, m);
+        debugHighestUsedMemoryLocation = std::max(debugHighestUsedMemoryLocation, m);
         if (m < MEMORY_SIZE)
             memory[m] = b; }
 
