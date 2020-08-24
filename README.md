@@ -25,13 +25,12 @@ Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` whi
 | `ldb`            | memory location               | Load the value at the specified memory location into register `B`. |
 | `sta`            | memory location               | Store the value in register `A` to the specified memory location.  |
 | `stb`            | memory location               | Store the value in register `B` to the specified memory location.  |
-| `mov`            | number of bytes `n`           | Move the `n` bytes after and including the memory location identified by register `A` to the memory location identified by register `B`, starting from the left. If `n` is not specified or zero, one byte is moved. The source bytes are not changed except for overlapping destinations. |
 | `jmp`            | program position `@label`     | Jump to program position `@label`.                                 |
 | `jnz`            | program position `@label`     | Jump to program position `@label` if register `A` holds a non-zero value, otherwise perform no operation.     |
 | `jz`             | program position `@label`     | Jump to program position `@label` if register `A` holds a zero value, otherwise perform no operation.         |
 | `jnn`            | program position `@label`     | Jump to program position `@label` if register `A` holds a non-negative value, otherwise perform no operation. |
 | `jng`            | program position `@label`     | Jump to program position `@label` if register `A` holds a negative value, otherwise perform no operation.     |
-| `imm`            | value `v`                     | Load the value `v` immediately into register `A`.                  |
+| `mov`            | value `v`                     | Move the immediate value `v` into register `A`.                    |
 | `inc`            | -                             | Increment the value in register `A`, modifying it in-place.        |
 | `dec`            | -                             | Decrement the value in register `A`, modifying it in-place.        |
 | `inv`            | -                             | Invert all bits in register `A`, modifying it in-place.            |
@@ -92,7 +91,7 @@ count-bits:
 
 # Pragmas
 Pragmas are used to alter the simulated machine's fundamental behavior or capability.
-| pragma               | options                         | description                                                                                   |
-|----------------------|---------------------------------|-----------------------------------------------------------------------------------------------|
-| `pragma_memory-mode` | `little-endian` or `big-endian` | Set the endianness for the operations `lda`, `ldb`, `sta`, `stb`. Default is `little-endian`. |
-| `pragma_memory-size` | a `uint32_t` value              | Define the size of the available memory block. Default is `0x10000`.                          |
+| pragma               | options                         | description                                                       | default                               |
+|----------------------|---------------------------------|-------------------------------------------------------------------|---------------------------------------|
+| `pragma_memory-mode` | `little-endian` or `big-endian` | Set the endianness for the operations `lda`, `ldb`, `sta`, `stb`. | `pragma_memory-mode := little-endian` |
+| `pragma_memory-size` | a `uint32_t` value              | Define the size of the available memory block.                    | `pragma_memory-mode := 0x10000`       |

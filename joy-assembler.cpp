@@ -1,4 +1,4 @@
-// Jonathan Frech, 22nd, 23rd of August 2020
+// Jonathan Frech, August 2020
 
 #include <fstream>
 #include <iostream>
@@ -25,9 +25,9 @@ typedef uint32_t mem_t;
 
 enum class InstructionName {
     NOP,
-    LDA, LDB, STA, STB, MOV,
+    LDA, LDB, STA, STB,
     JMP, JNZ, JZ, JNN, JNG,
-    IMM, INC, DEC, INV, SHL, SHR,
+    MOV, INC, DEC, INV, SHL, SHR,
     SWP, ADD, SUB, AND, OR,
     PUT };
 
@@ -37,8 +37,10 @@ struct Instruction { InstructionName name; arg_t argument; };
 namespace InstructionNameStringHandler {
     std::map<InstructionName, std::string> representation = {
         #define R(ACT) {InstructionName::ACT, #ACT}
-        R(NOP), R(LDA), R(LDB), R(STA), R(STB), R(MOV), R(JMP), R(JNZ), R(JZ),
-        R(JNN), R(JNG), R(IMM), R(INC), R(DEC), R(INV), R(SHL), R(SHR), R(SWP),
+        R(NOP),
+        R(LDA), R(LDB), R(STA), R(STB),
+        R(JMP), R(JNZ), R(JZ), R(JNN), R(JNG),
+        R(MOV), R(INC), R(DEC), R(INV), R(SHL), R(SHR), R(SWP),
         R(ADD), R(SUB), R(AND), R(OR), R(PUT)
         #undef R
     };
@@ -54,11 +56,11 @@ namespace InstructionNameStringHandler {
             c = std::toupper(c);
         return str; }
 
-    InstructionName from_string(std::string repr) {
+    std::optional<InstructionName> from_string(std::string repr) {
         for (auto const&[in, insr] : representation)
             if (insr == to_upper(repr))
-                return in;
-        return InstructionName::NOP; }
+                return std::optional<InstructionName>{in};
+        return std::nullopt; }
 }
 
 namespace InstructionStringHandler {
@@ -114,7 +116,7 @@ class ComputationState {
                             , (bytes >> 24) & 0xff, (bytes >> 16) & 0xff
                             , (bytes >> 8) & 0xff, bytes & 0xff);
                 }; break;
-            case InstructionName::IMM:
+            case InstructionName::MOV:
                 registerA = static_cast<reg_t>(instruction.argument); break;
             case InstructionName::SWP: {
                     auto tmp = registerA;
@@ -142,13 +144,6 @@ class ComputationState {
             case InstructionName::SUB: registerA -= registerB; break;
             case InstructionName::INC: registerA++; break;
             case InstructionName::DEC: registerA--; break;
-            case InstructionName::MOV: {
-                mem_t m = mem_t{instruction.argument};
-                m = m > 0 ? m : 1;
-                for (mem_t n = 0; n < m; n++)
-                    storeMemory(n + static_cast<mem_t>(registerB)
-                               , loadMemory(n + static_cast<mem_t>(registerA)));
-            }; break;
 
             case InstructionName::PUT: std::cout << registerA << "\n"; break;
 
@@ -294,8 +289,12 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
     }
 
     for (auto na : preParsed) {
-        InstructionName name = InstructionNameStringHandler
-                               ::from_string(std::get<0>(na));
+        std::optional oName = InstructionNameStringHandler
+                              ::from_string(std::get<0>(na));
+        if (!oName.has_value()) {
+            std::cout << "invalid instruction: " << std::get<0>(na) << "\n";
+            return false; }
+        InstructionName name = oName.value();
         arg_t argument;
 
         std::string preArg = std::get<1>(na);

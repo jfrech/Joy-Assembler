@@ -14,9 +14,9 @@ jmp @main
 ; calculate the Fibonacci sequence
 fibonacci:
     ; sequence initialization
-    imm 0
+    mov 0
     sta addr_fibonacci-x
-    imm 1
+    mov 1
     sta addr_fibonacci-y
 
     fibonacci-loop:
@@ -44,7 +44,7 @@ fibonacci:
 jmp @end
 main:
     ; initialize sequence length
-    imm n
+    mov n
     sta addr_fibonacci-n
 
     jmp @fibonacci

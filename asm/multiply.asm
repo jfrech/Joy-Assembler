@@ -16,14 +16,14 @@ jmp @main
 ; address addr_multiply-y and store the result in addr_mutliply-z
 multiply:
     ; initialize the result to zero
-    imm 0x00000000
+    mov 0x00000000
     sta addr_multiply-z
 
     ; perform the multiplication
     multiply-loop:
         ; put the first bit of the value at address addr_multiply-y into
         ; register A
-        imm 0x00000001
+        mov 0x00000001
         swp
         lda addr_multiply-y
         and
@@ -55,11 +55,11 @@ multiply:
 
 jmp @end
 main:
-    imm x
+    mov x
     sta addr_multiply-x
     put
 
-    imm y
+    mov y
     sta addr_multiply-y
     put
 

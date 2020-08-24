@@ -8,11 +8,11 @@ jmp @main
 
 count-bits:
     sta addr_temporary-value-a
-    imm 0
+    mov 0
     sta addr_temporary-value-b
 
     count-bits-loop:
-        imm 1
+        mov 1
         swp
         lda addr_temporary-value-a
         and
@@ -38,7 +38,7 @@ count-bits:
 
 jmp @end
 main:
-    imm 0xab
+    mov 0xab
     jmp @count-bits
     back:
     put

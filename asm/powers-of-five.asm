@@ -13,7 +13,7 @@ jmp @main
 ; calculate successive powers of five
 powers-of-five:
     ; sequence initialization
-    imm 1
+    mov 1
     sta addr_powers-of-five-x
 
     powers-of-five-loop:
@@ -39,7 +39,7 @@ powers-of-five:
 jmp @end
 main:
     ; initialize sequence length
-    imm n
+    mov n
     sta addr_powers-of-five-n
 
     jmp @powers-of-five
