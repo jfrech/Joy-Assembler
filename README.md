@@ -54,7 +54,14 @@ Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` whi
 | `add`            | -                             | Add the value of register `B` to the value of register `A`, modifying register `A` in-place.        |
 | `sub`            | -                             | Subtract the value of register `B` from the value of register `A`, modifying register `A` in-place. |
 |                  |                               |                                                                    |
-| `put`            | -                             | Output the numerical value of register `A` to `stdout`.            |
+| `ptu`            | -                             | Output the unsigned numerical value of register `A` to `stdout`.   |
+| `gtu`            | -                             | Input an unsigned numerical value from `stdin` to register `A`.    |
+| `pts`            | -                             | Output the signed numerical value of register `A` to `stdout`.     |
+| `gts`            | -                             | Input an signed numerical value from `stdin` to register `A`.      |
+| `ptb`            | -                             | Output the bits of register `A` to `stdout`.                       |
+| `gtb`            | -                             | Input bits (represented as characters) `stdin` to register `A`.    |
+| `ptc`            | -                             | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`. **TODO: Full Unicode support.**                   |
+| `gtc`            | -                             | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. **TODO: Full Unicode support.** |
 |                  |                               |                                                                    |
 | `hlt`            | -                             | Halt the machine.                                                  |
 

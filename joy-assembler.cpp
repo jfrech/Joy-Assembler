@@ -31,7 +31,7 @@ typedef uint32_t mem_t;
     M(JMP), M(JNZ), M(JZ), M(JNN), M(JN), M(JE), M(JNE), \
     M(MOV), M(NOT), M(SHL), M(SHR), M(INC), M(DEC), M(NEG), \
     M(SWP), M(ADD), M(SUB), M(AND), M(OR), M(XOR), \
-    M(PUT), \
+    M(PTU), M(GTU), M(PTS), M(GTS), M(PTB), M(GTB), M(PTC), M(GTC), \
     M(HLT)
 
 enum class InstructionName {
@@ -95,17 +95,33 @@ namespace Util {
         auto tmp = x;
         x = y;
         y = tmp; }
+
+    void splitUInt32(uint32_t bytes, byte &b3, byte &b2, byte &b1, byte &b0) {
+        b3 = static_cast<byte>((bytes >> 24) & 0xff);
+        b2 = static_cast<byte>((bytes >> 16) & 0xff);
+        b1 = static_cast<byte>((bytes >>  8) & 0xff);
+        b0 = static_cast<byte>( bytes        & 0xff); }
+
+    uint32_t combineUInt32(byte b3, byte b2, byte b1, byte b0) {
+        return b3 << 24 | b2 << 16 | b1 << 8 | b0; }
+
+    void put_byte(byte b) {
+        std::putchar(b); }
+    byte get_byte() {
+        return std::getchar(); }
+
+    /* TODO implement utf-8 */
+    void put_utf8_char(uint32_t unicode) {
+        put_byte(0b0111'1111 & unicode);
+    }
+
+    /* TODO implement utf-8 */
+    uint32_t get_utf8_char() {
+        return 0b0111'1111 & get_byte();
+    }
 }
 
 
-void splitUInt32(uint32_t bytes, byte &b3, byte &b2, byte &b1, byte &b0) {
-    b3 = static_cast<byte>((bytes >> 24) & 0xff);
-    b2 = static_cast<byte>((bytes >> 16) & 0xff);
-    b1 = static_cast<byte>((bytes >>  8) & 0xff);
-    b0 = static_cast<byte>( bytes        & 0xff); }
-
-uint32_t combineUInt32(byte b3, byte b2, byte b1, byte b0) {
-    return b3 << 24 | b2 << 16 | b1 << 8 | b0; }
 
 class ComputationState {
     private:
@@ -152,7 +168,7 @@ class ComputationState {
         for (auto i : instructions) {
             storeMemory(static_cast<mem_t>(pc++), InstructionNameRepresentationHandler::toByteCode(i.name));
             byte arg3, arg2, arg1, arg0;
-            splitUInt32(i.argument, arg3, arg2, arg1, arg0);
+            Util::splitUInt32(i.argument, arg3, arg2, arg1, arg0);
             storeMemory4(static_cast<mem_t>((pc += 4) - 4), arg3, arg2, arg1, arg0);
             debugProgramTextSize += 5;
         }
@@ -192,11 +208,11 @@ class ComputationState {
             case InstructionName::LIA: {
                     byte b3, b2, b1, b0;
                     loadMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
-                    registerA = combineUInt32(b3, b2, b1, b0);
+                    registerA = Util::combineUInt32(b3, b2, b1, b0);
                 }; break;
             case InstructionName::SIA: {
                     byte b3, b2, b1, b0;
-                    splitUInt32(registerA, b3, b2, b1, b0);
+                    Util::splitUInt32(registerA, b3, b2, b1, b0);
                     storeMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
                 }; break;
             case InstructionName::LPC: registerPC = registerA; break;
@@ -234,7 +250,48 @@ class ComputationState {
             case InstructionName::ADD: registerA += registerB; break;
             case InstructionName::SUB: registerA -= registerB; break;
 
-            case InstructionName::PUT: std::cout << registerA << "\n"; break;
+            case InstructionName::PTU: {
+                std::cout << static_cast<uint32_t>(registerA) << "\n";
+            }; break;
+            case InstructionName::GTU: {
+                std::string get;
+                std::getline(std::cin, get);
+                try {
+                    registerA = static_cast<uint32_t>(
+                        std::stol(get, nullptr, 0)); }
+                catch (std::invalid_argument const&_) {
+                    registerA = 0; }
+            }; break;
+            case InstructionName::PTS: {
+                std::cout << static_cast<int32_t>(registerA) << "\n";
+            }; break;
+            case InstructionName::GTS: {
+                std::string get;
+                std::getline(std::cin, get);
+                try {
+                    registerA = static_cast<int32_t>(
+                        std::stol(get, nullptr, 0)); }
+                catch (std::invalid_argument const&_) {
+                    registerA = 0; }
+            }; break;
+            case InstructionName::PTB: {
+                std::cout << std::bitset<32>(registerA) << "\n";
+            }; break;
+            case InstructionName::GTB: {
+                std::string get;
+                std::getline(std::cin, get);
+                try {
+                    registerA = static_cast<int32_t>(
+                        std::stol(get, nullptr, 2)); }
+                catch (std::invalid_argument const&_) {
+                    registerA = 0; }
+            }; break;
+            case InstructionName::PTC:
+                Util::put_utf8_char(registerA);
+                break;
+            case InstructionName::GTC:
+                registerA = Util::get_utf8_char();
+                break;
 
             case InstructionName::HLT: return false;
         }
@@ -301,7 +358,7 @@ class ComputationState {
             opCodeName = InstructionNameRepresentationHandler::to_string(oInstructionName.value());
         byte arg3, arg2, arg1, arg0;
         loadMemory4(static_cast<mem_t>(registerPC) + 1, arg3, arg2, arg1, arg0);
-        arg_t argument = combineUInt32(arg3, arg2, arg1, arg0);
+        arg_t argument = Util::combineUInt32(arg3, arg2, arg1, arg0);
         //std::printf("    op code 0x%02x (%s) with argument 0x%08x\n", opCode, opCodeName.c_str(), argument);
         std::printf("    %s 0x%08X\n", opCodeName.c_str(), argument);
 
