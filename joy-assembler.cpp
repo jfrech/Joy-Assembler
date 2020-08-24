@@ -1,5 +1,6 @@
 // Jonathan Frech, August 2020
 
+#include <bitset>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -26,12 +27,10 @@ typedef uint32_t mem_t;
 
 #define MAP_ON_INSTRUCTION_NAMES(M) \
     M(NOP), \
-    M(LDA), M(LDB), M(STA), M(STB), \
-    M(LIA), M(SIA), \
-    M(JMP), M(JNZ), M(JZ), M(JNN), M(JNG), \
-    M(LPC), M(SPC), \
-    M(MOV), M(INC), M(DEC), M(INV), M(SHL), M(SHR), M(SWP), \
-    M(ADD), M(SUB), M(AND), M(OR), \
+    M(LDA), M(LDB), M(STA), M(STB), M(LIA), M(SIA), M(LPC), M(SPC), \
+    M(JMP), M(JNZ), M(JZ), M(JNN), M(JN), M(JE), M(JNE), \
+    M(MOV), M(NOT), M(SHL), M(SHR), M(INC), M(DEC), M(NEG), \
+    M(SWP), M(ADD), M(SUB), M(AND), M(OR), M(XOR), \
     M(PUT), \
     M(HLT)
 
@@ -96,6 +95,7 @@ void splitUInt32(uint32_t bytes, byte &b3, byte &b2, byte &b1, byte &b0) {
     b2 = static_cast<byte>((bytes >> 16) & 0xff);
     b1 = static_cast<byte>((bytes >>  8) & 0xff);
     b0 = static_cast<byte>( bytes        & 0xff); }
+
 uint32_t combineUInt32(byte b3, byte b2, byte b1, byte b0) {
     return b3 << 24 | b2 << 16 | b1 << 8 | b0; }
 
@@ -157,6 +157,8 @@ class ComputationState {
                 registerPC = programCounter_t{instruction.argument}; };
 
         switch (instruction.name) {
+            case InstructionName::NOP: break;
+
             case InstructionName::LDA: {
                     byte b3, b2, b1, b0;
                     loadMemory4(mem_t{instruction.argument}, b3, b2, b1, b0);
@@ -191,22 +193,24 @@ class ComputationState {
                 }; break;
             case InstructionName::LPC: registerPC = registerA; break;
             case InstructionName::SPC: registerPC = registerA; break;
-            case InstructionName::MOV:
-                registerA = static_cast<reg_t>(instruction.argument); break;
-            case InstructionName::SWP: {
-                    auto tmp = registerA;
-                    registerA = registerB;
-                    registerB = tmp;
-                    updateFlags();
-                }; break;
+
+            case InstructionName::JMP: jmp(true); break;
             case InstructionName::JNZ: jmp(!flagAZero); break;
             case InstructionName::JZ: jmp(flagAZero); break;
-            case InstructionName::JMP: jmp(true); break;
             case InstructionName::JNN: jmp(flagANonNegative); break;
-            case InstructionName::JNG: jmp(!flagANonNegative); break;
-            case InstructionName::AND: registerA &= registerB; break;
-            case InstructionName::OR: registerA |= registerB; break;
-            case InstructionName::INV: registerA = ~registerA; break;
+            case InstructionName::JN: jmp(!flagANonNegative); break;
+            case InstructionName::JE:
+                jmp(std::bitset<32>{
+                    static_cast<uint32_t>(registerA)}.count() % 2 == 0);
+                break;
+            case InstructionName::JNE:
+                jmp(std::bitset<32>{
+                    static_cast<uint32_t>(registerA)}.count() % 2 != 0);
+                break;
+
+            case InstructionName::MOV:
+                registerA = static_cast<reg_t>(instruction.argument); break;
+            case InstructionName::NOT: registerA = ~registerA; break;
             case InstructionName::SHL: {
                 uint8_t shift = static_cast<uint8_t>(instruction.argument);
                 registerA <<= shift > 0 ? shift : 1;
@@ -215,21 +219,25 @@ class ComputationState {
                 uint8_t shift = static_cast<uint8_t>(instruction.argument);
                 registerA >>= shift > 0 ? shift : 1;
             }; break;
-            case InstructionName::ADD: registerA += registerB; break;
-            case InstructionName::SUB: registerA -= registerB; break;
             case InstructionName::INC: registerA++; break;
             case InstructionName::DEC: registerA--; break;
+            case InstructionName::NEG: registerA = -registerA; break;
+
+            case InstructionName::SWP: {
+                    auto tmp = registerA;
+                    registerA = registerB;
+                    registerB = tmp;
+                    updateFlags();
+                }; break;
+            case InstructionName::AND: registerA &= registerB; break;
+            case InstructionName::OR: registerA |= registerB; break;
+            case InstructionName::XOR: registerA ^= registerB; break;
+            case InstructionName::ADD: registerA += registerB; break;
+            case InstructionName::SUB: registerA -= registerB; break;
 
             case InstructionName::PUT: std::cout << registerA << "\n"; break;
 
-            case InstructionName::NOP: break;
             case InstructionName::HLT: return false;
-
-            default:
-                std::cerr << "unknown instruction: "
-                          << InstructionRepresentationHandler
-                             ::to_string(instruction) << "\n";
-                return false;
         }
 
         updateFlags();
