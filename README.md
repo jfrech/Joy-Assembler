@@ -39,8 +39,8 @@ Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` whi
 | `je`             | program position `@label`              | Jump to program position `@label` if register `A` holds an even number of bits.                               |
 | `jne`            | program position `@label`              | Jump to program position `@label` if register `A` holds an odd number of bits.                                |
 |                  |                                        |                                                                    |
-| `cal`            | program position `@label`              | Store the current program counter to the memory location identified by register `A` and jump to program position `@label`. |
-| `ret`            | -                                      | Jump to the program position identified by the memory location identified by the register `A`.                             |
+| `cal`            | program position `@label`              | Store the current program counter to the memory location identified by register `B` and jump to program position `@label`. |
+| `ret`            | -                                      | Jump to the program position identified by the memory location identified by the register `B`.                             |
 |                  |                                        |                                                                    |
 | `mov`            | value `v`                              | Move the immediate value `v` into register `A`.                    |
 | `not`            | -                                      | Invert all bits in register `A`, modifying it in-place.            |

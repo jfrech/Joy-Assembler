@@ -233,12 +233,12 @@ class ComputationState {
             case InstructionName::CAL: {
                 byte b3, b2, b1, b0;
                 Util::splitUInt32(registerPC, b3, b2, b1, b0);
-                storeMemory4(static_cast<uint32_t>(registerA), b3, b2, b1, b0);
+                storeMemory4(static_cast<uint32_t>(registerB), b3, b2, b1, b0);
                 registerPC = instruction.argument;
             }; break;
             case InstructionName::RET: {
                 byte b3, b2, b1, b0;
-                loadMemory4(static_cast<mem_t>(registerA), b3, b2, b1, b0);
+                loadMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
                 registerPC = Util::combineUInt32(b3, b2, b1, b0);
             }; break;
 

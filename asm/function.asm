@@ -14,8 +14,7 @@ mov *stack
 sta pstack
 
 ; initialize the stack with a visual marker
-lda pstack
-swp
+ldb pstack
 mov 0xffffffff
 sia
 lda pstack
@@ -36,12 +35,11 @@ mov 0x00000005
 sia -4
 
 ; call multiply, passing arguments via the stack
-lda pstack
+ldb pstack
 cal @multiply
 mov 0x72
 ptc
-lda pstack
-swp
+ldb pstack
 lia -4
 ptu
 
@@ -61,7 +59,7 @@ multiply:
     ptc
 
     ; load local stack variables into global memory locations
-    lda pstack
+    ldb pstack
     lia -8
     sta global-y
     lia -4
@@ -107,8 +105,7 @@ multiply:
         jnz @multiply-loop
 
     ; return the result via the stack
-    lda pstack
-    swp
+    ldb pstack
     lda global-z
     sia -4
 
@@ -119,5 +116,5 @@ multiply:
     swp
     mov 0
 
-    lda pstack
+    ldb pstack
     ret
