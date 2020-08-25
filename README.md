@@ -19,7 +19,7 @@ Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` whi
 
 # Instructions
 | instruction name | argument                               | description                                                        |
-|------------------|-------------------------------|--------------------------------------------------------------------|
+|------------------|----------------------------------------|--------------------------------------------------------------------|
 | `nop`            | -                                      | No operation.                                                      |
 |                  |                                        |                                                                    |
 | `lda`            | memory location                        | Load the value at the specified memory location into register `A`. |
@@ -71,11 +71,11 @@ Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` whi
 # Definitions
 To define a constant value, one can use the _definition operator_ ` := `.
 ## Example
-To statically lay out memory or define other constants, a header like the following might be appropriate.
+To statically lay out memory or define other constants, a header like the following might be appropriate. `prg+` statically adds the program offset, that is the number of instructions times five (since each instruction is represented using five bytes).
 ````
-addr_value-x := 0
-addr_value-y := 4
-addr_value-z := 8
+addr_value-x := prg+0
+addr_value-y := prg+4
+addr_value-z := prg+8
 
 value := 0xfc
 ````
