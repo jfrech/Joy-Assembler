@@ -1,9 +1,11 @@
 // Jonathan Frech, August 2020
 
 #include <bitset>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <thread>
 #include <vector>
 
 
@@ -144,6 +146,11 @@ namespace Util {
     /* TODO implement utf-8 */
     uint32_t get_utf8_char() {
         return 0b0111'1111 & get_byte();
+    }
+
+    namespace ANSI_COLORS {
+        const std::string INSTRUCTION_NAME = "\33[38;5;119m";
+        const std::string INSTRUCTION_ARGUMENT = "\33[38;5;121m";
     }
 }
 
@@ -385,36 +392,25 @@ class ComputationState {
         std::printf("\n=== MEMORY ===\n");
         programCounter_t pc = 0;
         programCounter_t rPC = static_cast<programCounter_t>(registerPC);
-        std::size_t h = 16*3 + 8, w = 16;
+        std::size_t w = 16;
         std::printf("       ");
         for (std::size_t x = 0; x < w; x++)
             std::printf("_%01X ", (int) x);
-        for (std::size_t y = 0; y < h; y++) {
+        for (std::size_t y = 0; true; y++) {
             std::printf("\n    %02X_", (int) y);
             for (std::size_t x = 0; x < w; x++) {
                 mem_t m = y *w+ x;
-                if (m < debugProgramTextSize)
-                    if (rPC <= pc && pc < rPC + 5)
-                        if (pc == rPC)
-                            std::cout << "\33[48;5;119m";
-                        else
-                            std::cout << "\33[48;5;121m";
-                    else if ((pc / 5) % 2 == 0)
-                        if (pc % 5 == 0)
-                            std::cout << "\33[48;5;33m";
-                        else
-                            std::cout << "\33[48;5;104m";
-                    else
-                        if (pc % 5 == 0)
-                            std::cout << "\33[48;5;205m";
-                        else
-                            std::cout << "\33[48;5;168m";
+                if (rPC <= pc && pc < rPC + 5)
+                    std::cout << (pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
                 else if (m <= debugHighestUsedMemoryLocation)
                     std::cout << "\33[1m";
                 std::printf(" %02X", memory[y *w+ x]);
                 std::cout << "\33[0m";
                 pc++;
             }
+
+            if ((y+1)*w >= 0x100 && debugHighestUsedMemoryLocation+1 < (y+1)*w)
+                break;
         }
         std::printf("\n");
 
@@ -429,7 +425,7 @@ class ComputationState {
         byte arg3, arg2, arg1, arg0;
         loadMemory4(static_cast<mem_t>(registerPC) + 1, arg3, arg2, arg1, arg0);
         arg_t argument = Util::combineUInt32(arg3, arg2, arg1, arg0);
-        std::printf("    %s 0x%08X\n", opCodeName.c_str(), argument);
+        std::printf("    %s%s\033[0m %s0x%08X\033[0m\n", Util::ANSI_COLORS::INSTRUCTION_NAME.c_str(), opCodeName.c_str(), Util::ANSI_COLORS::INSTRUCTION_ARGUMENT.c_str(), argument);
 
         std::printf("\n=== REGISTERS ===\n");
         std::printf("    A: 0x%08x,    B: 0x%08x,    PC: 0x%08x\n"
@@ -630,6 +626,8 @@ int main(int argc, char **argv) {
             cs.visualize();
         if (DO_WAIT_FOR_USER)
             getchar();
+        else if (DO_VISUALIZE_STEPS)
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (cs.step());
     if (DO_VISUALIZE_STEPS)
         cs.visualize();
