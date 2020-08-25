@@ -197,20 +197,6 @@ class ComputationState {
         return Instruction{name, argument};
     }
 
-    void loadInstructions(std::vector<Instruction> instructions) {
-        programCounter_t pc = 0;
-        for (auto i : instructions) {
-            storeMemory(static_cast<mem_t>(pc++)
-                       , InstructionNameRepresentationHandler
-                         ::toByteCode(i.name));
-            byte arg3, arg2, arg1, arg0;
-            Util::splitUInt32(i.argument, arg3, arg2, arg1, arg0);
-            storeMemory4(static_cast<mem_t>((pc += 4) - 4)
-                        , arg3, arg2, arg1, arg0);
-            debugProgramTextSize += 5;
-        }
-    }
-
     bool step() {
         auto instruction = nextInstruction();
         auto jmp = [&](bool cnd) {
@@ -452,11 +438,6 @@ class ComputationState {
             debugHighestUsedMemoryLocation, m);
         return m < MEMORY_SIZE ? memory[m] : 0; }
 
-    void storeMemory(mem_t m, byte b) {
-        debugHighestUsedMemoryLocation = std::max(
-            debugHighestUsedMemoryLocation, m);
-        if (m < MEMORY_SIZE)
-            memory[m] = b; }
 
     void loadMemory4(mem_t m, byte &b3, byte &b2, byte &b1, byte &b0) {
         if (MEMORY_MODE == MemoryMode::LittleEndian) {
@@ -465,6 +446,12 @@ class ComputationState {
         if (MEMORY_MODE == MemoryMode::BigEndian) {
             b3 = loadMemory(m+0); b2 = loadMemory(m+1);
             b1 = loadMemory(m+2); b0 = loadMemory(m+3); }}
+
+    void storeMemory(mem_t m, byte b) {
+        debugHighestUsedMemoryLocation = std::max(
+            debugHighestUsedMemoryLocation, m);
+        if (m < MEMORY_SIZE)
+            memory[m] = b; }
     void storeMemory4(mem_t m, byte b3, byte b2, byte b1, byte b0) {
         if (MEMORY_MODE == MemoryMode::LittleEndian) {
             storeMemory(m+3, b3); storeMemory(m+2, b2);
@@ -472,10 +459,24 @@ class ComputationState {
         if (MEMORY_MODE == MemoryMode::BigEndian) {
             storeMemory(m+0, b3); storeMemory(m+1, b2);
             storeMemory(m+2, b1); storeMemory(m+3, b0); }}
+
+    public:
+        mem_t storeInstruction(mem_t m, Instruction instruction) {
+            storeMemory(m, InstructionNameRepresentationHandler
+                           ::toByteCode(instruction.name));
+            byte b3, b2, b1, b0;
+            Util::splitUInt32(instruction.argument, b3, b2, b1, b0);
+            storeMemory4(1+m, b3, b2, b1, b0);
+            return 5; }
+        mem_t storeData(mem_t m, uint32_t data) {
+            byte b3, b2, b1, b0;
+            Util::splitUInt32(data, b3, b2, b1, b0);
+            storeMemory4(m, b3, b2, b1, b0);
+            return 4; }
 };
 
 
-bool parse(std::string filename, std::vector<Instruction> &instructions) {
+bool parse(std::string filename, ComputationState &cs) {
     std::ifstream is{filename};
     if (!is.is_open()) {
         std::cerr << "could not read input joy assembly file\n";
@@ -523,6 +524,8 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
             pc += 5; }
     }
 
+    mem_t memPtr = 0;
+
     for (auto na : preParsed) {
         std::optional oName = InstructionNameRepresentationHandler
                               ::from_string(std::get<0>(na));
@@ -536,11 +539,10 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
                                             ::argumentType[name];
         if (!oArg.has_value()) {
             if (!hasArgument) {
-                instructions.push_back(Instruction{name, 0});
+                memPtr += cs.storeInstruction(memPtr, Instruction{name, 0});
                 continue; }
             if (optionalValue.has_value()) {
-                instructions.push_back(Instruction{
-                    name, optionalValue.value()});
+                memPtr += cs.storeInstruction(memPtr, Instruction{name, optionalValue.value()});
                 continue; }
             std::cerr << "instruction requires argument: "
                       << InstructionNameRepresentationHandler::to_string(name)
@@ -577,7 +579,7 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
             std::cerr << "invalid value: " << preArg << "\n";
             return false; }
 
-        instructions.push_back(Instruction{name, argument});
+        memPtr += cs.storeInstruction(memPtr, Instruction{name, argument});
     }
 
     if (definitions.contains("pragma_memory-mode")) {
@@ -612,14 +614,13 @@ int main(int argc, char **argv) {
     if (argc > 2 && std::string{argv[2]} == "step")
         DO_VISUALIZE_STEPS = DO_WAIT_FOR_USER = true;
 
+    ComputationState cs{};
+
     std::string filename{argv[1]};
-    std::vector<Instruction> instructions;
-    if (!parse(filename, instructions)) {
+    std::vector<byte> memory;
+    if (!parse(filename, cs)) {
         std::cerr << "faulty joy assembly file\n";
         return EXIT_FAILURE; }
-
-    ComputationState cs{};
-    cs.loadInstructions(instructions);
 
     do {
         if (DO_VISUALIZE_STEPS)
