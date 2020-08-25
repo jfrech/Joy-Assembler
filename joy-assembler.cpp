@@ -6,6 +6,7 @@
 #include <iostream>
 #include <regex>
 #include <thread>
+#include <variant>
 #include <vector>
 
 
@@ -152,6 +153,13 @@ namespace Util {
         const std::string INSTRUCTION_NAME = "\33[38;5;119m";
         const std::string INSTRUCTION_ARGUMENT = "\33[38;5;121m";
     }
+
+    std::optional<uint32_t> stringToUInt32(std::string s) {
+        try {
+            return std::optional{static_cast<uint32_t>(
+                std::stoll(s, nullptr, 0))}; }
+        catch (std::invalid_argument const&_) {
+            return std::nullopt; }}
 }
 
 
@@ -482,14 +490,21 @@ bool parse(std::string filename, ComputationState &cs) {
         std::cerr << "could not read input joy assembly file\n";
         return false; }
 
-    std::vector<std::tuple<std::string, std::optional<std::string>>> preParsed{};
+    typedef std::tuple<InstructionName, std::optional<std::string>> parsingInstruction;
+    typedef uint32_t parsingData;
+    std::vector<std::variant<parsingInstruction, parsingData>> parsing;
     std::map<std::string, std::string> definitions{};
-    programCounter_t pc = 0;
+
+    mem_t memPtr = 0;
+
     for (std::string ln; std::getline(is, ln); ) {
         ln = std::regex_replace(ln, std::regex{";.*"}, "");
         ln = std::regex_replace(ln, std::regex{"  +"}, " ");
         ln = std::regex_replace(ln, std::regex{"^ +"}, "");
         ln = std::regex_replace(ln, std::regex{" +$"}, "");
+
+        if (ln == "")
+            continue;
 
         auto define = [&definitions](std::string k, std::string v) {
             if (definitions.contains(k)) {
@@ -498,108 +513,138 @@ bool parse(std::string filename, ComputationState &cs) {
             definitions[k] = v;
             return true; };
 
-        std::smatch _def;
-        std::regex_search(ln, _def, std::regex{"^([^ ]+) +:= +([^ ]+)$"});
-        if (_def.size() == 3) {
-            if (!define(_def[1], _def[2]))
-                return false;
-            continue; }
-
-        std::smatch _label;
-        std::regex_search(ln, _label, std::regex{"^([^ ]+):$"});
-        if (_label.size() == 2) {
-            if (!define("@" + std::string{_label[1]}, std::to_string(pc)))
-                return false;
-            continue; }
-
-        std::smatch _instr, _arg;
-        std::regex_search(ln, _instr, std::regex{"^([^ ]+)"});
-        std::regex_search(ln, _arg, std::regex{"^[^ ]+ ([^ ]+)$"});
-        if (_instr.size() == 2) {
-            std::string instr{_instr[1]};
-            std::optional<std::string> oArg{std::nullopt};
-            if (_arg.size() == 2)
-                oArg = std::optional{_arg[1]};
-            preParsed.push_back(std::make_tuple(instr, oArg));
-            pc += 5; }
-    }
-
-    mem_t memPtr = 0;
-
-    for (auto na : preParsed) {
-        std::optional oName = InstructionNameRepresentationHandler
-                              ::from_string(std::get<0>(na));
-        if (!oName.has_value()) {
-            std::cout << "invalid instruction: " << std::get<0>(na) << "\n";
-            return false; }
-        InstructionName name = oName.value();
-
-        auto oArg = std::get<1>(na);
-        auto [hasArgument, optionalValue] = InstructionNameRepresentationHandler
-                                            ::argumentType[name];
-        if (!oArg.has_value()) {
-            if (!hasArgument) {
-                memPtr += cs.storeInstruction(memPtr, Instruction{name, 0});
+        {
+            std::smatch _def;
+            std::regex_search(ln, _def, std::regex{"^([^ ]+) +:= +([^ ]+)$"});
+            if (_def.size() == 3) {
+                if (!define(_def[1], _def[2]))
+                    return false;
                 continue; }
-            if (optionalValue.has_value()) {
-                memPtr += cs.storeInstruction(memPtr, Instruction{name, optionalValue.value()});
-                continue; }
-            std::cerr << "instruction requires argument: "
-                      << InstructionNameRepresentationHandler::to_string(name)
-                      << "\n";
-            return false;
         }
-        if (oArg.has_value() && !hasArgument) {
-            std::cerr << "superfluous instruction argument: "
-                      << InstructionNameRepresentationHandler::to_string(name)
-                      << "\n";
-            return false; }
-        std::string preArg = oArg.value();
+
+        {
+            std::smatch _label;
+            std::regex_search(ln, _label, std::regex{"^([^ ]+):$"});
+            if (_label.size() == 2) {
+                if (!define("@" + std::string{_label[1]}, std::to_string(memPtr)))
+                    return false;
+                continue; }
+        }
 
 
-        arg_t argument = 0;
+        {
+            std::smatch _data;
+            std::regex_search(ln, _data, std::regex{"^uint *\\[(.+?)\\] *(.+?)$"});
+            if (_data.size() == 3) {
+                auto oSize = Util::stringToUInt32(_data[1]);
+                if (!oSize.has_value() || oSize.value() <= 0) {
+                    std::cerr << "invalid data size: " << _data[1] << "\n";
+                    return false; }
+                auto oValue = Util::stringToUInt32(_data[2]);
+                if (!oValue.has_value()) {
+                    std::cerr << "invalid data value: " << _data[2] << "\n";
+                    return false; }
+                for (uint32_t j = 0; j < oSize.value(); j++) {
+                    parsing.push_back(parsingData{oValue.value()});
+                    memPtr += 4;
+                }
+                continue;
+            }
+        }
 
-        std::smatch _offset;
-        std::regex_search(preArg, _offset, std::regex{"^prg+(.*)$"});
-        if (_offset.size() == 2) {
-            argument += 5 * static_cast<arg_t>(preParsed.size());
-            preArg = _offset[1]; }
+        {
+            std::smatch _instr;
+            std::regex_search(ln, _instr, std::regex{"^([^ ]+)( +([^ ]+))?$"});
+            //std::cout << "instr: " << _instr[1] << ", " << _instr[3] << "\n";
+            if (_instr.size() == 4) {
+                auto oName = InstructionNameRepresentationHandler::from_string(_instr[1]);
+                if (!oName.has_value()) {
+                    std::cerr << "invalid instruction name: " << _instr[1] << "\n";
+                    return false; }
+                std::optional<std::string> oArg{std::nullopt};
+                if (_instr[3] != "")
+                    oArg = std::optional{_instr[3]};
+                parsing.push_back(parsingInstruction{std::make_tuple(oName.value(), oArg)});
+                memPtr += 5;
+            }
+            continue;
+        }
 
-        if (definitions.contains(preArg))
-            preArg = definitions[preArg];
-
-        std::regex_search(preArg, _offset, std::regex{"^prg+(.*)$"});
-        if (_offset.size() == 2) {
-            argument += 5 * static_cast<arg_t>(preParsed.size());
-            preArg = _offset[1]; }
-
-        try {
-            argument += std::stol(preArg, nullptr, 0); }
-        catch (std::invalid_argument const&_) {
-            std::cerr << "invalid value: " << preArg << "\n";
-            return false; }
-
-        memPtr += cs.storeInstruction(memPtr, Instruction{name, argument});
+        std::cerr << "incomprehensible: " << ln << "\n";
+        return false;
     }
 
-    if (definitions.contains("pragma_memory-mode")) {
-        std::string pmm = definitions["pragma_memory-mode"];
-        if (pmm == "little-endian")
-            MEMORY_MODE = MemoryMode::LittleEndian;
-        else if (pmm == "big-endian")
-            MEMORY_MODE = MemoryMode::BigEndian;
-        else {
-            std::cerr << "unknown memory mode pragma: " << pmm << "\n";
-            return false; }}
-    if (definitions.contains("pragma_memory-size")) {
-        std::string ms = definitions["pragma_memory-size"];
-        std::size_t memorySize;
-        try {
-            memorySize = std::stol(ms, nullptr, 0); }
-        catch (std::invalid_argument const&_) {
-            std::cerr << "unknown memory size: " << ms << "\n";
-            return false; }
-        MEMORY_SIZE = memorySize; }
+    auto memPtrMax{memPtr};
+    memPtr = 0;
+
+    for (auto p : parsing) {
+        if (std::holds_alternative<parsingData>(p)) {
+            parsingData data{std::get<parsingData>(p)};
+            memPtr += cs.storeData(memPtr, data);
+        }
+        if (std::holds_alternative<parsingInstruction>(p)) {
+            parsingInstruction instruction{std::get<parsingInstruction>(p)};
+            InstructionName name = std::get<0>(instruction);
+            auto oArg = std::get<1>(instruction);
+            std::optional<uint32_t> oValue{std::nullopt};
+            if (oArg.has_value()) {
+                uint32_t value = 0;
+                {
+                    std::smatch _prgOffset;
+                    std::regex_search(oArg.value(), _prgOffset, std::regex{"^prg\\+(.*?)$"});
+                    if (_prgOffset.size() == 2) {
+                        value += memPtrMax;
+                        oArg = std::make_optional(_prgOffset[1]);
+                    }
+                }
+
+                if (definitions.contains(oArg.value()))
+                    oArg = std::make_optional(definitions[oArg.value()]);
+
+                {
+                    std::smatch _prgOffset;
+                    std::regex_search(oArg.value(), _prgOffset, std::regex{"^prg\\+(.*?)$"});
+                    if (_prgOffset.size() == 2) {
+                        value += memPtrMax;
+                        oArg = std::make_optional(_prgOffset[1]);
+                    }
+                }
+
+                oValue = Util::stringToUInt32(oArg.value());
+                if (!oValue.has_value()) {
+                    std::cerr << "invalid value: " << oArg.value() << "\n";
+                    return false; }
+                value += oValue.value();
+
+                oValue = std::make_optional(value);
+            }
+
+
+
+            auto [hasArgument, optionalValue] = InstructionNameRepresentationHandler
+                                                ::argumentType[name];
+
+            if (!hasArgument && oValue.has_value()) {
+                std::cerr << "superfluous argument: " << InstructionNameRepresentationHandler::to_string(name) << " " << oValue.value() << "\n";
+                continue; }
+            if (hasArgument) {
+                if (!optionalValue.has_value() && !oValue.has_value()) {
+                    std::cerr << "requiring argument: " << InstructionNameRepresentationHandler::to_string(name) << "\n";
+                    continue; }
+                if (!oValue.has_value())
+                    oValue = optionalValue;
+            }
+
+            if (oValue.has_value()) {
+                //std::cout << "instruction " << InstructionNameRepresentationHandler::to_string(name) << " " << oValue.value() << "\n";
+                auto argument = oValue.value();
+                memPtr += cs.storeInstruction(memPtr, Instruction{name, argument});
+            } else {
+                //std::cout << "instruction " << InstructionNameRepresentationHandler::to_string(name) << " (none)\n";
+                memPtr += cs.storeInstruction(memPtr, Instruction{name, 0x00000000});
+            }
+        }
+    }
 
     return true;
 }
