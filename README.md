@@ -29,13 +29,13 @@ Joy Assembler mimics a 32-bit architecture. It has two general-purpose registers
 | `lia`            | optional offset `o`                    | "**l**oad **i**ndirect **a**"       | Load the value at the memory location identified by register `B`, offset by `o`, into register `A`. If `o` is not specified, an offset of zero is assumed. |
 | `sia`            | optional offset `o`                    | "**s**tore **i**ndirect **a**"      | Store the value in register `A` at the memory location identified by register `B`, offset by `o`. If `o` is not specified, an offset of zero is assumed.   |
 | `lpc`            | -                                      | "**l**oad **p**rogram **c**ounter"  | Set the value of the program counter register `PC` to the value in register `A`. |
-| `spc`            | -                                      | "**s**tore **p**rogram **c**outner" | Store the value in the program counter register `PC` to register `A`.            |
+| `spc`            | -                                      | "**s**tore **p**rogram **c**ounter" | Store the value in the program counter register `PC` to register `A`.            |
 |                  |                                        |                                     |                                                                    |
 | `jmp`            | program position `@label`              | "**j**u**mp**"                      | Jump to program position `@label`.                                 |
-| `jnz`            | program position `@label`              | "**j**ump **n**on-**z**ero"         | Jump to program position `@label` if register `A` holds a non-zero value, otherwise perform no operation.     |
 | `jz`             | program position `@label`              | "**j**ump **z**ero"                 | Jump to program position `@label` if register `A` holds a zero value, otherwise perform no operation.         |
-| `jnn`            | program position `@label`              | "**j**ump **n**on-**n**egative"     | Jump to program position `@label` if register `A` holds a non-negative value, otherwise perform no operation. |
+| `jnz`            | program position `@label`              | "**j**ump **n**on-**z**ero"         | Jump to program position `@label` if register `A` holds a non-zero value, otherwise perform no operation.     |
 | `jn`             | program position `@label`              | "**j**ump **n**egative"             | Jump to program position `@label` if register `A` holds a negative value, otherwise perform no operation.     |
+| `jnn`            | program position `@label`              | "**j**ump **n**on-**n**egative"     | Jump to program position `@label` if register `A` holds a non-negative value, otherwise perform no operation. |
 | `je`             | program position `@label`              | "**j**ump **e**ven parity"          | Jump to program position `@label` if register `A` holds an even number of bits.                               |
 | `jne`            | program position `@label`              | "**j**ump **n**on-**e**ven parity"  | Jump to program position `@label` if register `A` holds an odd number of bits.                                |
 |                  |                                        |                                     |                                                                    |
