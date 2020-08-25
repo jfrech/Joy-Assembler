@@ -91,7 +91,7 @@ global-y:
     uint[1] 0
 stack:
     uint[0xffff] 0
-```
+````
 
 # Labels
 One can either hard-code program positions to jump to or use a special kind of definition called _program labels_. A label is defined by an identifier succeeded by a colon (`:`) and accessed by the same identifier preceded by an at sign (`@`). A label definition has to be unique, yet can be used arbitrarily often.
