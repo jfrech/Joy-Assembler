@@ -56,9 +56,11 @@ namespace InstructionNameRepresentationHandler {
     std::optional<InstructionName> fromByteCode(byte opCode) {
         return instructions[opCode]; }
     byte toByteCode(InstructionName name) {
-        for (uint16_t opCode = 0; opCode < 0x100; opCode++)
-            if (instructions[opCode].has_value() && instructions[opCode].value() == name)
-                return static_cast<byte>(opCode);
+        for (uint16_t opCode = 0; opCode < 0x100; opCode++) {
+            if (!instructions[opCode].has_value())
+                continue;
+            if (instructions[opCode].value() == name)
+                return static_cast<byte>(opCode); }
         return 0x00; }
 
     std::string to_string(InstructionName name) {
@@ -86,8 +88,8 @@ namespace InstructionRepresentationHandler {
     std::string to_string(Instruction instruction) {
         char buffer[11];
         std::snprintf(buffer, 11, "0x%08x", instruction.argument);
-        return InstructionNameRepresentationHandler::to_string(instruction.name) + " "
-               + std::string{buffer}; }
+        return InstructionNameRepresentationHandler
+               ::to_string(instruction.name) + " " + std::string{buffer}; }
 }
 
 namespace Util {
@@ -151,9 +153,11 @@ class ComputationState {
     Instruction nextInstruction() {
         byte opCode = loadMemory(static_cast<mem_t>(registerPC++));
         byte arg3, arg2, arg1, arg0;
-        loadMemory4(static_cast<mem_t>((registerPC += 4) - 4), arg3, arg2, arg1, arg0);
+        loadMemory4(static_cast<mem_t>((registerPC += 4) - 4)
+                   , arg3, arg2, arg1, arg0);
 
-        auto oInstructionName = InstructionNameRepresentationHandler::fromByteCode(opCode);
+        auto oInstructionName = InstructionNameRepresentationHandler
+                                ::fromByteCode(opCode);
         if (!oInstructionName.has_value())
             return Instruction{InstructionName::NOP, 0x00000000};
 
@@ -166,10 +170,13 @@ class ComputationState {
     void loadInstructions(std::vector<Instruction> instructions) {
         programCounter_t pc = 0;
         for (auto i : instructions) {
-            storeMemory(static_cast<mem_t>(pc++), InstructionNameRepresentationHandler::toByteCode(i.name));
+            storeMemory(static_cast<mem_t>(pc++)
+                       , InstructionNameRepresentationHandler
+                         ::toByteCode(i.name));
             byte arg3, arg2, arg1, arg0;
             Util::splitUInt32(i.argument, arg3, arg2, arg1, arg0);
-            storeMemory4(static_cast<mem_t>((pc += 4) - 4), arg3, arg2, arg1, arg0);
+            storeMemory4(static_cast<mem_t>((pc += 4) - 4)
+                        , arg3, arg2, arg1, arg0);
             debugProgramTextSize += 5;
         }
     }
@@ -357,7 +364,8 @@ class ComputationState {
         std::printf("\n\n\n");
 
         std::printf("\n=== MEMORY ===\n");
-        programCounter_t pc = 0, rPC = static_cast<programCounter_t>(registerPC);
+        programCounter_t pc = 0;
+        programCounter_t rPC = static_cast<programCounter_t>(registerPC);
         std::size_t h = 16*3 + 8, w = 16;
         std::printf("       ");
         for (std::size_t x = 0; x < w; x++)
@@ -394,16 +402,19 @@ class ComputationState {
         std::printf("\n=== CURRENT INSTRUCTION ===\n");
         byte opCode = loadMemory(static_cast<mem_t>(registerPC));
         std::string opCodeName = "(err. NOP)";
-        auto oInstructionName = InstructionNameRepresentationHandler::fromByteCode(opCode);
+        auto oInstructionName = InstructionNameRepresentationHandler
+                                ::fromByteCode(opCode);
         if (oInstructionName.has_value())
-            opCodeName = InstructionNameRepresentationHandler::to_string(oInstructionName.value());
+            opCodeName = InstructionNameRepresentationHandler
+                         ::to_string(oInstructionName.value());
         byte arg3, arg2, arg1, arg0;
         loadMemory4(static_cast<mem_t>(registerPC) + 1, arg3, arg2, arg1, arg0);
         arg_t argument = Util::combineUInt32(arg3, arg2, arg1, arg0);
         std::printf("    %s 0x%08X\n", opCodeName.c_str(), argument);
 
         std::printf("\n=== REGISTERS ===\n");
-        std::printf("    A: 0x%08x,    B: 0x%08x,    PC: 0x%08x\n", registerA, registerB, registerPC);
+        std::printf("    A: 0x%08x,    B: 0x%08x,    PC: 0x%08x\n"
+                   , registerA, registerB, registerPC);
 
         std::printf("\n=== FLAGS ===\n");
         std::printf("    flagAZero: %d,    flagANegative: %d,    "
@@ -417,15 +428,18 @@ class ComputationState {
     void updateFlags() {
         flagAZero = registerA == 0;
         flagANegative = registerA < 0;
-        flagAParityEven = std::bitset<32>{static_cast<uint32_t>(registerA)}.count() % 2 == 0;
+        flagAParityEven = std::bitset<32>{
+            static_cast<uint32_t>(registerA)}.count() % 2 == 0;
     }
 
     byte loadMemory(mem_t m) {
-        debugHighestUsedMemoryLocation = std::max(debugHighestUsedMemoryLocation, m);
+        debugHighestUsedMemoryLocation = std::max(
+            debugHighestUsedMemoryLocation, m);
         return m < MEMORY_SIZE ? memory[m] : 0; }
 
     void storeMemory(mem_t m, byte b) {
-        debugHighestUsedMemoryLocation = std::max(debugHighestUsedMemoryLocation, m);
+        debugHighestUsedMemoryLocation = std::max(
+            debugHighestUsedMemoryLocation, m);
         if (m < MEMORY_SIZE)
             memory[m] = b; }
 
