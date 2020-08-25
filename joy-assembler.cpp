@@ -331,7 +331,7 @@ class ComputationState {
 
         std::printf("\n=== MEMORY ===\n");
         programCounter_t pc = 0, rPC = static_cast<programCounter_t>(registerPC);
-        std::size_t h = 16*3, w = 16;
+        std::size_t h = 16*3 + 8, w = 16;
         std::printf("       ");
         for (std::size_t x = 0; x < w; x++)
             std::printf("_%01X ", (int) x);

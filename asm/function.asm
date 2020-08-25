@@ -1,6 +1,10 @@
 ; Jonathan Frech, August 2020
 ; a Joy Assembler function call example
 
+; N.b.: To call a function with `n` parameter values, the stack has to be
+; expanded by `4*(n+1)` bytes, the last byte being used to store the return
+; address.
+
 ; global variables in memeory
 global-x := prg+0
 global-y := prg+4
@@ -10,8 +14,7 @@ global-v := prg+16
 
 ; stack
 pstack := prg+20
-*stack := prg+24
-mov *stack
+mov prg+24
 sta pstack
 
 ; initialize the stack with a visual marker
@@ -22,79 +25,14 @@ lda pstack
 inc 4
 sta pstack
 
-jmp @factorial-test
-
-; load two arguments, each four bytes onto the stack
-lda pstack
-inc 8
-sta pstack
-swp
-; load first function argument
-mov 0x00000004
-sia -8
-; load second function argument
-mov 0x00000005
-sia -4
-
-; call multiply, passing arguments via the stack
-ldb pstack
-cal @multiply
-mov 0x72
-ptc
-ldb pstack
-lia -4
-ptu
-
-; shrink the stack
-lda pstack
-dec 8
-sta pstack
-
-; halt the machine
-hlt
-
-factorial-test:
-    lda pstack
-    inc 8
-    sta pstack
-
-    ldb pstack
-    mov 6
-    sia -4
-
-    ldb pstack
-    cal @factorial
-
-    mov 0x0A
-    ptc
-    ptc
-    mov 0x2d
-    ptc
-    mov 0x3e
-    ptc
-    mov 0x20
-    ptc
-
-    ldb pstack
-    lia -4
-    ptu
-
-    lda pstack
-    dec 8
-    sta pstack
-
-    hlt
+jmp @main
 
 
 factorial:
-    mov 0x46
-    ptc
-
     ; load argument
     ldb pstack
     lia -4
     sta global-w
-    ;ptu
 
     ; base case is 1
     mov 1
@@ -117,39 +55,40 @@ factorial:
         ldb pstack
         cal @factorial
 
+        ; get recursive factorial result and shrink stack
         ldb pstack
         lia -4
         sta global-v
-
         lda pstack
         dec 8
         sta pstack
 
+        ; get this function's invocation argument
         ldb pstack
         lia -4
         sta global-w
 
-
+        ; prepare stack for multiplication call
         lda pstack
         inc 12
         sta pstack
-
         ldb pstack
         lda global-w
         sia -4
         lda global-v
         sia -8
 
+        ; perform multiplication
         ldb pstack
         cal @multiply
+
+        ; get result and shrink stack
         ldb pstack
         lia -4
         sta global-v
-
         lda pstack
         dec 12
         sta pstack
-
     base-case:
 
     ; return argument
@@ -161,30 +100,14 @@ factorial:
     ldb pstack
     ret
 
-
-
-
-
 ; multiply function
 multiply:
-    ; visually indicate that the multiply function was entered
-    mov 0x6D
-    ptc
-
-    ; load local stack variables into global memory locations
+    ; load local stack variables into global memory
     ldb pstack
     lia -8
     sta global-y
     lia -4
     sta global-x
-
-    ; visually output the variables
-    lda global-x
-    ptu
-    mov 0x2A
-    ptc
-    lda global-y
-    ptu
 
     ; initialize the result to zero
     mov 0x00000000
@@ -224,19 +147,31 @@ multiply:
     lda global-z
     sia -4
 
-    mov 0x3D
-    ptc
-    lda global-z
-    ptu
-    mov 0x2E
-    ptc
+    ; second value down the stack is unused in return
 
-    ; second value down the stack is unused
-
-    ; exit cleanly
-    mov 0
-    swp
-    mov 0
-
+    ; return
     ldb pstack
     ret
+
+; main program
+main:
+    lda pstack
+    inc 8
+    sta pstack
+
+    ldb pstack
+    mov 6
+    sia -4
+
+    ldb pstack
+    cal @factorial
+
+    ldb pstack
+    lia -4
+    ptu
+
+    lda pstack
+    dec 8
+    sta pstack
+
+    hlt
