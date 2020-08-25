@@ -1,66 +1,69 @@
-; Jonathan Frech, 22nd, 23rd of August 2020
+; Jonathan Frech, August 2020
 ; Joy Assembly code to multiply two integers
 
+jmp @main
+
 ; memory layout
-addr_multiply-x := prg+0
-addr_multiply-y := prg+4
-addr_multiply-z := prg+8
+global-x:
+    uint[1] 0
+global-y:
+    uint[1] 0
+global-z:
+    uint[1] 0
 
 ; input values to be multiplied
 x := 342
 y := 83
 
-jmp @main
-
-; multply the value at address addr_multiply-x with those at
-; address addr_multiply-y and store the result in addr_mutliply-z
+; multply the value at address global-x with those at
+; address global-y and store the result in addr_mutliply-z
 multiply:
     ; initialize the result to zero
     mov 0x00000000
-    sta addr_multiply-z
+    sta @global-z
 
     ; perform the multiplication
     multiply-loop:
-        ; put the first bit of the value at address addr_multiply-y into
+        ; put the first bit of the value at address global-y into
         ; register A
         mov 0x00000001
         swp
-        lda addr_multiply-y
+        lda @global-y
         and
 
         ; only add when a bit was found
         jz @skip
-            lda addr_multiply-z
+            lda @global-z
             swp
-            lda addr_multiply-x
+            lda @global-x
             add
-            sta addr_multiply-z
+            sta @global-z
         skip:
 
         ; shift appropriately
-        lda addr_multiply-x
+        lda @global-x
         shl
-        sta addr_multiply-x
+        sta @global-x
 
-        lda addr_multiply-y
+        lda @global-y
         shr
-        sta addr_multiply-y
+        sta @global-y
 
         ; loop
         jnz @multiply-loop
 
     ; load the result into register A
-    lda addr_multiply-z
+    lda @global-z
     ptu
 
 jmp @end
 main:
     mov x
-    sta addr_multiply-x
+    sta @global-x
     ptu
 
     mov y
-    sta addr_multiply-y
+    sta @global-y
     ptu
 
     jmp @multiply

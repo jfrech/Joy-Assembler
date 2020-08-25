@@ -32,7 +32,7 @@ typedef uint32_t mem_t;
 #define REQ_ARG std::tuple{true, std::nullopt}
 #define OPT_ARG(ARG) std::tuple{true, std::optional<uint32_t>{ARG}}
 #define MAP_ON_INSTRUCTION_NAMES(M) \
-    M(NOP, NO_ARG), \
+    M(NOP, OPT_ARG(0)), \
     \
     M(LDA, REQ_ARG), M(LDB, REQ_ARG), M(STA, REQ_ARG), M(STB, REQ_ARG), \
     M(LIA, OPT_ARG(0)), M(SIA, OPT_ARG(0)), M(LPC, NO_ARG), M(SPC, NO_ARG), \
@@ -40,7 +40,8 @@ typedef uint32_t mem_t;
     M(JMP, REQ_ARG), M(JZ, REQ_ARG), M(JNZ, REQ_ARG), M(JN, REQ_ARG), \
     M(JNN, REQ_ARG), M(JE, REQ_ARG), M(JNE, REQ_ARG), \
     \
-    M(CAL, REQ_ARG), M(RET, NO_ARG), M(PSH, REQ_ARG), M(POP, REQ_ARG), \
+    M(CAL, REQ_ARG), M(RET, NO_ARG), M(PSH, NO_ARG), M(POP, NO_ARG), \
+    M(LSA, OPT_ARG(0)), M(SSA, OPT_ARG(0)), M(LSC, NO_ARG), M(SSC, NO_ARG), \
     \
     M(MOV, REQ_ARG), M(NOT, NO_ARG), M(SHL, OPT_ARG(1)), M(SHR, OPT_ARG(1)), \
     M(INC, OPT_ARG(1)), M(DEC, OPT_ARG(1)), M(NEG, NO_ARG), \
@@ -152,6 +153,8 @@ namespace Util {
     namespace ANSI_COLORS {
         const std::string INSTRUCTION_NAME = "\33[38;5;119m";
         const std::string INSTRUCTION_ARGUMENT = "\33[38;5;121m";
+        const std::string STACK = "\33[38;5;127m";
+        const std::string STACK_FAINT = "\33[38;5;53m";
     }
 
     std::optional<uint32_t> stringToUInt32(std::string s) {
@@ -169,7 +172,7 @@ class ComputationState {
 
     std::vector<byte> memory;
     reg_t registerA, registerB;
-    uint32_t registerPC;
+    uint32_t registerPC, registerSC;
 
     bool flagAZero, flagANegative, flagAParityEven;
     std::vector<Instruction> program;
@@ -181,7 +184,7 @@ class ComputationState {
 
     ComputationState() :
         memory{std::vector<byte>(MEMORY_SIZE)},
-        registerA{0}, registerB{0}, registerPC{0},
+        registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
 
         debugProgramTextSize{0},
         debugHighestUsedMemoryLocation{0}
@@ -264,41 +267,44 @@ class ComputationState {
             case InstructionName::CAL: {
                 byte b3, b2, b1, b0;
                 Util::splitUInt32(registerPC, b3, b2, b1, b0);
-                storeMemory4(static_cast<uint32_t>(registerB), b3, b2, b1, b0);
+                storeMemory4(static_cast<uint32_t>(registerSC), b3, b2, b1, b0);
+                registerSC += 4;
                 registerPC = instruction.argument;
             }; break;
             case InstructionName::RET: {
                 byte b3, b2, b1, b0;
-                loadMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
+                registerSC -= 4;
+                loadMemory4(registerSC, b3, b2, b1, b0);
                 registerPC = Util::combineUInt32(b3, b2, b1, b0);
             }; break;
             case InstructionName::PSH: {
                 byte b3, b2, b1, b0;
-                loadMemory4(static_cast<mem_t>(instruction.argument)
-                           , b3, b2, b1, b0);
-                mem_t stack = Util::combineUInt32(b3, b2, b1, b0) + 4;
-
-                Util::splitUInt32(static_cast<uint32_t>(registerA)
-                                 , b3, b2, b1, b0);
-                storeMemory4(stack, b3, b2, b1, b0);
-
-                Util::splitUInt32(stack, b3, b2, b1, b0);
-                storeMemory4(static_cast<mem_t>(instruction.argument)
-                            , b3, b2, b1, b0);
+                Util::splitUInt32(registerA, b3, b2, b1, b0);
+                storeMemory4(registerSC, b3, b2, b1, b0);
+                registerSC += 4;
             }; break;
             case InstructionName::POP: {
                 byte b3, b2, b1, b0;
-                loadMemory4(static_cast<mem_t>(instruction.argument)
-                           , b3, b2, b1, b0);
-                mem_t stack = Util::combineUInt32(b3, b2, b1, b0);
-
-                loadMemory4(stack, b3, b2, b1, b0);
+                registerSC -= 4;
+                loadMemory4(registerSC, b3, b2, b1, b0);
                 registerA = Util::combineUInt32(b3, b2, b1, b0);
-
-                Util::splitUInt32(stack - 4, b3, b2, b1, b0);
-                storeMemory4(static_cast<mem_t>(instruction.argument)
-                            , b3, b2, b1, b0);
             }; break;
+            case InstructionName::LSA: {
+                byte b3, b2, b1, b0;
+                loadMemory4(registerSC
+                           + static_cast<int32_t>(instruction.argument)
+                           , b3, b2, b1, b0);
+                registerA = Util::combineUInt32(b3, b2, b1, b0);
+            }; break;
+            case InstructionName::SSA: {
+                byte b3, b2, b1, b0;
+                Util::splitUInt32(registerA, b3, b2, b1, b0);
+                storeMemory4(registerSC
+                           + static_cast<int32_t>(instruction.argument)
+                           , b3, b2, b1, b0);
+            }; break;
+            case InstructionName::LSC: registerSC = registerA; break;
+            case InstructionName::SSC: registerA = registerSC; break;
 
             case InstructionName::MOV:
                 registerA = static_cast<int32_t>(instruction.argument);
@@ -394,6 +400,10 @@ class ComputationState {
             std::printf("\n    %02X_", (int) y);
             for (std::size_t x = 0; x < w; x++) {
                 mem_t m = y *w+ x;
+                if (registerSC <= pc+4 && pc+4 < registerSC + 4)
+                    std::cout << Util::ANSI_COLORS::STACK_FAINT;
+                if (registerSC <= pc && pc < registerSC + 4)
+                    std::cout << Util::ANSI_COLORS::STACK;
                 if (rPC <= pc && pc < rPC + 5)
                     std::cout << (pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
                 else if (m <= debugHighestUsedMemoryLocation)
@@ -422,11 +432,12 @@ class ComputationState {
         std::printf("    %s%s\033[0m %s0x%08X\033[0m\n", Util::ANSI_COLORS::INSTRUCTION_NAME.c_str(), opCodeName.c_str(), Util::ANSI_COLORS::INSTRUCTION_ARGUMENT.c_str(), argument);
 
         std::printf("\n=== REGISTERS ===\n");
-        std::printf("    A: 0x%08x,    B: 0x%08x,    PC: 0x%08x\n"
-                   , registerA, registerB, registerPC);
+        std::printf("    A:  0x%08x,    B:  0x%08x,\n    PC: 0x%08x,"
+                    "    SC: 0x%08x\n"
+                   , registerA, registerB, registerPC, registerSC);
 
         std::printf("\n=== FLAGS ===\n");
-        std::printf("    flagAZero: %d,    flagANegative: %d,    "
+        std::printf("    flagAZero: %d,    flagANegative: %d,\n    "
                     "flagAParityEven: %d\n", flagAZero, flagANegative
                    , flagAParityEven);
     }
@@ -485,6 +496,8 @@ class ComputationState {
 
 
 bool parse(std::string filename, ComputationState &cs) {
+    bool dbg{false};
+
     std::ifstream is{filename};
     if (!is.is_open()) {
         std::cerr << "could not read input joy assembly file\n";
@@ -506,7 +519,9 @@ bool parse(std::string filename, ComputationState &cs) {
         if (ln == "")
             continue;
 
-        auto define = [&definitions](std::string k, std::string v) {
+        auto define = [&definitions, dbg](std::string k, std::string v) {
+            if (dbg)
+                std::cout << "defining " << k << " to be " << v << "\n";
             if (definitions.contains(k)) {
                 std::cerr << "duplicate definition: " << k << "\n";
                 return false; }
@@ -579,10 +594,12 @@ bool parse(std::string filename, ComputationState &cs) {
 
     for (auto p : parsing) {
         if (std::holds_alternative<parsingData>(p)) {
-            parsingData data{std::get<parsingData>(p)};
+            uint32_t data{std::get<parsingData>(p)};
+            if (dbg)
+                std::printf("data value 0x%08x\n", data);
             memPtr += cs.storeData(memPtr, data);
         }
-        if (std::holds_alternative<parsingInstruction>(p)) {
+        else if (std::holds_alternative<parsingInstruction>(p)) {
             parsingInstruction instruction{std::get<parsingInstruction>(p)};
             InstructionName name = std::get<0>(instruction);
             auto oArg = std::get<1>(instruction);
@@ -626,7 +643,7 @@ bool parse(std::string filename, ComputationState &cs) {
 
             if (!hasArgument && oValue.has_value()) {
                 std::cerr << "superfluous argument: " << InstructionNameRepresentationHandler::to_string(name) << " " << oValue.value() << "\n";
-                continue; }
+                return false; }
             if (hasArgument) {
                 if (!optionalValue.has_value() && !oValue.has_value()) {
                     std::cerr << "requiring argument: " << InstructionNameRepresentationHandler::to_string(name) << "\n";
@@ -636,14 +653,20 @@ bool parse(std::string filename, ComputationState &cs) {
             }
 
             if (oValue.has_value()) {
-                //std::cout << "instruction " << InstructionNameRepresentationHandler::to_string(name) << " " << oValue.value() << "\n";
+                if (dbg)
+                    std::cout << "instruction " << InstructionNameRepresentationHandler::to_string(name) << " " << oValue.value() << "\n";
                 auto argument = oValue.value();
                 memPtr += cs.storeInstruction(memPtr, Instruction{name, argument});
             } else {
-                //std::cout << "instruction " << InstructionNameRepresentationHandler::to_string(name) << " (none)\n";
+                if (dbg)
+                    std::cout << "instruction " << InstructionNameRepresentationHandler::to_string(name) << " (none)\n";
                 memPtr += cs.storeInstruction(memPtr, Instruction{name, 0x00000000});
             }
         }
+
+        if (dbg) {
+            cs.visualize();
+            std::getchar(); }
     }
 
     return true;
