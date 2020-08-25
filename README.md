@@ -41,6 +41,8 @@ Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` whi
 |                  |                                        |                                                                    |
 | `cal`            | program position `@label`              | Store the current program counter to the memory location identified by register `B` and jump to program position `@label`. |
 | `ret`            | -                                      | Jump to the program position identified by the memory location identified by the register `B`.                             |
+| `psh`            | stack position `stack`                 | Store to the memory location identified by `stack` offset by `+4` the value in register `A` and store this offset memory location at the memory location identified by `stack`. |
+| `pop`            | stack position `stack`                 | Load into register `A` the value at the memory location identified by `stack` and store this memory location offset by `-4` at the memory location identified by `stack`.       |
 |                  |                                        |                                                                    |
 | `mov`            | value `v`                              | Move the immediate value `v` into register `A`.                    |
 | `not`            | -                                      | Invert all bits in register `A`, modifying it in-place.            |

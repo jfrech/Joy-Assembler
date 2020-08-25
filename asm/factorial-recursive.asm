@@ -1,6 +1,5 @@
 ; Jonathan Frech, August 2020
-; a Joy Assembler function call example
-; see `asm/factorial-recursive.asm` for a version using `psh` and `pop`
+; a Joy Assembler program to calculate a number's factorial using recursion
 
 ; N.b.: To call a function with `n` parameter values, the stack has to be
 ; expanded by `4*(n+1)` bytes, the last byte being used to store the return
@@ -22,10 +21,8 @@ sta pstack
 ldb pstack
 mov 0xffffffff
 sia
-lda pstack
-inc 4
-sta pstack
 
+; jump to main program
 jmp @main
 
 
@@ -41,28 +38,23 @@ factorial:
 
     lda global-w
     jz @base-case
-        ; increment stack
-        lda pstack
-        inc 8
-        sta pstack
-
         ; put argument minus one onto stack
         lda global-w
         dec
-        ldb pstack
-        sia -4
+        psh pstack
 
         ; recursively call factorial
+        ; value of register `A` does not matter; will be overriden by `cal`
+        psh pstack
         ldb pstack
         cal @factorial
 
-        ; get recursive factorial result and shrink stack
-        ldb pstack
-        lia -4
+        ; ignore return address
+        pop pstack
+
+        ; return value
+        pop pstack
         sta global-v
-        lda pstack
-        dec 8
-        sta pstack
 
         ; get this function's invocation argument
         ldb pstack
@@ -70,26 +62,22 @@ factorial:
         sta global-w
 
         ; prepare stack for multiplication call
-        lda pstack
-        inc 12
-        sta pstack
-        ldb pstack
-        lda global-w
-        sia -4
         lda global-v
-        sia -8
+        psh pstack
+        lda global-w
+        psh pstack
 
         ; perform multiplication
+        psh pstack
         ldb pstack
         cal @multiply
 
         ; get result and shrink stack
-        ldb pstack
-        lia -4
+        pop pstack
+        pop pstack
         sta global-v
-        lda pstack
-        dec 12
-        sta pstack
+        ; multiply requires two arguments yet only returns one
+        pop pstack
     base-case:
 
     ; return argument
@@ -156,23 +144,15 @@ multiply:
 
 ; main program
 main:
-    lda pstack
-    inc 8
-    sta pstack
-
-    ldb pstack
     mov 6
-    sia -4
+    psh pstack
 
+    psh pstack
     ldb pstack
     cal @factorial
 
-    ldb pstack
-    lia -4
+    pop pstack
+    pop pstack
     ptu
-
-    lda pstack
-    dec 8
-    sta pstack
 
     hlt

@@ -29,7 +29,7 @@ typedef uint32_t mem_t;
     M(NOP), \
     M(LDA), M(LDB), M(STA), M(STB), M(LIA), M(SIA), M(LPC), M(SPC), \
     M(JMP), M(JNZ), M(JZ), M(JNN), M(JN), M(JE), M(JNE), \
-    M(CAL), M(RET), \
+    M(CAL), M(RET), M(PSH), M(POP), \
     M(MOV), M(NOT), M(SHL), M(SHR), M(INC), M(DEC), M(NEG), \
     M(SWP), M(ADD), M(SUB), M(AND), M(OR), M(XOR), \
     M(PTU), M(GTU), M(PTS), M(GTS), M(PTB), M(GTB), M(PTC), M(GTC), \
@@ -240,6 +240,33 @@ class ComputationState {
                 byte b3, b2, b1, b0;
                 loadMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
                 registerPC = Util::combineUInt32(b3, b2, b1, b0);
+            }; break;
+            case InstructionName::PSH: {
+                byte b3, b2, b1, b0;
+                loadMemory4(static_cast<mem_t>(instruction.argument)
+                           , b3, b2, b1, b0);
+                mem_t stack = Util::combineUInt32(b3, b2, b1, b0) + 4;
+
+                Util::splitUInt32(static_cast<uint32_t>(registerA)
+                                 , b3, b2, b1, b0);
+                storeMemory4(stack, b3, b2, b1, b0);
+
+                Util::splitUInt32(stack, b3, b2, b1, b0);
+                storeMemory4(static_cast<mem_t>(instruction.argument)
+                            , b3, b2, b1, b0);
+            }; break;
+            case InstructionName::POP: {
+                byte b3, b2, b1, b0;
+                loadMemory4(static_cast<mem_t>(instruction.argument)
+                           , b3, b2, b1, b0);
+                mem_t stack = Util::combineUInt32(b3, b2, b1, b0);
+
+                loadMemory4(stack, b3, b2, b1, b0);
+                registerA = Util::combineUInt32(b3, b2, b1, b0);
+
+                Util::splitUInt32(stack - 4, b3, b2, b1, b0);
+                storeMemory4(static_cast<mem_t>(instruction.argument)
+                            , b3, b2, b1, b0);
             }; break;
 
             case InstructionName::MOV:
