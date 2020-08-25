@@ -698,6 +698,4 @@ int main(int argc, char **argv) {
         else if (DO_VISUALIZE_STEPS)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (cs.step());
-    if (DO_VISUALIZE_STEPS)
-        cs.visualize();
 }
