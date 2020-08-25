@@ -46,10 +46,10 @@ Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` whi
 |                  |                                        |                                                                    |
 | `mov`            | value `v`                              | Move the immediate value `v` into register `A`.                    |
 | `not`            | -                                      | Invert all bits in register `A`, modifying it in-place.            |
-| `shl`            | optional number of places to shift `n` | Shift the bits in register `A` by `n` places to the left, modifying it in-place. If `n` is not specified or zero, a shift by one place is performed.  |
-| `shr`            | optional number of places to shift `n` | Shift the bits in register `A` by `n` places to the right, modifying it in-place. If `n` is not specified or zero, a shift by one place is performed. |
-| `inc`            | optional increment value `v`           | Increment the value in register `A` by `v`, modifying it in-place. If `v` is not specified or zero, an increment of one is performed.                 |
-| `dec`            | optional increment value `v`           | Decrement the value in register `A` by `v`, modifying it in-place. If `v` is not specified or zero, a decrement of one is performed.                  |
+| `shl`            | optional number of places to shift `n` | Shift the bits in register `A` by `n` places to the left, modifying it in-place. If `n` is not specified, a shift by one place is performed.  |
+| `shr`            | optional number of places to shift `n` | Shift the bits in register `A` by `n` places to the right, modifying it in-place. If `n` is not specified, a shift by one place is performed. |
+| `inc`            | optional increment value `v`           | Increment the value in register `A` by `v`, modifying it in-place. If `v` is not specified, an increment of one is performed.                 |
+| `dec`            | optional increment value `v`           | Decrement the value in register `A` by `v`, modifying it in-place. If `v` is not specified, a decrement of one is performed.                  |
 | `neg`            | -                                      | Numerically negate the value in register `A`, modifying it in-place. |
 |                  |                                        |                                                                    |
 | `swp`            | -                                      | Swap the value of register `A` with the value of register `B`.     |

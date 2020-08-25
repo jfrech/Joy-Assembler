@@ -25,32 +25,55 @@ typedef uint32_t arg_t;
 typedef uint32_t mem_t;
 
 
+#define NO_ARG std::tuple{false, std::nullopt}
+#define REQ_ARG std::tuple{true, std::nullopt}
+#define OPT_ARG(ARG) std::tuple{true, std::optional<uint32_t>{ARG}}
 #define MAP_ON_INSTRUCTION_NAMES(M) \
-    M(NOP), \
-    M(LDA), M(LDB), M(STA), M(STB), M(LIA), M(SIA), M(LPC), M(SPC), \
-    M(JMP), M(JNZ), M(JZ), M(JNN), M(JN), M(JE), M(JNE), \
-    M(CAL), M(RET), M(PSH), M(POP), \
-    M(MOV), M(NOT), M(SHL), M(SHR), M(INC), M(DEC), M(NEG), \
-    M(SWP), M(ADD), M(SUB), M(AND), M(OR), M(XOR), \
-    M(PTU), M(GTU), M(PTS), M(GTS), M(PTB), M(GTB), M(PTC), M(GTC), \
-    M(HLT)
+    M(NOP, NO_ARG), \
+    \
+    M(LDA, REQ_ARG), M(LDB, REQ_ARG), M(STA, REQ_ARG), M(STB, REQ_ARG), \
+    M(LIA, OPT_ARG(0)), M(SIA, OPT_ARG(0)), M(LPC, NO_ARG), M(SPC, NO_ARG), \
+    \
+    M(JMP, REQ_ARG), M(JNZ, REQ_ARG), M(JZ, REQ_ARG), M(JNN, REQ_ARG), \
+    M(JN, REQ_ARG), M(JE, REQ_ARG), M(JNE, REQ_ARG), \
+    \
+    M(CAL, REQ_ARG), M(RET, NO_ARG), M(PSH, REQ_ARG), M(POP, REQ_ARG), \
+    \
+    M(MOV, REQ_ARG), M(NOT, NO_ARG), M(SHL, OPT_ARG(1)), M(SHR, OPT_ARG(1)), \
+    M(INC, OPT_ARG(1)), M(DEC, OPT_ARG(1)), M(NEG, NO_ARG), \
+    \
+    M(SWP, NO_ARG), M(ADD, NO_ARG), M(SUB, NO_ARG), M(AND, NO_ARG), \
+    M(OR, NO_ARG), M(XOR, NO_ARG), \
+    \
+    M(PTU, NO_ARG), M(GTU, NO_ARG), M(PTS, NO_ARG), M(GTS, NO_ARG), \
+    M(PTB, NO_ARG), M(GTB, NO_ARG), M(PTC, NO_ARG), M(GTC, NO_ARG), \
+    \
+    M(HLT, NO_ARG)
 
 enum class InstructionName {
-    #define ID(ACT) ACT
+    #define ID(ACT, _) ACT
     MAP_ON_INSTRUCTION_NAMES(ID)
     #undef ID
 };
 
 namespace InstructionNameRepresentationHandler {
     std::map<InstructionName, std::string> representation = {
-        #define REPR(ACT) {InstructionName::ACT, #ACT}
+        #define REPR(ACT, _) {InstructionName::ACT, #ACT}
         MAP_ON_INSTRUCTION_NAMES(REPR)
         #undef REPR
     };
     std::array<std::optional<InstructionName>, 256> instructions = {
-        #define NAMESPACE_ID(ACT) InstructionName::ACT
+        #define NAMESPACE_ID(ACT, _) InstructionName::ACT
         MAP_ON_INSTRUCTION_NAMES(NAMESPACE_ID)
         #undef NAMESPACE_ID
+    };
+
+    std::map<InstructionName, std::tuple<bool, std::optional<uint32_t>>>
+        argumentType = {
+            #define ARG_TYPES(ACT, CANDEF) \
+                {InstructionName::ACT, CANDEF}
+            MAP_ON_INSTRUCTION_NAMES(ARG_TYPES)
+            #undef ARG_TYPES
     };
 
     std::optional<InstructionName> fromByteCode(byte opCode) {
@@ -280,24 +303,20 @@ class ComputationState {
                 registerA = static_cast<int32_t>(instruction.argument);
                 break;
             case InstructionName::NOT: registerA = ~registerA; break;
-            case InstructionName::SHL: {
-                uint8_t shift = static_cast<uint8_t>(instruction.argument);
+            case InstructionName::SHL:
                 registerA = static_cast<uint32_t>(registerA)
-                          << (shift > 0 ? shift : 1);
-            }; break;
-            case InstructionName::SHR: {
-                uint8_t shift = static_cast<uint8_t>(instruction.argument);
+                          << static_cast<uint8_t>(instruction.argument);
+                break;
+            case InstructionName::SHR:
                 registerA = static_cast<uint32_t>(registerA)
-                          >> (shift > 0 ? shift : 1);
-            }; break;
-            case InstructionName::INC: {
-                int32_t v = static_cast<int32_t>(instruction.argument);
-                registerA += v != 0 ? v : 1;
-            }; break;
-            case InstructionName::DEC: {
-                int32_t v = static_cast<int32_t>(instruction.argument);
-                registerA -= v != 0 ? v : 1;
-            }; break;
+                          >> static_cast<uint8_t>(instruction.argument);
+                break;
+            case InstructionName::INC:
+                registerA += static_cast<int32_t>(instruction.argument);
+                break;
+            case InstructionName::DEC:
+                registerA -= static_cast<int32_t>(instruction.argument);
+                break;
             case InstructionName::NEG: registerA = -registerA; break;
 
             case InstructionName::SWP:
@@ -466,7 +485,7 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
         std::cerr << "could not read input joy assembly file\n";
         return false; }
 
-    std::vector<std::tuple<std::string, std::string>> preParsed{};
+    std::vector<std::tuple<std::string, std::optional<std::string>>> preParsed{};
     std::map<std::string, std::string> definitions{};
     programCounter_t pc = 0;
     for (std::string ln; std::getline(is, ln); ) {
@@ -500,10 +519,11 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
         std::regex_search(ln, _instr, std::regex{"^([^ ]+)"});
         std::regex_search(ln, _arg, std::regex{"^[^ ]+ ([^ ]+)$"});
         if (_instr.size() == 2) {
-            std::string instr = _instr[1], arg = "0";
+            std::string instr{_instr[1]};
+            std::optional<std::string> oArg{std::nullopt};
             if (_arg.size() == 2)
-                arg = _arg[1];
-            preParsed.push_back(std::make_tuple(instr, arg));
+                oArg = std::optional{_arg[1]};
+            preParsed.push_back(std::make_tuple(instr, oArg));
             pc += 5; }
     }
 
@@ -514,9 +534,32 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
             std::cout << "invalid instruction: " << std::get<0>(na) << "\n";
             return false; }
         InstructionName name = oName.value();
-        arg_t argument = 0;
 
-        std::string preArg = std::get<1>(na);
+        auto oArg = std::get<1>(na);
+        auto [hasArgument, optionalValue] = InstructionNameRepresentationHandler
+                                            ::argumentType[name];
+        if (!oArg.has_value()) {
+            if (!hasArgument) {
+                instructions.push_back(Instruction{name, 0});
+                continue; }
+            if (optionalValue.has_value()) {
+                instructions.push_back(Instruction{
+                    name, optionalValue.value()});
+                continue; }
+            std::cerr << "instruction requires argument: "
+                      << InstructionNameRepresentationHandler::to_string(name)
+                      << "\n";
+            return false;
+        }
+        if (oArg.has_value() && !hasArgument) {
+            std::cerr << "superfluous instruction argument: "
+                      << InstructionNameRepresentationHandler::to_string(name)
+                      << "\n";
+            return false; }
+        std::string preArg = oArg.value();
+
+
+        arg_t argument = 0;
 
         std::smatch _offset;
         std::regex_search(preArg, _offset, std::regex{"^prg+(.*)$"});
@@ -535,7 +578,7 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
         try {
             argument += std::stol(preArg, nullptr, 0); }
         catch (std::invalid_argument const&_) {
-            std::cout << "invalid value: " << preArg << "\n";
+            std::cerr << "invalid value: " << preArg << "\n";
             return false; }
 
         instructions.push_back(Instruction{name, argument});
