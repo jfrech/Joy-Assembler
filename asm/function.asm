@@ -6,10 +6,11 @@ global-x := prg+0
 global-y := prg+4
 global-z := prg+8
 global-w := prg+12
+global-v := prg+16
 
 ; stack
-pstack := prg+16
-*stack := prg+20
+pstack := prg+20
+*stack := prg+24
 mov *stack
 sta pstack
 
@@ -21,6 +22,7 @@ lda pstack
 inc 4
 sta pstack
 
+jmp @factorial-test
 
 ; load two arguments, each four bytes onto the stack
 lda pstack
@@ -51,6 +53,117 @@ sta pstack
 ; halt the machine
 hlt
 
+factorial-test:
+    lda pstack
+    inc 8
+    sta pstack
+
+    ldb pstack
+    mov 6
+    sia -4
+
+    ldb pstack
+    cal @factorial
+
+    mov 0x0A
+    ptc
+    ptc
+    mov 0x2d
+    ptc
+    mov 0x3e
+    ptc
+    mov 0x20
+    ptc
+
+    ldb pstack
+    lia -4
+    ptu
+
+    lda pstack
+    dec 8
+    sta pstack
+
+    hlt
+
+
+factorial:
+    mov 0x46
+    ptc
+
+    ; load argument
+    ldb pstack
+    lia -4
+    sta global-w
+    ;ptu
+
+    ; base case is 1
+    mov 1
+    sta global-v
+
+    lda global-w
+    jz @base-case
+        ; increment stack
+        lda pstack
+        inc 8
+        sta pstack
+
+        ; put argument minus one onto stack
+        lda global-w
+        dec
+        ldb pstack
+        sia -4
+
+        ; recursively call factorial
+        ldb pstack
+        cal @factorial
+
+        ldb pstack
+        lia -4
+        sta global-v
+
+        lda pstack
+        dec 8
+        sta pstack
+
+        ldb pstack
+        lia -4
+        sta global-w
+
+
+        lda pstack
+        inc 12
+        sta pstack
+
+        ldb pstack
+        lda global-w
+        sia -4
+        lda global-v
+        sia -8
+
+        ldb pstack
+        cal @multiply
+        ldb pstack
+        lia -4
+        sta global-v
+
+        lda pstack
+        dec 12
+        sta pstack
+
+    base-case:
+
+    ; return argument
+    lda global-v
+    ldb pstack
+    sia -4
+
+    ; return
+    ldb pstack
+    ret
+
+
+
+
 
 ; multiply function
 multiply:
@@ -68,6 +181,8 @@ multiply:
     ; visually output the variables
     lda global-x
     ptu
+    mov 0x2A
+    ptc
     lda global-y
     ptu
 
@@ -108,6 +223,13 @@ multiply:
     ldb pstack
     lda global-z
     sia -4
+
+    mov 0x3D
+    ptc
+    lda global-z
+    ptu
+    mov 0x2E
+    ptc
 
     ; second value down the stack is unused
 
