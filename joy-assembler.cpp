@@ -160,8 +160,6 @@ class ComputationState {
         InstructionName name = oInstructionName.value();
         arg_t argument = arg3 << 24 | arg2 << 16 | arg1 << 8 | arg0;
 
-        //std::cout << "read instruction: " << InstructionRepresentationHandler::to_string(Instruction{name, argument});
-
         return Instruction{name, argument};
     }
 
@@ -188,12 +186,12 @@ class ComputationState {
             case InstructionName::LDA: {
                     byte b3, b2, b1, b0;
                     loadMemory4(mem_t{instruction.argument}, b3, b2, b1, b0);
-                    registerA = b3 << 24 | b2 << 16 | b1 << 8 | b0;
+                    registerA = Util::combineUInt32(b3, b2, b1, b0);
                 }; break;
             case InstructionName::LDB: {
                     byte b3, b2, b1, b0;
                     loadMemory4(mem_t{instruction.argument}, b3, b2, b1, b0);
-                    registerB = b3 << 24 | b2 << 16 | b1 << 8 | b0;
+                    registerB = Util::combineUInt32(b3, b2, b1, b0);
                 }; break;
             case InstructionName::STA: {
                 mem_t bytes = static_cast<ureg_t>(registerA);
@@ -210,7 +208,7 @@ class ComputationState {
             case InstructionName::LIA: {
                     int32_t offset = static_cast<int32_t>(instruction.argument);
                     byte b3, b2, b1, b0;
-                    loadMemory4(static_cast<mem_t>(registerB + offset)
+                    loadMemory4(static_cast<uint32_t>(registerB + offset)
                                , b3, b2, b1, b0);
                     registerA = Util::combineUInt32(b3, b2, b1, b0);
                 }; break;
@@ -235,7 +233,7 @@ class ComputationState {
             case InstructionName::CAL: {
                 byte b3, b2, b1, b0;
                 Util::splitUInt32(registerPC, b3, b2, b1, b0);
-                storeMemory4(static_cast<mem_t>(registerA), b3, b2, b1, b0);
+                storeMemory4(static_cast<uint32_t>(registerA), b3, b2, b1, b0);
                 registerPC = instruction.argument;
             }; break;
             case InstructionName::RET: {
@@ -332,12 +330,12 @@ class ComputationState {
 
         std::printf("\n=== MEMORY ===\n");
         programCounter_t pc = 0, rPC = static_cast<programCounter_t>(registerPC);
-        std::size_t h = 16, w = 16;
+        std::size_t h = 16*2, w = 16;
         std::printf("       ");
         for (std::size_t x = 0; x < w; x++)
             std::printf("_%01X ", (int) x);
         for (std::size_t y = 0; y < h; y++) {
-            std::printf("\n    %01X_", (int) y);
+            std::printf("\n    %02X_", (int) y);
             for (std::size_t x = 0; x < w; x++) {
                 mem_t m = y *w+ x;
                 if (m < debugProgramTextSize)
@@ -374,7 +372,6 @@ class ComputationState {
         byte arg3, arg2, arg1, arg0;
         loadMemory4(static_cast<mem_t>(registerPC) + 1, arg3, arg2, arg1, arg0);
         arg_t argument = Util::combineUInt32(arg3, arg2, arg1, arg0);
-        //std::printf("    op code 0x%02x (%s) with argument 0x%08x\n", opCode, opCodeName.c_str(), argument);
         std::printf("    %s 0x%08X\n", opCodeName.c_str(), argument);
 
         std::printf("\n=== REGISTERS ===\n");
@@ -498,8 +495,6 @@ bool parse(std::string filename, std::vector<Instruction> &instructions) {
         catch (std::invalid_argument const&_) {
             std::cout << "invalid value: " << preArg << "\n";
             return false; }
-
-        //std::cout << "parsed instruction: " << InstructionRepresentationHandler::to_string(Instruction{name, argument}) << "\n";
 
         instructions.push_back(Instruction{name, argument});
     }
