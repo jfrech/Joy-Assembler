@@ -208,14 +208,18 @@ class ComputationState {
                             , (bytes >> 8) & 0xff, bytes & 0xff);
                 }; break;
             case InstructionName::LIA: {
+                    int32_t offset = static_cast<int32_t>(instruction.argument);
                     byte b3, b2, b1, b0;
-                    loadMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
+                    loadMemory4(static_cast<mem_t>(registerB + offset)
+                               , b3, b2, b1, b0);
                     registerA = Util::combineUInt32(b3, b2, b1, b0);
                 }; break;
             case InstructionName::SIA: {
+                    int32_t offset = static_cast<int32_t>(instruction.argument);
                     byte b3, b2, b1, b0;
                     Util::splitUInt32(registerA, b3, b2, b1, b0);
-                    storeMemory4(static_cast<mem_t>(registerB), b3, b2, b1, b0);
+                    storeMemory4(static_cast<mem_t>(registerB + offset)
+                                , b3, b2, b1, b0);
                 }; break;
             case InstructionName::LPC: registerPC = registerA; break;
             case InstructionName::SPC: registerA = registerPC; break;
@@ -241,7 +245,8 @@ class ComputationState {
             }; break;
 
             case InstructionName::MOV:
-                registerA = static_cast<reg_t>(instruction.argument); break;
+                registerA = static_cast<int32_t>(instruction.argument);
+                break;
             case InstructionName::NOT: registerA = ~registerA; break;
             case InstructionName::SHL: {
                 uint8_t shift = static_cast<uint8_t>(instruction.argument);
@@ -253,8 +258,14 @@ class ComputationState {
                 registerA = static_cast<uint32_t>(registerA)
                           >> (shift > 0 ? shift : 1);
             }; break;
-            case InstructionName::INC: registerA++; break;
-            case InstructionName::DEC: registerA--; break;
+            case InstructionName::INC: {
+                int32_t v = static_cast<int32_t>(instruction.argument);
+                registerA += v != 0 ? v : 1;
+            }; break;
+            case InstructionName::DEC: {
+                int32_t v = static_cast<int32_t>(instruction.argument);
+                registerA -= v != 0 ? v : 1;
+            }; break;
             case InstructionName::NEG: registerA = -registerA; break;
 
             case InstructionName::SWP:

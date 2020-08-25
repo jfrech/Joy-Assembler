@@ -18,55 +18,55 @@ Example Joy Assembler programs can be found in the `asm` directory.
 Joy Assembler mimics a 32-bit architecture. It has two registers `A` and `B` which each hold a `int32_t` as well as a definable (ref. `pragma_memory-size`) block of memory, addressable as individual bytes. Each Joy Assembler instruction consists of a _name_ paired with four bytes representing an _argument_, which are interpreted or discarded as specified below.
 
 # Instructions
-| instruction name | argument                      | description                                                        |
+| instruction name | argument                               | description                                                        |
 |------------------|-------------------------------|--------------------------------------------------------------------|
-| `nop`            | -                             | No operation.                                                      |
-|                  |                               |                                                                    |
-| `lda`            | memory location               | Load the value at the specified memory location into register `A`. |
-| `ldb`            | memory location               | Load the value at the specified memory location into register `B`. |
-| `sta`            | memory location               | Store the value in register `A` to the specified memory location.  |
-| `stb`            | memory location               | Store the value in register `B` to the specified memory location.  |
-| `lia`            | -                             | Load the value at the memory location identified by register `B` into register `A`. |
-| `sia`            | -                             | Store the value in register `A` at the memory location identified by register `B`.  |
-| `lpc`            | -                             | Set the value of the program counter register `PC` to the value in register `A`. |
-| `spc`            | -                             | Store the value in the program counter register `PC` to register `A`.            |
-|                  |                               |                                                                    |
-| `jmp`            | program position `@label`     | Jump to program position `@label`.                                 |
-| `jnz`            | program position `@label`     | Jump to program position `@label` if register `A` holds a non-zero value, otherwise perform no operation.     |
-| `jz`             | program position `@label`     | Jump to program position `@label` if register `A` holds a zero value, otherwise perform no operation.         |
-| `jnn`            | program position `@label`     | Jump to program position `@label` if register `A` holds a non-negative value, otherwise perform no operation. |
-| `jn`             | program position `@label`     | Jump to program position `@label` if register `A` holds a negative value, otherwise perform no operation.     |
-| `je`             | program position `@label`     | Jump to program position `@label` if register `A` holds an even number of bits.                               |
-| `jne`            | program position `@label`     | Jump to program position `@label` if register `A` holds an odd number of bits.                                |
-|                  |                               |                                                                    |
-| `cal`            | program position `@label`     | Store the current program counter to the memory location identified by register `A` and jump to program position `@label`. |
-| `ret`            | -                             | Jump to the program position identified by the memory location identified by the register `A`.                             |
-|                  |                               |                                                                    |
-| `mov`            | value `v`                     | Move the immediate value `v` into register `A`.                    |
-| `not`            | -                             | Invert all bits in register `A`, modifying it in-place.            |
-| `shl`            | number of places to shift `n` | Shift the bits in register `A` by `n` places to the left, modifying it in-place. If `n` is not specified or zero, a shift by one place is performed.  |
-| `shr`            | number of places to shift `n` | Shift the bits in register `A` by `n` places to the right, modifying it in-place. If `n` is not specified or zero, a shift by one place is performed. |
-| `inc`            | -                             | Increment the value in register `A`, modifying it in-place.        |
-| `dec`            | -                             | Decrement the value in register `A`, modifying it in-place.        |
-| `neg`            | -                             | Numerically negate the value in register `A`, modifying it in-place. |
-|                  |                               |                                                                    |
-| `swp`            | -                             | Swap the value of register `A` with the value of register `B`.     |
-| `and`            | -                             | Perform a bit-wise `and` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place. |
-| `or`             | -                             | Perform a bit-wise `or` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place.  |
-| `xor`            | -                             | Perform a bit-wise `xor` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place. |
-| `add`            | -                             | Add the value of register `B` to the value of register `A`, modifying register `A` in-place.        |
-| `sub`            | -                             | Subtract the value of register `B` from the value of register `A`, modifying register `A` in-place. |
-|                  |                               |                                                                    |
-| `ptu`            | -                             | Output the unsigned numerical value of register `A` to `stdout`.   |
-| `gtu`            | -                             | Input an unsigned numerical value from `stdin` to register `A`.    |
-| `pts`            | -                             | Output the signed numerical value of register `A` to `stdout`.     |
-| `gts`            | -                             | Input an signed numerical value from `stdin` to register `A`.      |
-| `ptb`            | -                             | Output the bits of register `A` to `stdout`.                       |
-| `gtb`            | -                             | Input bits (represented as characters) `stdin` to register `A`.    |
-| `ptc`            | -                             | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`. **TODO: Full Unicode support.**                   |
-| `gtc`            | -                             | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. **TODO: Full Unicode support.** |
-|                  |                               |                                                                    |
-| `hlt`            | -                             | Halt the machine.                                                  |
+| `nop`            | -                                      | No operation.                                                      |
+|                  |                                        |                                                                    |
+| `lda`            | memory location                        | Load the value at the specified memory location into register `A`. |
+| `ldb`            | memory location                        | Load the value at the specified memory location into register `B`. |
+| `sta`            | memory location                        | Store the value in register `A` to the specified memory location.  |
+| `stb`            | memory location                        | Store the value in register `B` to the specified memory location.  |
+| `lia`            | optional offset `o`                    | Load the value at the memory location identified by register `B`, offset by `o`, into register `A`. If `o` is not specified, an offset of zero is assumed. |
+| `sia`            | optional offset `o`                    | Store the value in register `A` at the memory location identified by register `B`, offset by `o`. If `o` is not specified, an offset of zero is assumed.   |
+| `lpc`            | -                                      | Set the value of the program counter register `PC` to the value in register `A`. |
+| `spc`            | -                                      | Store the value in the program counter register `PC` to register `A`.            |
+|                  |                                        |                                                                    |
+| `jmp`            | program position `@label`              | Jump to program position `@label`.                                 |
+| `jnz`            | program position `@label`              | Jump to program position `@label` if register `A` holds a non-zero value, otherwise perform no operation.     |
+| `jz`             | program position `@label`              | Jump to program position `@label` if register `A` holds a zero value, otherwise perform no operation.         |
+| `jnn`            | program position `@label`              | Jump to program position `@label` if register `A` holds a non-negative value, otherwise perform no operation. |
+| `jn`             | program position `@label`              | Jump to program position `@label` if register `A` holds a negative value, otherwise perform no operation.     |
+| `je`             | program position `@label`              | Jump to program position `@label` if register `A` holds an even number of bits.                               |
+| `jne`            | program position `@label`              | Jump to program position `@label` if register `A` holds an odd number of bits.                                |
+|                  |                                        |                                                                    |
+| `cal`            | program position `@label`              | Store the current program counter to the memory location identified by register `A` and jump to program position `@label`. |
+| `ret`            | -                                      | Jump to the program position identified by the memory location identified by the register `A`.                             |
+|                  |                                        |                                                                    |
+| `mov`            | value `v`                              | Move the immediate value `v` into register `A`.                    |
+| `not`            | -                                      | Invert all bits in register `A`, modifying it in-place.            |
+| `shl`            | optional number of places to shift `n` | Shift the bits in register `A` by `n` places to the left, modifying it in-place. If `n` is not specified or zero, a shift by one place is performed.  |
+| `shr`            | optional number of places to shift `n` | Shift the bits in register `A` by `n` places to the right, modifying it in-place. If `n` is not specified or zero, a shift by one place is performed. |
+| `inc`            | optional increment value `v`           | Increment the value in register `A` by `v`, modifying it in-place. If `v` is not specified or zero, an increment of one is performed.                 |
+| `dec`            | optional increment value `v`           | Decrement the value in register `A` by `v`, modifying it in-place. If `v` is not specified or zero, a decrement of one is performed.                  |
+| `neg`            | -                                      | Numerically negate the value in register `A`, modifying it in-place. |
+|                  |                                        |                                                                    |
+| `swp`            | -                                      | Swap the value of register `A` with the value of register `B`.     |
+| `and`            | -                                      | Perform a bit-wise `and` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place. |
+| `or`             | -                                      | Perform a bit-wise `or` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place.  |
+| `xor`            | -                                      | Perform a bit-wise `xor` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place. |
+| `add`            | -                                      | Add the value of register `B` to the value of register `A`, modifying register `A` in-place.        |
+| `sub`            | -                                      | Subtract the value of register `B` from the value of register `A`, modifying register `A` in-place. |
+|                  |                                        |                                                                    |
+| `ptu`            | -                                      | Output the unsigned numerical value of register `A` to `stdout`.   |
+| `gtu`            | -                                      | Input an unsigned numerical value from `stdin` to register `A`.    |
+| `pts`            | -                                      | Output the signed numerical value of register `A` to `stdout`.     |
+| `gts`            | -                                      | Input an signed numerical value from `stdin` to register `A`.      |
+| `ptb`            | -                                      | Output the bits of register `A` to `stdout`.                       |
+| `gtb`            | -                                      | Input bits (represented as characters) `stdin` to register `A`.    |
+| `ptc`            | -                                      | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`. **TODO: Full Unicode support.**                   |
+| `gtc`            | -                                      | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. **TODO: Full Unicode support.** |
+|                  |                                        |                                                                    |
+| `hlt`            | -                                      | Halt the machine.                                                  |
 
 # Definitions
 To define a constant value, one can use the _definition operator_ ` := `.
@@ -87,11 +87,11 @@ The following Joy Assembler code snippet calculates the number of set bits in re
 ````
 count-bits:
     sta addr_temporary-value-a
-    imm 0
+    mov 0
     sta addr_temporary-value-b
 
     count-bits-loop:
-        imm 1
+        mov 1
         swp
         lda addr_temporary-value-a
         and
@@ -112,6 +112,8 @@ count-bits:
         jnz @count-bits-loop
 
     lda addr_temporary-value-b
+
+    jmp @back
 ````
 
 # Pragmas
