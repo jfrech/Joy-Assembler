@@ -9,6 +9,8 @@
 #include <variant>
 #include <vector>
 
+namespace Util{
+    std::string to_upper(std::string); }
 
 enum class MemoryMode { LittleEndian, BigEndian };
 
@@ -82,6 +84,7 @@ namespace InstructionNameRepresentationHandler {
 
     std::optional<InstructionName> fromByteCode(byte opCode) {
         return instructions[opCode]; }
+
     byte toByteCode(InstructionName name) {
         for (uint16_t opCode = 0; opCode < 0x100; opCode++) {
             if (!instructions[opCode].has_value())
@@ -95,15 +98,9 @@ namespace InstructionNameRepresentationHandler {
             return representation[name];
         return representation[InstructionName::NOP]; }
 
-    std::string to_upper(std::string _str) {
-        std::string str{_str};
-        for (auto &c : str)
-            c = std::toupper(c);
-        return str; }
-
     std::optional<InstructionName> from_string(std::string repr) {
         for (auto const&[in, insr] : representation)
-            if (insr == to_upper(repr))
+            if (insr == Util::to_upper(repr))
                 return std::optional<InstructionName>{in};
         return std::nullopt; }
 }
@@ -114,7 +111,7 @@ struct Instruction { InstructionName name; arg_t argument; };
 namespace InstructionRepresentationHandler {
     std::string to_string(Instruction instruction) {
         char buffer[11];
-        std::snprintf(buffer, 11, "0x%08x", instruction.argument);
+        //std::snprintf(buffer, 11, "0x%08x", instruction.argument);
         return InstructionNameRepresentationHandler
                ::to_string(instruction.name) + " " + std::string{buffer}; }
 }
@@ -125,6 +122,12 @@ namespace Util {
         auto tmp = x;
         x = y;
         y = tmp; }
+
+    std::string to_upper(std::string _str) {
+        std::string str{_str};
+        for (auto &c : str)
+            c = std::toupper(c);
+        return str; }
 
     void splitUInt32(uint32_t bytes, byte &b3, byte &b2, byte &b1, byte &b0) {
         b3 = static_cast<byte>((bytes >> 24) & 0xff);
@@ -140,15 +143,79 @@ namespace Util {
     byte get_byte() {
         return std::getchar(); }
 
-    /* TODO implement utf-8 */
-    void put_utf8_char(uint32_t unicode) {
-        put_byte(0b0111'1111 & unicode);
+    std::vector<byte> unicode_to_utf8(uint32_t unicode) {
+        if (unicode <= 0x7f)
+            return std::vector<byte>{
+                static_cast<byte>(0b0'0000000 | ( unicode        & 0b0'1111111))};
+        if (unicode <= 0x07ff)
+            return std::vector<byte>{
+                static_cast<byte>(0b110'00000 | ((unicode >>  6) & 0b000'11111)),
+                static_cast<byte>(0b10'000000 | ( unicode        & 0b00'111111))};
+        if (unicode <= 0xffff)
+            return std::vector<byte>{
+                static_cast<byte>(0b1110'0000 | ((unicode >> 12) & 0b0000'1111)),
+                static_cast<byte>(0b10'000000 | ((unicode >>  6) & 0b00'111111)),
+                static_cast<byte>(0b10'000000 | ( unicode        & 0b00'111111))};
+        if (unicode <= 0x10ffff)
+            return std::vector<byte>{
+                static_cast<byte>(0b11110'000 | ((unicode >> 18) & 0b00000'111)),
+                static_cast<byte>(0b10'000000 | ((unicode >> 12) & 0b00'111111)),
+                static_cast<byte>(0b10'000000 | ((unicode >>  6) & 0b00'111111)),
+                static_cast<byte>(0b10'000000 | ( unicode        & 0b00'111111))};
+
+        return std::vector<byte>{}; }
+
+    std::tuple<uint32_t, std::size_t> utf8_to_unicode(std::vector<byte> utf8) {
+        #define REQ(N) if (utf8.size() < (N))\
+            return std::make_tuple(0, 0);
+
+        REQ(1) byte b0 = utf8[0];
+        if ((b0 & 0b1'0000000) == 0b0'0000000)
+            return std::make_tuple(
+                   0b0'1111111 & b0
+                , 1);
+
+        REQ(2) byte b1 = utf8[1];
+        if ((b0 & 0b111'00000) == 0b110'00000)
+            return std::make_tuple(
+                  (0b000'11111 & b0) <<  6
+                | (0b00'111111 & b1)
+                , 2);
+
+        REQ(3) byte b2 = utf8[2];
+        if ((b0 & 0b1111'0000) == 0b1110'0000)
+            return std::make_tuple(
+                  (0b0000'1111 & b0) << 12
+                | (0b00'111111 & b1) <<  6
+                | (0b00'111111 & b2)
+                , 3);
+
+        REQ(4) byte b3 = utf8[3];
+        if ((b0 & 0b11111'000) == 0b11110'000)
+            return std::make_tuple(
+                  (0b00000'111 & b0) << 18
+                | (0b00'111111 & b1) << 12
+                | (0b00'111111 & b2) <<  6
+                | (0b00'111111 & b3)
+                , 4);
+
+        return std::make_tuple(0, 0);
+        #undef REQ
     }
 
-    /* TODO implement utf-8 */
+    void put_utf8_char(uint32_t unicode) {
+        for (auto c : unicode_to_utf8(unicode))
+            put_byte(c); }
+
     uint32_t get_utf8_char() {
-        return 0b0111'1111 & get_byte();
-    }
+        std::vector<byte> bytes{};
+        while (bytes.size() < 4) {
+            byte b = get_byte();
+            bytes.push_back(b);
+            auto [unicode, readBytes] = utf8_to_unicode(bytes);
+            if (readBytes == bytes.size()) {
+                return unicode; }}
+        return 0xfffd; }
 
     namespace ANSI_COLORS {
         const std::string INSTRUCTION_NAME = "\33[38;5;119m";

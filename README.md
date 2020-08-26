@@ -69,8 +69,8 @@ Joy Assembler mimics a 32-bit architecture. It has two general-purpose registers
 | `gts`            | -                                      | "**g**e**t** **s**igned"            | Input an signed numerical value from `stdin` to register `A`.      |
 | `ptb`            | -                                      | "**p**u**t** **b**its"              | Output the bits of register `A` to `stdout`.                       |
 | `gtb`            | -                                      | "**g**e**t** **b**its"              | Input bits (represented as characters) `stdin` to register `A`.    |
-| `ptc`            | -                                      | "**p**u**t** **u**nsigned"          | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`. **TODO: Full Unicode support.**                   |
-| `gtc`            | -                                      | "**g**e**t** **c**haracter          | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. **TODO: Full Unicode support.** |
+| `ptc`            | -                                      | "**p**u**t** **u**nsigned"          | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`.                   |
+| `gtc`            | -                                      | "**g**e**t** **c**haracter          | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. |
 |                  |                                        |                                     |                                                                    |
 | `hlt`            | -                                      | "**h**a**lt**"                      | Halt the machine.                                                  |
 
