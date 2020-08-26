@@ -38,6 +38,7 @@ typedef uint32_t mem_t;
     \
     M(LDA, REQ_ARG), M(LDB, REQ_ARG), M(STA, REQ_ARG), M(STB, REQ_ARG), \
     M(LIA, OPT_ARG(0)), M(SIA, OPT_ARG(0)), M(LPC, NO_ARG), M(SPC, NO_ARG), \
+    M(LYA, REQ_ARG), M(SYA, REQ_ARG), \
     \
     M(JMP, REQ_ARG), M(JZ, REQ_ARG), M(JNZ, REQ_ARG), M(JN, REQ_ARG), \
     M(JNN, REQ_ARG), M(JE, REQ_ARG), M(JNE, REQ_ARG), \
@@ -330,6 +331,15 @@ class ComputationState {
                 }; break;
             case InstructionName::LPC: registerPC = registerA; break;
             case InstructionName::SPC: registerA = registerPC; break;
+            case InstructionName::LYA:
+                registerA = (static_cast<uint32_t>(registerA) & 0xffffff00)
+                          | (static_cast<int32_t>(loadMemory(static_cast<mem_t>(
+                             instruction.argument))) & 0x000000ff);
+                break;
+            case InstructionName::SYA:
+                storeMemory(static_cast<mem_t>(instruction.argument)
+                           , static_cast<byte>(static_cast<uint32_t>(registerA) & 0xff));
+                break;
 
             case InstructionName::JMP: jmp(true); break;
             case InstructionName::JZ: jmp(flagAZero); break;

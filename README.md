@@ -30,6 +30,8 @@ Joy Assembler mimics a 32-bit architecture. It has two general-purpose registers
 | `sia`            | optional offset `o`                    | "**s**tore **i**ndirect **a**"      | Store the value in register `A` at the memory location identified by register `B`, offset by `o`. If `o` is not specified, an offset of zero is assumed.   |
 | `lpc`            | -                                      | "**l**oad **p**rogram **c**ounter"  | Set the value of the program counter register `PC` to the value in register `A`. |
 | `spc`            | -                                      | "**s**tore **p**rogram **c**ounter" | Store the value in the program counter register `PC` to register `A`.            |
+| `lya`            | memory location                        | "**l**oad b**y**te **a**"           | Load the byte at the specified memory location into the least significant byte of register `A`, modifying it in-place and keeping the upper three bytes. |
+| `sya`            | memory location                        | "**s**tore b**y**te **a**"          | Store the least significant byte of register `A` to the specified memory location.                                                                       |
 |                  |                                        |                                     |                                                                    |
 | `jmp`            | program position `@label`              | "**j**u**mp**"                      | Jump to program position `@label`.                                 |
 | `jz`             | program position `@label`              | "**j**ump **z**ero"                 | Jump to program position `@label` if register `A` holds a zero value, otherwise perform no operation.         |
