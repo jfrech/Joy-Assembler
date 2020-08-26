@@ -255,6 +255,7 @@ class ComputationState {
 
     mem_t debugProgramTextSize;
     mem_t debugHighestUsedMemoryLocation;
+    uint64_t debugExecutionCycles;
 
     public:
 
@@ -263,7 +264,8 @@ class ComputationState {
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
 
         debugProgramTextSize{0},
-        debugHighestUsedMemoryLocation{0}
+        debugHighestUsedMemoryLocation{0},
+        debugExecutionCycles{0}
     {
         updateFlags(); }
 
@@ -467,6 +469,8 @@ class ComputationState {
         }
 
         updateFlags();
+        debugExecutionCycles++;
+
         std::flush(std::cout);
         return true;
     }
@@ -525,7 +529,13 @@ class ComputationState {
         std::printf("    flagAZero: %d,    flagANegative: %d,\n    "
                     "flagAParityEven: %d\n", flagAZero, flagANegative
                    , flagAParityEven);
+
+        std::cout << "\n";
+        printExecutionCycles();
     }
+
+    void printExecutionCycles() {
+        std::cout << "Execution cycles: " << debugExecutionCycles << "\n"; }
 
 
     private:
@@ -571,11 +581,13 @@ class ComputationState {
             byte b3, b2, b1, b0;
             Util::splitUInt32(instruction.argument, b3, b2, b1, b0);
             storeMemory4(1+m, b3, b2, b1, b0);
+            debugHighestUsedMemoryLocation = 0;
             return 5; }
         mem_t storeData(mem_t m, uint32_t data) {
             byte b3, b2, b1, b0;
             Util::splitUInt32(data, b3, b2, b1, b0);
             storeMemory4(m, b3, b2, b1, b0);
+            debugHighestUsedMemoryLocation = 0;
             return 4; }
 };
 
@@ -811,4 +823,7 @@ int main(int argc, char **argv) {
         else if (DO_VISUALIZE_STEPS)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (cs.step());
+
+    if (argc > 2 && std::string{argv[2]} == "cycles")
+        cs.printExecutionCycles();
 }

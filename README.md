@@ -7,9 +7,9 @@ Joy Assembler requires the `C++20` standard and is best build using the provided
 # Usage
 Joy Assembler provides a basic command-line interface:
 ````
-./joy-assembler <input-file.asm> [visualize | step]
+./joy-assembler <input-file.asm> [visualize | step | cycles]
 ````
-The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed.
+The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `cycles` prints the number of execution cycles that were performed.
 
 # Example Programs
 Example Joy Assembler programs can be found in the `asm` directory.
