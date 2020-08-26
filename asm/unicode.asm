@@ -7,7 +7,37 @@ c1:
 c2:
     uint[1] 0
 
+nop 0xaabbccdd
+msgptr:
+    uint[1] 0
+msg:
+    string "Hällö wörld. ♖"
+
+print-string:
+    mov @msg
+    sta @msgptr
+
+    print-string-loop:
+        lda @msgptr
+        swp
+        lia
+        jz @print-string-end
+        ptc
+        swp
+        inc 4
+        sta @msgptr
+
+        jmp @print-string-loop
+    print-string-end:
+
+    mov 0x0a
+    ptc
+    hlt
+
+
 main:
+    jmp @print-string
+    hlt
 
     gtc
     sta @c0

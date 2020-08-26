@@ -226,9 +226,17 @@ namespace Util {
 
     std::optional<uint32_t> stringToUInt32(std::string s) {
         try {
-            return std::optional{static_cast<uint32_t>(
-                std::stoll(s, nullptr, 0))}; }
-        catch (std::invalid_argument const&_) {
+            long long int n{std::stoll(s, nullptr, 0)};
+            if (n < 0)
+                return std::nullopt;
+            return std::make_optional(static_cast<uint32_t>(n));
+        } catch (std::invalid_argument const&_) {
+            return std::nullopt; }}
+    std::optional<int32_t> stringToInt32(std::string s) {
+        try {
+            long long int n{std::stoll(s, nullptr, 0)};
+            return std::make_optional(static_cast<int32_t>(n));
+        } catch (std::invalid_argument const&_) {
             return std::nullopt; }}
 }
 
@@ -616,20 +624,48 @@ bool parse(std::string filename, ComputationState &cs) {
 
         {
             std::smatch _data;
-            std::regex_search(ln, _data, std::regex{"^uint *\\[(.+?)\\] *(.+?)$"});
-            if (_data.size() == 3) {
-                auto oSize = Util::stringToUInt32(_data[1]);
+            std::regex_search(ln, _data, std::regex{"^(u)?int *\\[(.+?)\\] *(.+?)$"});
+            if (_data.size() == 4) {
+                auto oSize = Util::stringToUInt32(_data[2]);
                 if (!oSize.has_value() || oSize.value() <= 0) {
-                    std::cerr << "invalid data size: " << _data[1] << "\n";
+                    std::cerr << "invalid data size: " << _data[2] << "\n";
                     return false; }
-                auto oValue = Util::stringToUInt32(_data[2]);
+                std::optional<uint32_t> oValue{std::nullopt};
+                if (_data[1] == "u")
+                    oValue = Util::stringToUInt32(_data[3]);
+                else
+                    oValue = static_cast<std::optional<uint32_t>>(Util::stringToInt32(_data[3]));
                 if (!oValue.has_value()) {
-                    std::cerr << "invalid data value: " << _data[2] << "\n";
+                    std::cerr << "invalid data value: " << _data[3] << "\n";
                     return false; }
                 for (uint32_t j = 0; j < oSize.value(); j++) {
                     parsing.push_back(parsingData{oValue.value()});
                     memPtr += 4;
                 }
+                continue;
+            }
+        }
+
+        {
+            std::smatch _string;
+            std::regex_search(ln, _string, std::regex{"^string *\"(.*?)\"$"});
+            if (_string.size() == 2) {
+                std::vector<byte> bytes{};
+                for (byte b : static_cast<std::string>(_string[1]))
+                    bytes.push_back(b);
+                while (!bytes.empty()) {
+                    auto [unicode, readBytes] = Util::utf8_to_unicode(bytes);
+                    while (readBytes--)
+                        bytes.erase(bytes.begin());
+                    if (dbg) {
+                        std::printf("-> STRING CHAR 0x%08x (", unicode);
+                        Util::put_utf8_char(unicode);
+                        std::printf(")\n"); }
+                    parsing.push_back(parsingData{unicode});
+                    memPtr += 4;
+                }
+                parsing.push_back(parsingData{0x00000000});
+                memPtr += 4;
                 continue;
             }
         }
@@ -694,7 +730,7 @@ bool parse(std::string filename, ComputationState &cs) {
                     }
                 }
 
-                oValue = Util::stringToUInt32(oArg.value());
+                oValue = static_cast<std::optional<uint32_t>>(Util::stringToInt32(oArg.value()));
                 if (!oValue.has_value()) {
                     std::cerr << "invalid value: " << oArg.value() << "\n";
                     return false; }
