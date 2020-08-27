@@ -446,7 +446,7 @@ class ComputationState {
 
     public: Instruction nextInstruction() {
         byte_t opCode{loadMemory(static_cast<word_t>(registerPC++))};
-        word_t arg{loadMemoryFOUR(static_cast<word_t>((registerPC += 4) - 4))};
+        word_t arg{loadMemory4(static_cast<word_t>((registerPC += 4) - 4))};
 
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
@@ -469,22 +469,22 @@ class ComputationState {
             case InstructionName::NOP: break;
 
             case InstructionName::LDA:
-                registerA = loadMemoryFOUR(instruction.argument);
+                registerA = loadMemory4(instruction.argument);
                 break;
             case InstructionName::LDB:
-                registerB = loadMemoryFOUR(instruction.argument);
+                registerB = loadMemory4(instruction.argument);
                 break;
             case InstructionName::STA:
-                storeMemoryFOUR(instruction.argument, registerA);
+                storeMemory4(instruction.argument, registerA);
                 break;
             case InstructionName::STB:
-                storeMemoryFOUR(instruction.argument, registerB);
+                storeMemory4(instruction.argument, registerB);
                 break;
             case InstructionName::LIA:
-                registerA = loadMemoryFOUR(registerB + instruction.argument);
+                registerA = loadMemory4(registerB + instruction.argument);
                 break;
             case InstructionName::SIA:
-                storeMemoryFOUR(registerB + instruction.argument, registerA);
+                storeMemory4(registerB + instruction.argument, registerA);
                 break;
             case InstructionName::LPC: registerPC = registerA; break;
             case InstructionName::SPC: registerA = registerPC; break;
@@ -506,26 +506,26 @@ class ComputationState {
             case InstructionName::JNE: jmp(!flagAEven); break;
 
             case InstructionName::CAL:
-                storeMemoryFOUR(registerSC, registerPC);
+                storeMemory4(registerSC, registerPC);
                 registerSC += 4;
                 registerPC = instruction.argument;
                 break;
             case InstructionName::RET:
                 registerSC -= 4;
-                registerPC = loadMemoryFOUR(registerSC);
+                registerPC = loadMemory4(registerSC);
                 break;
             case InstructionName::PSH:
-                storeMemoryFOUR(registerSC, registerA);
+                storeMemory4(registerSC, registerA);
                 registerSC += 4;
                 break;
             case InstructionName::POP:
-                registerA = loadMemoryFOUR(registerSC -= 4);
+                registerA = loadMemory4(registerSC -= 4);
                 break;
             case InstructionName::LSA:
-                registerA = loadMemoryFOUR(registerSC + instruction.argument);
+                registerA = loadMemory4(registerSC + instruction.argument);
                 break;
             case InstructionName::SSA:
-                storeMemoryFOUR(registerSC + instruction.argument, registerA);
+                storeMemory4(registerSC + instruction.argument, registerA);
                 break;
             case InstructionName::LSC: registerSC = registerA; break;
             case InstructionName::SSC: registerA = registerSC; break;
@@ -644,7 +644,7 @@ class ComputationState {
         if (oInstructionName.has_value())
             opCodeName = InstructionNameRepresentationHandler
                          ::to_string(oInstructionName.value());
-        word_t argument{loadMemoryFOUR(static_cast<word_t>(registerPC) + 1)};
+        word_t argument{loadMemory4(static_cast<word_t>(registerPC) + 1)};
         std::cout << "    " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) << " " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) << "\n";
 
         std::printf("\n=== REGISTERS ===\n");
@@ -686,7 +686,7 @@ class ComputationState {
             memory[m] = b;
     }
 
-    word_t loadMemoryFOUR(word_t m) {
+    word_t loadMemory4(word_t m) {
         byte_t b3, b2, b1, b0;
         switch (MEMORY_MODE) {
             case MemoryMode::LittleEndian:
@@ -705,7 +705,7 @@ class ComputationState {
         return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
     }
 
-    void storeMemoryFOUR(word_t m, word_t w) {
+    void storeMemory4(word_t m, word_t w) {
         byte_t b3 = static_cast<byte_t>((w >> 24) & 0xff);
         byte_t b2 = static_cast<byte_t>((w >> 16) & 0xff);
         byte_t b1 = static_cast<byte_t>((w >>  8) & 0xff);
@@ -729,13 +729,13 @@ class ComputationState {
     public: word_t storeInstruction(word_t m, Instruction instruction) {
         storeMemory(m, InstructionNameRepresentationHandler
                        ::toByteCode(instruction.name));
-        storeMemoryFOUR(1+m, instruction.argument);
+        storeMemory4(1+m, instruction.argument);
         debugHighestUsedMemoryLocation = 0;
         return 5;
     }
 
     public: word_t storeData(word_t m, word_t data) {
-        storeMemoryFOUR(m, data);
+        storeMemory4(m, data);
         debugHighestUsedMemoryLocation = 0;
         return 4;
     }
