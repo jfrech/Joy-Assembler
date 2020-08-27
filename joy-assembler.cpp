@@ -605,12 +605,16 @@ bool parse(std::string filename, ComputationState &cs) {
 
     typedef std::tuple<InstructionName, std::optional<std::string>> parsingInstruction;
     typedef uint32_t parsingData;
-    std::vector<std::variant<parsingInstruction, parsingData>> parsing;
+    std::vector<std::tuple<uint64_t, std::variant<parsingInstruction, parsingData>>> parsing;
     std::map<std::string, std::string> definitions{};
 
-    mem_t memPtr = 0;
+    mem_t memPtr{0};
 
-    for (std::string ln; std::getline(is, ln); ) {
+    uint64_t lineNumber{1};
+    auto parseError = [filename](uint64_t lineNumber, std::string msg){
+        std::cerr << filename << ", ln " << lineNumber << ": " << msg << "\n"; };
+
+    for (std::string ln; std::getline(is, ln); lineNumber++) {
         ln = std::regex_replace(ln, std::regex{";.*"}, "");
         ln = std::regex_replace(ln, std::regex{"\\s\\s+"}, " ");
         ln = std::regex_replace(ln, std::regex{"^\\s+"}, "");
@@ -619,11 +623,16 @@ bool parse(std::string filename, ComputationState &cs) {
         if (ln == "")
             continue;
 
-        auto define = [&definitions, dbg](std::string k, std::string v) {
+        if (dbg)
+            std::cout << "ln: " << ln << "\n";
+
+        auto define = [parseError, lineNumber, &definitions, dbg]
+            (std::string k, std::string v)
+        {
             if (dbg)
                 std::cout << "defining " << k << " to be " << v << "\n";
             if (definitions.contains(k)) {
-                std::cerr << "duplicate definition: " << k << "\n";
+                parseError(lineNumber, "duplicate definition: " + k);
                 return false; }
             definitions[k] = v;
             return true;
@@ -655,14 +664,15 @@ bool parse(std::string filename, ComputationState &cs) {
             if (_data.size() == 3) {
                 auto oSize = Util::stringToUInt32(_data[1]);
                 if (!oSize.has_value() || oSize.value() <= 0) {
-                    std::cerr << "invalid data size: " << _data[1] << "\n";
+                    parseError(lineNumber, "invalid data size: " + std::string{_data[1]});
                     return false; }
                 std::optional<uint32_t> oValue{Util::stringToUInt32(_data[2])};
                 if (!oValue.has_value()) {
-                    std::cerr << "invalid data value: " << _data[2] << "\n";
+                    parseError(lineNumber, "invalid data value: " + std::string{_data[2]});
                     return false; }
                 for (uint32_t j = 0; j < oSize.value(); j++) {
-                    parsing.push_back(parsingData{oValue.value()});
+                    parsing.push_back(std::make_tuple(lineNumber,
+                        parsingData{oValue.value()}));
                     memPtr += 4;
                 }
                 continue;
@@ -670,20 +680,20 @@ bool parse(std::string filename, ComputationState &cs) {
         }
 
         {
-            std::smatch _data;
-            std::regex_match(ln, _data, std::regex{"^int\\s*\\[(.+?)\\]\\s*(.+?)$"});
-            if (_data.size() == 3) {
-                auto oSize = Util::stringToUInt32(_data[1]);
+            std::smatch _int;
+            std::regex_match(ln, _int, std::regex{"^int\\s*\\[(.+?)\\]\\s*(.+?)$"});
+            if (_int.size() == 3) {
+                auto oSize = Util::stringToUInt32(_int[1]);
                 if (!oSize.has_value() || oSize.value() <= 0) {
-                    std::cerr << "invalid data size: " << _data[1] << "\n";
+                    parseError(lineNumber, "invalid int data size: " + std::string{_int[1]});
                     return false; }
-                std::optional<int32_t> oValue{Util::stringToInt32(_data[2])};
+                std::optional<int32_t> oValue{Util::stringToInt32(_int[2])};
                 if (!oValue.has_value()) {
-                    std::cerr << "invalid data value: " << _data[2] << "\n";
+                    parseError(lineNumber, "invalid int data value: " + std::string{_int[2]});
                     return false; }
                 for (uint32_t j = 0; j < oSize.value(); j++) {
-                    parsing.push_back(parsingData{
-                        static_cast<uint32_t>(oValue.value())});
+                    parsing.push_back(std::make_tuple(lineNumber,
+                        parsingData{static_cast<uint32_t>(oValue.value())}));
                     memPtr += 4;
                 }
                 continue;
@@ -705,10 +715,12 @@ bool parse(std::string filename, ComputationState &cs) {
                         std::printf("-> STRING CHAR 0x%08x (", unicode);
                         Util::put_utf8_char(unicode);
                         std::printf(")\n"); }
-                    parsing.push_back(parsingData{unicode});
+                    parsing.push_back(std::make_tuple(lineNumber,
+                        parsingData{unicode}));
                     memPtr += 4;
                 }
-                parsing.push_back(parsingData{0x00000000});
+                parsing.push_back(std::make_tuple(lineNumber,
+                    parsingData{0x00000000}));
                 memPtr += 4;
                 continue;
             }
@@ -721,25 +733,26 @@ bool parse(std::string filename, ComputationState &cs) {
             if (_instr.size() == 4) {
                 auto oName = InstructionNameRepresentationHandler::from_string(_instr[1]);
                 if (!oName.has_value()) {
-                    std::cerr << "invalid instruction name: " << _instr[1] << "\n";
+                    parseError(lineNumber, "invalid instruction name: " + std::string{_instr[1]});
                     return false; }
                 std::optional<std::string> oArg{std::nullopt};
                 if (_instr[3] != "")
                     oArg = std::optional{_instr[3]};
-                parsing.push_back(parsingInstruction{std::make_tuple(oName.value(), oArg)});
+                parsing.push_back(std::make_tuple(lineNumber,
+                    parsingInstruction{std::make_tuple(oName.value(), oArg)}));
                 memPtr += 5;
                 continue;
             }
         }
 
-        std::cerr << "incomprehensible: " << ln << "\n";
+        parseError(lineNumber, "incomprehensible");
         return false;
     }
 
     auto memPtrMax{memPtr};
     memPtr = 0;
 
-    for (auto p : parsing) {
+    for (auto [lineNumber, p] : parsing) {
         if (std::holds_alternative<parsingData>(p)) {
             uint32_t data{std::get<parsingData>(p)};
             if (dbg)
@@ -776,7 +789,7 @@ bool parse(std::string filename, ComputationState &cs) {
 
                 oValue = static_cast<std::optional<uint32_t>>(Util::stringToInt32(oArg.value()));
                 if (!oValue.has_value()) {
-                    std::cerr << "invalid value: " << oArg.value() << "\n";
+                    parseError(lineNumber, "invalid value: " + oArg.value());
                     return false; }
                 value += oValue.value();
 
@@ -789,11 +802,11 @@ bool parse(std::string filename, ComputationState &cs) {
                                                 ::argumentType[name];
 
             if (!hasArgument && oValue.has_value()) {
-                std::cerr << "superfluous argument: " << InstructionNameRepresentationHandler::to_string(name) << " " << oValue.value() << "\n";
+                parseError(lineNumber, "superfluous argument: " + InstructionNameRepresentationHandler::to_string(name) + " " + std::to_string(oValue.value()));
                 return false; }
             if (hasArgument) {
                 if (!optionalValue.has_value() && !oValue.has_value()) {
-                    std::cerr << "requiring argument: " << InstructionNameRepresentationHandler::to_string(name) << "\n";
+                    parseError(lineNumber, "requiring argument: " + InstructionNameRepresentationHandler::to_string(name));
                     continue; }
                 if (!oValue.has_value())
                     oValue = optionalValue;
