@@ -56,8 +56,8 @@ bool DO_VISUALIZE_STEPS = false;
     M(SWP, NO_ARG), M(ADD, NO_ARG), M(SUB, NO_ARG), M(AND, NO_ARG), \
     M(OR, NO_ARG), M(XOR, NO_ARG), \
     \
-    M(PTU, NO_ARG), M(GTU, NO_ARG), M(PTS, NO_ARG), M(GTS, NO_ARG), \
-    M(PTB, NO_ARG), M(GTB, NO_ARG), M(PTC, NO_ARG), M(GTC, NO_ARG), \
+    M(GET, NO_ARG), M(GTC, NO_ARG), \
+    M(PTU, NO_ARG), M(PTS, NO_ARG), M(PTB, NO_ARG), M(PTC, NO_ARG), \
     \
     M(HLT, NO_ARG)
 
@@ -487,46 +487,28 @@ class ComputationState {
                     - static_cast<int32_t>(registerB));
                 break;
 
-            case InstructionName::PTU: {
+            case InstructionName::PTU:
                 std::cout << static_cast<uint32_t>(registerA) << "\n";
-            }; break;
-            case InstructionName::GTU: {
-                std::cout << "enter an unsigned number: ";
-                std::string get;
-                std::getline(std::cin, get);
-                std::optional<uint32_t> oUN = Util::stringToUInt32(get);
-                if (!oUN.has_value())
-                    oUN = std::make_optional(0);
-                registerA = static_cast<word_t>(oUN.value());
-            }; break;
-            case InstructionName::PTS: {
+                break;
+            case InstructionName::PTS:
                 std::cout << static_cast<int32_t>(registerA) << "\n";
-            }; break;
-            case InstructionName::GTS: {
-                std::cout << "enter a signed number: ";
-                std::string get;
-                std::getline(std::cin, get);
-                std::optional<int32_t> oN = Util::stringToUInt32(get);
-                if (!oN.has_value())
-                    oN = std::make_optional(0);
-                registerA = static_cast<word_t>(oN.value());
-            }; break;
-            case InstructionName::PTB: {
+                break;
+            case InstructionName::PTB:
                 std::cout << "0b" << std::bitset<32>(registerA) << "\n";
-            }; break;
-            case InstructionName::GTB: {
-                std::cout << "enter a string of bits: ";
-                std::string get;
-                std::getline(std::cin, get);
-                try {
-                    registerA = static_cast<int32_t>(
-                        std::stol(get, nullptr, 2)); }
-                catch (std::invalid_argument const&_) {
-                    registerA = 0; }
-            }; break;
+                break;
             case InstructionName::PTC:
                 Util::put_utf8_char(registerA);
                 break;
+            case InstructionName::GET: {
+                std::optional<uint32_t> oN{std::nullopt};
+                while (!oN.has_value()) {
+                    std::cout << "enter a number: ";
+                    std::string get;
+                    std::getline(std::cin, get);
+                    oN = Util::stringToUInt32(get);
+                }
+                registerA = static_cast<word_t>(oN.value());
+            }; break;
             case InstructionName::GTC:
                 std::cout << "enter a character: ";
                 registerA = Util::get_utf8_char();
