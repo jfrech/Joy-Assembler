@@ -66,8 +66,8 @@ Joy Assembler mimics a 32-bit architecture. It has two general-purpose registers
 | `add`                     | -                                      | "numeric **add**"                   | Add the value of register `B` to the value of register `A`, modifying register `A` in-place.        |
 | `sub`                     | -                                      | "numeric **sub**tract"              | Subtract the value of register `B` from the value of register `A`, modifying register `A` in-place. |
 | **input and output**      |                                        |                                     |                                                                    |
-| `get`                     | -                                      | "**get** number                     | Input a numerical value from `stdin` to register `A`.                                            |
-| `gtc`                     | -                                      | "**g**e**t** **c**haracter          | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. |
+| `get`                     | -                                      | "**get** number"                    | Input a numerical value from `stdin` to register `A`.                                            |
+| `gtc`                     | -                                      | "**g**e**t** **c**haracter"         | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. |
 | `ptu`                     | -                                      | "**p**u**t** **u**nsigned"          | Output the unsigned numerical value of register `A` to `stdout`.   |
 | `pts`                     | -                                      | "**p**u**t** **s**igned"            | Output the signed numerical value of register `A` to `stdout`.     |
 | `ptb`                     | -                                      | "**p**u**t** **b**its"              | Output the bits of register `A` to `stdout`.                       |
