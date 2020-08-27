@@ -136,6 +136,134 @@ namespace Util {
             return ansi + text + CLEAR; }
     }
 
+    rune_t ERROR_RUNE = static_cast<rune_t>(0xfffd);
+    class UTF8Encoder {
+        public: bool encode(rune_t rune) {
+            if (rune <= 0x7f) {
+                bytes.push_back(static_cast<byte_t>(
+                    0b0'0000000 | ( rune        & 0b0'1111111)));
+                return true; }
+            if (rune <= 0x07ff) {
+                bytes.push_back(static_cast<byte_t>(
+                    0b110'00000 | ((rune >>  6) & 0b000'11111)));
+                bytes.push_back(static_cast<byte_t>(
+                    0b10'000000 | ( rune        & 0b00'111111)));
+                return true; }
+            if (rune <= 0xffff) {
+                bytes.push_back(static_cast<byte_t>(
+                    0b1110'0000 | ((rune >> 12) & 0b0000'1111)));
+                bytes.push_back(static_cast<byte_t>(
+                    0b10'000000 | ((rune >>  6) & 0b00'111111)));
+                bytes.push_back(static_cast<byte_t>(
+                    0b10'000000 | ( rune        & 0b00'111111)));
+                return true; }
+            if (rune <= 0x10ffff) {
+                bytes.push_back(static_cast<byte_t>(
+                    0b11110'000 | ((rune >> 18) & 0b00000'111)));
+                bytes.push_back(static_cast<byte_t>(
+                    0b10'000000 | ((rune >> 12) & 0b00'111111)));
+                bytes.push_back(static_cast<byte_t>(
+                    0b10'000000 | ((rune >>  6) & 0b00'111111)));
+                bytes.push_back(static_cast<byte_t>(
+                    0b10'000000 | ( rune        & 0b00'111111)));
+                return true; }
+            return erroneous = false;
+        }
+
+        public: bool finish() {
+            return !erroneous; }
+
+        public:
+            std::vector<byte_t> bytes{};
+        private:
+            bool erroneous{false};
+    };
+    class UTF8Decoder {
+        private: bool err() {
+            erroneous = true;
+            runes.push_back(ERROR_RUNE);
+            buf.clear();
+            return false; }
+
+        public: bool decode(byte_t b) {
+            /* return value signals if another byte is required */
+
+            auto invalid = [](byte_t b){
+                return (0b11'000000 & b) != 0b10'000000; };
+
+            buf.push_back(b);
+
+            if ((buf[0] & 0b1'0000000) == 0b0'0000000) {
+                if (buf.size() < 1)
+                    return true;
+                if (buf.size() != 1)
+                    return err();
+
+                runes.push_back(static_cast<rune_t>(
+                       0b0'1111111 & buf[0]));
+                buf.clear();
+                return false;
+            }
+
+            if ((buf[0] & 0b111'00000) == 0b110'00000) {
+                if (buf.size() < 2)
+                    return true;
+                if (buf.size() != 2 || invalid(buf[1]))
+                    return err();
+
+                runes.push_back(static_cast<rune_t>(
+                      (0b000'11111 & buf[0]) <<  6
+                    | (0b00'111111 & buf[1])));
+                buf.clear();
+                return false;
+            }
+
+            if ((buf[0] & 0b1111'0000) == 0b1110'0000) {
+                if (buf.size() < 3)
+                    return true;
+                if (buf.size() != 3 || invalid(buf[1]) || invalid(buf[2]))
+                    return err();
+
+                runes.push_back(static_cast<rune_t>(
+                      (0b0000'1111 & buf[0]) << 12
+                    | (0b00'111111 & buf[1]) <<  6
+                    | (0b00'111111 & buf[2])));
+                buf.clear();
+                return false;
+            }
+
+            if ((buf[0] & 0b11111'000) == 0b11110'000) {
+                if (buf.size() < 4)
+                    return true;
+                if (buf.size() != 4 || invalid(buf[1]) || invalid(buf[2]) || invalid(buf[3]))
+                    return err();
+
+                runes.push_back(static_cast<rune_t>(
+                      (0b00000'111 & buf[0]) << 18
+                    | (0b00'111111 & buf[1]) << 12
+                    | (0b00'111111 & buf[2]) <<  6
+                    | (0b00'111111 & buf[3])));
+                buf.clear();
+                return false;
+            }
+
+            return err();
+        }
+
+        public: bool finish() {
+            if (buf.empty())
+                return !erroneous;
+            err();
+            return false; }
+
+        public:
+            std::vector<rune_t> runes{};
+        private:
+            std::vector<byte_t> buf{};
+            bool erroneous{false};
+    };
+
+
     char escaped_char(char ch) {
         switch(ch) {
             case '0': return 0x00;
@@ -232,79 +360,24 @@ namespace Util {
     byte_t get_byte() {
         return std::cin.get(); }
 
-    std::vector<byte_t> unicode_to_utf8(rune_t unicode) {
-        if (unicode <= 0x7f)
-            return std::vector<byte_t>{
-                static_cast<byte_t>(0b0'0000000 | ( unicode        & 0b0'1111111))};
-        if (unicode <= 0x07ff)
-            return std::vector<byte_t>{
-                static_cast<byte_t>(0b110'00000 | ((unicode >>  6) & 0b000'11111)),
-                static_cast<byte_t>(0b10'000000 | ( unicode        & 0b00'111111))};
-        if (unicode <= 0xffff)
-            return std::vector<byte_t>{
-                static_cast<byte_t>(0b1110'0000 | ((unicode >> 12) & 0b0000'1111)),
-                static_cast<byte_t>(0b10'000000 | ((unicode >>  6) & 0b00'111111)),
-                static_cast<byte_t>(0b10'000000 | ( unicode        & 0b00'111111))};
-        if (unicode <= 0x10ffff)
-            return std::vector<byte_t>{
-                static_cast<byte_t>(0b11110'000 | ((unicode >> 18) & 0b00000'111)),
-                static_cast<byte_t>(0b10'000000 | ((unicode >> 12) & 0b00'111111)),
-                static_cast<byte_t>(0b10'000000 | ((unicode >>  6) & 0b00'111111)),
-                static_cast<byte_t>(0b10'000000 | ( unicode        & 0b00'111111))};
 
-        return std::vector<byte_t>{}; }
-
-    std::tuple<rune_t, std::size_t> utf8_to_unicode(std::vector<byte_t> utf8) {
-        #define REQ(N) if (utf8.size() < (N))\
-            return std::make_tuple(0, 0);
-
-        REQ(1) byte_t b0 = utf8[0];
-        if ((b0 & 0b1'0000000) == 0b0'0000000)
-            return std::make_tuple(
-                   0b0'1111111 & b0
-                , 1);
-
-        REQ(2) byte_t b1 = utf8[1];
-        if ((b0 & 0b111'00000) == 0b110'00000)
-            return std::make_tuple(
-                  (0b000'11111 & b0) <<  6
-                | (0b00'111111 & b1)
-                , 2);
-
-        REQ(3) byte_t b2 = utf8[2];
-        if ((b0 & 0b1111'0000) == 0b1110'0000)
-            return std::make_tuple(
-                  (0b0000'1111 & b0) << 12
-                | (0b00'111111 & b1) <<  6
-                | (0b00'111111 & b2)
-                , 3);
-
-        REQ(4) byte_t b3 = utf8[3];
-        if ((b0 & 0b11111'000) == 0b11110'000)
-            return std::make_tuple(
-                  (0b00000'111 & b0) << 18
-                | (0b00'111111 & b1) << 12
-                | (0b00'111111 & b2) <<  6
-                | (0b00'111111 & b3)
-                , 4);
-
-        return std::make_tuple(0, 0);
-        #undef REQ
-    }
-
-    void put_utf8_char(rune_t unicode) {
-        for (auto c : unicode_to_utf8(unicode))
-            put_byte(c); }
+    void put_utf8_char(rune_t rune) {
+        UTF8Encoder encoder{};
+        encoder.encode(rune);
+        if (!encoder.finish())
+            return;
+        for (byte_t b : encoder.bytes)
+            put_byte(b); }
 
     rune_t get_utf8_char() {
-        std::vector<byte_t> bytes{};
-        while (bytes.size() < 4) {
-            byte_t b = get_byte();
-            bytes.push_back(b);
-            auto [unicode, readBytes] = utf8_to_unicode(bytes);
-            if (readBytes == bytes.size()) {
-                return unicode; }}
-        return 0xfffd; }
+        UTF8Decoder decoder{};
+        while (decoder.decode(get_byte()))
+            ;
+        if (!decoder.finish())
+            return Util::ERROR_RUNE;
+        if (decoder.runes.size() != 1)
+            return Util::ERROR_RUNE;
+        return decoder.runes[0]; }
 }
 
 
@@ -806,18 +879,13 @@ bool parse(std::string filename, ComputationState &cs) {
             std::regex_match(ln, _string, std::regex{"^string\\s*\"(.*?)\"$"});
             if (_string.size() == 2) {
                 std::vector<byte_t> bytes{};
+                Util::UTF8Decoder decoder{};
                 for (byte_t b : static_cast<std::string>(_string[1]))
-                    bytes.push_back(b);
-                while (!bytes.empty()) {
-                    auto [unicode, readBytes] = Util::utf8_to_unicode(bytes);
-                    while (readBytes--)
-                        bytes.erase(bytes.begin());
-                    if (dbg) {
-                        std::printf("-> STRING CHAR 0x%08x (", unicode);
-                        Util::put_utf8_char(unicode);
-                        std::printf(")\n"); }
+                    decoder.decode(b);
+                decoder.finish();
+                for (rune_t rune : decoder.runes) {
                     parsing.push_back(std::make_tuple(lineNumber,
-                        parsingData{unicode}));
+                        parsingData{rune}));
                     memPtr += 4;
                 }
                 parsing.push_back(std::make_tuple(lineNumber,
