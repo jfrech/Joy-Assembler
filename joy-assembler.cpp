@@ -263,63 +263,115 @@ namespace Util {
             bool erroneous{false};
     };
 
+    template<typename T>
+    class Stream {
+        public: Stream(std::vector<T> values, T zeroValue) :
+            p{0},
+            values{values},
+            zeroValue{zeroValue}
+        { ; }
 
-    char escaped_char(char ch) {
-        switch(ch) {
-            case '0': return 0x00;
-            case 'a': return 0x07;
-            case 'b': return 0x08;
-            case 'e': return 0x0b;
-            case 'f': return 0x0c;
-            case 'n': return 0x0a;
-            case 'r': return 0x0d;
-            case 't': return 0x09;
-            case 'v': return 0x0b;
-            default: return ch;
-        }; }
+        public: T read() {
+            if (exhausted())
+                return zeroValue;
+            return values.at(p++); }
 
-    std::optional<std::string> parse_string(const std::string s) {
-        std::string p{""};
-        bool esc{false};
+        public: bool exhausted() {
+            return p >= values.size(); }
 
-        if (s.size() < 2 || s.front() != '"' || s.back() != '"')
+        private:
+            std::size_t p;
+            std::vector<T> values;
+            T zeroValue;
+    };
+
+    std::optional<std::vector<rune_t>> parseString(std::string s) {
+        UTF8Decoder decoder{};
+        for (byte_t b : s)
+            decoder.decode(b);
+        if (!decoder.finish())
             return std::nullopt;
 
-        auto e{s.cend()};
-        --e;
-        auto i{s.cbegin()};
-        ++i;
-        for (; i < e; ++i) {
-            if (esc) {
-                p.push_back(escaped_char(*i));
-                esc = false;
-                continue; }
-            if (*i == '\\') {
-                esc = true;
-                continue; }
-            p.push_back(*i); }
-        if (esc)
-            return std::nullopt;
-        return std::optional{p}; }
+        std::map<rune_t, rune_t> oneRuneEscapes = {
+            {static_cast<rune_t>('0'), static_cast<rune_t>('\0')},
+            {static_cast<rune_t>('a'), static_cast<rune_t>('\a')},
+            {static_cast<rune_t>('b'), static_cast<rune_t>('\b')},
+            {static_cast<rune_t>('e'), static_cast<rune_t>(0x0b)},
+            {static_cast<rune_t>('f'), static_cast<rune_t>('\f')},
+            {static_cast<rune_t>('n'), static_cast<rune_t>('\n')},
+            {static_cast<rune_t>('r'), static_cast<rune_t>('\r')},
+            {static_cast<rune_t>('t'), static_cast<rune_t>('\t')},
+            {static_cast<rune_t>('v'), static_cast<rune_t>('\v')},
+            {static_cast<rune_t>('"'), static_cast<rune_t>('"')}
+        };
+        std::map<rune_t, uint8_t> nibbleEscapes = {
+            {static_cast<rune_t>('0'), 0x0},
+            {static_cast<rune_t>('1'), 0x1},
+            {static_cast<rune_t>('2'), 0x2},
+            {static_cast<rune_t>('3'), 0x3},
+            {static_cast<rune_t>('4'), 0x4},
+            {static_cast<rune_t>('5'), 0x5},
+            {static_cast<rune_t>('6'), 0x6},
+            {static_cast<rune_t>('7'), 0x7},
+            {static_cast<rune_t>('8'), 0x8},
+            {static_cast<rune_t>('9'), 0x9},
+            {static_cast<rune_t>('a'), 0xa},
+            {static_cast<rune_t>('b'), 0xb},
+            {static_cast<rune_t>('c'), 0xc},
+            {static_cast<rune_t>('d'), 0xd},
+            {static_cast<rune_t>('e'), 0xe},
+            {static_cast<rune_t>('f'), 0xf},
+            {static_cast<rune_t>('A'), 0xa},
+            {static_cast<rune_t>('B'), 0xb},
+            {static_cast<rune_t>('C'), 0xc},
+            {static_cast<rune_t>('D'), 0xd},
+            {static_cast<rune_t>('E'), 0xe},
+            {static_cast<rune_t>('F'), 0xf},
+        };
 
-    /* TODO :: do not allow (implicit) octal escape codes */
-    /*
-    std::optional<uint32_t> stringToUInt32(std::string s) {
-        try {
-            long long int n{std::stoll(s, nullptr, 0)};
-            if (n < 0)
+        std::vector<rune_t> unescaped{};
+        Stream<rune_t> stream{decoder.runes, static_cast<rune_t>(0x00000000)};
+        while (!stream.exhausted()) {
+            rune_t rune{stream.read()};
+            if (rune != static_cast<rune_t>('\\')) {
+                unescaped.push_back(rune);
+                continue; }
+            if (stream.exhausted())
                 return std::nullopt;
-            return std::make_optional(static_cast<uint32_t>(n));
-        } catch (std::invalid_argument const&_) {
-            return std::nullopt; }} /*/
 
-    /* TODO :: do not allow (implicit) octal escape codes */
-    /*std::optional<int32_t> stringToInt32(std::string s) {
-        try {
-            long long int n{std::stoll(s, nullptr, 0)};
-            return std::make_optional(static_cast<int32_t>(n));
-        } catch (std::invalid_argument const&_) {
-            return std::nullopt; }}*/
+            rune_t emprisonedRune{stream.read()};
+            if (std20::contains(oneRuneEscapes, emprisonedRune)) {
+                unescaped.push_back(oneRuneEscapes[emprisonedRune]);
+                continue; }
+            if (emprisonedRune == static_cast<rune_t>('u') || emprisonedRune == static_cast<rune_t>('U')) {
+                uint8_t escapeLength = emprisonedRune == static_cast<rune_t>('u') ? 4 : 8;
+                rune_t escapedRune = static_cast<rune_t>(0x00000000);
+                for (uint8_t j = 0; j < escapeLength; j++) {
+                    if (stream.exhausted())
+                        return std::nullopt;
+                    rune_t emprisonedNibble{stream.read()};
+                    if (!std20::contains(nibbleEscapes, emprisonedNibble))
+                        return std::nullopt;
+                    escapedRune <<= 4;
+                    escapedRune |= 0xf & nibbleEscapes[emprisonedNibble];
+                }
+                unescaped.push_back(escapedRune);
+                continue; }
+
+            return std::nullopt;
+        }
+
+        if (unescaped.size() <= 2)
+            return std::nullopt;
+        if (unescaped.front() != static_cast<rune_t>('"'))
+            return std::nullopt;
+        unescaped.erase(unescaped.begin());
+        if (unescaped.back() != static_cast<rune_t>('"'))
+            return std::nullopt;
+        unescaped.pop_back();
+
+        return std::make_optional(unescaped);
+    }
 
     std::optional<word_t> stringToUInt32(std::string s) {
         try {
@@ -810,13 +862,13 @@ bool parse(std::string filename, ComputationState &cs) {
                         return false; }
                     std::string item{_item[1]};
                     if (item[0] == '"') {
-                        auto p = Util::parse_string(item);
-                        if (!p.has_value()) {
+                        std::optional<std::vector<rune_t>> oRunes = Util::parseString(item);
+                        if (!oRunes.has_value()) {
                             parseError(lineNumber, "invalid data: " + data);
                             return false; }
-                        for(char c : p.value()) {
+                        for (rune_t rune : oRunes.value()) {
                             parsing.push_back(std::make_tuple(lineNumber,
-                                parsingData{static_cast<word_t>(c)}));
+                                parsingData{static_cast<word_t>(rune)}));
                             memPtr += 4; }
                         data = _item[3];
                         continue; }

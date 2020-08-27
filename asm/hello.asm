@@ -20,7 +20,7 @@ printend:
 	ret
 
 hello:
-	string "Hello, World!"
+	data "Hellö, World! (Unicode: \u1e9E \u2713)\n\0"
 
 stack:
     data[0x20] 0
