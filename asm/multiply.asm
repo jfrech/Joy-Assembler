@@ -5,11 +5,11 @@ jmp @main
 
 ; memory layout
 global-x:
-    uint[1] 0
+    data[1] 0
 global-y:
-    uint[1] 0
+    data[1] 0
 global-z:
-    uint[1] 0
+    data[1] 0
 
 ; input values to be multiplied
 x := 342

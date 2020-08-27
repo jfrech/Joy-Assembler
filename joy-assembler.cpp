@@ -117,10 +117,16 @@ namespace InstructionRepresentationHandler {
 
 namespace Util {
     namespace ANSI_COLORS {
+        const std::string CLEAR = "\33[0m";
+
         const std::string INSTRUCTION_NAME = "\33[38;5;119m";
         const std::string INSTRUCTION_ARGUMENT = "\33[38;5;121m";
         const std::string STACK = "\33[38;5;127m";
         const std::string STACK_FAINT = "\33[38;5;53m";
+        const std::string MEMORY_LOCATION_USED = "\33[1m";
+
+        std::string paint(std::string ansi, std::string text) {
+            return ansi + text + CLEAR; }
     }
 
     std::string UInt32AsPaddedHex(uint32_t n) {
@@ -250,7 +256,7 @@ class ComputationState {
     std::vector<byte_t> memory;
     reg_t registerA, registerB, registerPC, registerSC;
 
-    bool flagAZero, flagANegative, flagAParityEven;
+    bool flagAZero, flagANegative, flagAEven;
 
     mem_t debugProgramTextSize;
     mem_t debugHighestUsedMemoryLocation;
@@ -343,8 +349,8 @@ class ComputationState {
             case InstructionName::JNZ: jmp(!flagAZero); break;
             case InstructionName::JN: jmp(flagANegative); break;
             case InstructionName::JNN: jmp(!flagANegative); break;
-            case InstructionName::JE: jmp(flagAParityEven); break;
-            case InstructionName::JNE: jmp(!flagAParityEven); break;
+            case InstructionName::JE: jmp(flagAEven); break;
+            case InstructionName::JNE: jmp(!flagAEven); break;
 
             case InstructionName::CAL: {
                 byte_t b3, b2, b1, b0;
@@ -429,11 +435,10 @@ class ComputationState {
             case InstructionName::GTU: {
                 std::string get;
                 std::getline(std::cin, get);
-                try {
-                    registerA = static_cast<uint32_t>(
-                        std::stol(get, nullptr, 0)); }
-                catch (std::invalid_argument const&_) {
-                    registerA = 0; }
+                std::optional<uint32_t> oUN = Util::stringToUInt32(get);
+                if (!oUN.has_value())
+                    oUN = std::make_optional(0);
+                registerA = static_cast<reg_t>(oUN.value());
             }; break;
             case InstructionName::PTS: {
                 std::cout << static_cast<int32_t>(registerA) << "\n";
@@ -441,14 +446,13 @@ class ComputationState {
             case InstructionName::GTS: {
                 std::string get;
                 std::getline(std::cin, get);
-                try {
-                    registerA = static_cast<int32_t>(
-                        std::stol(get, nullptr, 0)); }
-                catch (std::invalid_argument const&_) {
-                    registerA = 0; }
+                std::optional<int32_t> oN = Util::stringToInt32(get);
+                if (!oN.has_value())
+                    oN = std::make_optional(0);
+                registerA = static_cast<reg_t>(oN.value());
             }; break;
             case InstructionName::PTB: {
-                std::cout << std::bitset<32>(registerA) << "\n";
+                std::cout << "0b" << std::bitset<32>(registerA) << "\n";
             }; break;
             case InstructionName::GTB: {
                 std::string get;
@@ -496,9 +500,9 @@ class ComputationState {
                 if (rPC <= pc && pc < rPC + 5)
                     std::cout << (pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
                 else if (m <= debugHighestUsedMemoryLocation)
-                    std::cout << "\33[1m";
+                    std::cout << Util::ANSI_COLORS::MEMORY_LOCATION_USED;
                 std::printf(" %02X", memory[y *w+ x]);
-                std::cout << "\33[0m";
+                std::cout << Util::ANSI_COLORS::CLEAR;
                 pc++;
             }
 
@@ -518,7 +522,7 @@ class ComputationState {
         byte_t arg3, arg2, arg1, arg0;
         loadMemory4(static_cast<mem_t>(registerPC) + 1, arg3, arg2, arg1, arg0);
         uint_t argument = Util::combineUInt32(arg3, arg2, arg1, arg0);
-        std::printf("    %s%s\033[0m %s0x%08X\033[0m\n", Util::ANSI_COLORS::INSTRUCTION_NAME.c_str(), opCodeName.c_str(), Util::ANSI_COLORS::INSTRUCTION_ARGUMENT.c_str(), argument);
+        std::cout << "    " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) << " " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) << "\n";
 
         std::printf("\n=== REGISTERS ===\n");
         std::printf("    A:  0x%08x,    B:  0x%08x,\n    PC: 0x%08x,"
@@ -527,8 +531,8 @@ class ComputationState {
 
         std::printf("\n=== FLAGS ===\n");
         std::printf("    flagAZero: %d,    flagANegative: %d,\n    "
-                    "flagAParityEven: %d\n", flagAZero, flagANegative
-                   , flagAParityEven);
+                    "flagAEven: %d\n", flagAZero, flagANegative
+                   , flagAEven);
 
         std::cout << "\n";
         printExecutionCycles();
@@ -543,8 +547,7 @@ class ComputationState {
     void updateFlags() {
         flagAZero = registerA == 0;
         flagANegative = static_cast<int_t>(registerA) < 0;
-        flagAParityEven = std::bitset<32>{
-            static_cast<uint32_t>(registerA)}.count() % 2 == 0;
+        flagAEven = registerA % 2 == 0;
     }
 
     byte_t loadMemory(mem_t m) {
@@ -609,9 +612,9 @@ bool parse(std::string filename, ComputationState &cs) {
 
     for (std::string ln; std::getline(is, ln); ) {
         ln = std::regex_replace(ln, std::regex{";.*"}, "");
-        ln = std::regex_replace(ln, std::regex{"  +"}, " ");
-        ln = std::regex_replace(ln, std::regex{"^ +"}, "");
-        ln = std::regex_replace(ln, std::regex{" +$"}, "");
+        ln = std::regex_replace(ln, std::regex{"\\s\\s+"}, " ");
+        ln = std::regex_replace(ln, std::regex{"^\\s+"}, "");
+        ln = std::regex_replace(ln, std::regex{"\\s+$"}, "");
 
         if (ln == "")
             continue;
@@ -623,42 +626,40 @@ bool parse(std::string filename, ComputationState &cs) {
                 std::cerr << "duplicate definition: " << k << "\n";
                 return false; }
             definitions[k] = v;
-            return true; };
+            return true;
+        };
 
         {
             std::smatch _def;
-            std::regex_search(ln, _def, std::regex{"^([^ ]+) +:= +([^ ]+)$"});
+            std::regex_match(ln, _def, std::regex{"^(\\S+)\\s+:=\\s+(\\S+)$"});
             if (_def.size() == 3) {
                 if (!define(_def[1], _def[2]))
                     return false;
-                continue; }
+                continue;
+            }
         }
 
         {
             std::smatch _label;
-            std::regex_search(ln, _label, std::regex{"^([^ ]+):$"});
+            std::regex_match(ln, _label, std::regex{"^(\\S+):$"});
             if (_label.size() == 2) {
                 if (!define("@" + std::string{_label[1]}, std::to_string(memPtr)))
                     return false;
-                continue; }
+                continue;
+            }
         }
-
 
         {
             std::smatch _data;
-            std::regex_search(ln, _data, std::regex{"^(u)?int *\\[(.+?)\\] *(.+?)$"});
-            if (_data.size() == 4) {
-                auto oSize = Util::stringToUInt32(_data[2]);
+            std::regex_match(ln, _data, std::regex{"^data\\s*\\[(.+?)\\]\\s*(.+?)$"});
+            if (_data.size() == 3) {
+                auto oSize = Util::stringToUInt32(_data[1]);
                 if (!oSize.has_value() || oSize.value() <= 0) {
-                    std::cerr << "invalid data size: " << _data[2] << "\n";
+                    std::cerr << "invalid data size: " << _data[1] << "\n";
                     return false; }
-                std::optional<uint32_t> oValue{std::nullopt};
-                if (_data[1] == "u")
-                    oValue = Util::stringToUInt32(_data[3]);
-                else
-                    oValue = static_cast<std::optional<uint32_t>>(Util::stringToInt32(_data[3]));
+                std::optional<uint32_t> oValue{Util::stringToUInt32(_data[2])};
                 if (!oValue.has_value()) {
-                    std::cerr << "invalid data value: " << _data[3] << "\n";
+                    std::cerr << "invalid data value: " << _data[2] << "\n";
                     return false; }
                 for (uint32_t j = 0; j < oSize.value(); j++) {
                     parsing.push_back(parsingData{oValue.value()});
@@ -669,8 +670,29 @@ bool parse(std::string filename, ComputationState &cs) {
         }
 
         {
+            std::smatch _data;
+            std::regex_match(ln, _data, std::regex{"^int\\s*\\[(.+?)\\]\\s*(.+?)$"});
+            if (_data.size() == 3) {
+                auto oSize = Util::stringToUInt32(_data[1]);
+                if (!oSize.has_value() || oSize.value() <= 0) {
+                    std::cerr << "invalid data size: " << _data[1] << "\n";
+                    return false; }
+                std::optional<int32_t> oValue{Util::stringToInt32(_data[2])};
+                if (!oValue.has_value()) {
+                    std::cerr << "invalid data value: " << _data[2] << "\n";
+                    return false; }
+                for (uint32_t j = 0; j < oSize.value(); j++) {
+                    parsing.push_back(parsingData{
+                        static_cast<uint32_t>(oValue.value())});
+                    memPtr += 4;
+                }
+                continue;
+            }
+        }
+
+        {
             std::smatch _string;
-            std::regex_search(ln, _string, std::regex{"^string *\"(.*?)\"$"});
+            std::regex_match(ln, _string, std::regex{"^string\\s*\"(.*?)\"$"});
             if (_string.size() == 2) {
                 std::vector<byte_t> bytes{};
                 for (byte_t b : static_cast<std::string>(_string[1]))
@@ -694,7 +716,7 @@ bool parse(std::string filename, ComputationState &cs) {
 
         {
             std::smatch _instr;
-            std::regex_search(ln, _instr, std::regex{"^([^ ]+)( +([^ ]+))?$"});
+            std::regex_match(ln, _instr, std::regex{"^(\\S+)(\\s+(\\S+))?$"});
             //std::cout << "instr: " << _instr[1] << ", " << _instr[3] << "\n";
             if (_instr.size() == 4) {
                 auto oName = InstructionNameRepresentationHandler::from_string(_instr[1]);
@@ -706,8 +728,8 @@ bool parse(std::string filename, ComputationState &cs) {
                     oArg = std::optional{_instr[3]};
                 parsing.push_back(parsingInstruction{std::make_tuple(oName.value(), oArg)});
                 memPtr += 5;
+                continue;
             }
-            continue;
         }
 
         std::cerr << "incomprehensible: " << ln << "\n";
@@ -733,7 +755,7 @@ bool parse(std::string filename, ComputationState &cs) {
                 uint32_t value = 0;
                 {
                     std::smatch _prgOffset;
-                    std::regex_search(oArg.value(), _prgOffset, std::regex{"^prg\\+(.*?)$"});
+                    std::regex_match(oArg.value(), _prgOffset, std::regex{"^prg\\+(.*?)$"});
                     if (_prgOffset.size() == 2) {
                         value += memPtrMax;
                         oArg = std::make_optional(_prgOffset[1]);
@@ -745,7 +767,7 @@ bool parse(std::string filename, ComputationState &cs) {
 
                 {
                     std::smatch _prgOffset;
-                    std::regex_search(oArg.value(), _prgOffset, std::regex{"^prg\\+(.*?)$"});
+                    std::regex_match(oArg.value(), _prgOffset, std::regex{"^prg\\+(.*?)$"});
                     if (_prgOffset.size() == 2) {
                         value += memPtrMax;
                         oArg = std::make_optional(_prgOffset[1]);

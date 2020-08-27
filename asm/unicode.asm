@@ -1,15 +1,15 @@
 jmp @main
 
 c0:
-    uint[1] 0
+    data[1] 0
 c1:
-    uint[1] 0
+    data[1] 0
 c2:
-    uint[1] 0
+    data[1] 0
 
 nop 0xaabbccdd
 msgptr:
-    uint[1] 0
+    data[1] 0
 msg:
     string "Hällö wörld. ♖"
 

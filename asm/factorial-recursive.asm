@@ -17,15 +17,15 @@ jmp @main
 
 ; global variables in memeory
 global-x:
-    uint[1] 0
+    data[1] 0
 global-y:
-    uint[1] 0
+    data[1] 0
 global-z:
-    uint[1] 0
+    data[1] 0
 global-w:
-    uint[1] 0
+    data[1] 0
 global-v:
-    uint[1] 0
+    data[1] 0
 
 
 factorial:
@@ -143,4 +143,4 @@ main:
     hlt
 
 stack:
-    uint[0x20] 0
+    data[0x20] 0

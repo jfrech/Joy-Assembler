@@ -8,11 +8,11 @@ psh
 jmp @main
 
 global-m:
-    uint[1] 0
+    data[1] 0
 global-n:
-    uint[1] 0
+    data[1] 0
 global-a:
-    uint[1] 0
+    data[1] 0
 
 ; main program
 main:
@@ -117,4 +117,4 @@ ack:
         ret
 
 stack:
-    uint[0xfff] 0
+    data[0xfff] 0
