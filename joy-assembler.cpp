@@ -757,11 +757,10 @@ bool parse(std::string filename, ComputationState &cs) {
 
     word_t memPtr{0};
 
-    line_number_t lineNumber{1};
     auto parseError = [filename](line_number_t lineNumber, std::string msg){
         std::cerr << filename << ", ln " << lineNumber << ": " << msg << "\n"; };
 
-    for (std::string ln; std::getline(is, ln); lineNumber++) {
+    for (auto [lineNumber, ln] = std::tuple<line_number_t, std::string>{1, ""}; std::getline(is, ln); lineNumber++) {
         ln = std::regex_replace(ln, std::regex{";.*"}, "");
         ln = std::regex_replace(ln, std::regex{"\\s\\s+"}, " ");
         ln = std::regex_replace(ln, std::regex{"^\\s+"}, "");

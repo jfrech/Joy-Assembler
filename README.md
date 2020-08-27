@@ -15,7 +15,9 @@ The optional argument `visualize` allows one to see each instruction's execution
 Example Joy Assembler programs can be found in the `asm` directory.
 
 # Architecture
-Joy Assembler mimics a 32-bit architecture. It has two general-purpose registers `A` and `B` which each hold a (signed) `int32_t`, one program counter register `PC` and a stack counter register `SC` as well as a definable (ref. `pragma_memory-size`) block of memory, addressable as individual bytes. Each Joy Assembler instruction consists of a _name_ paired with four bytes representing an _argument_, which are interpreted or discarded as specified below.
+Joy Assembler mimics a 32-bit architecture. It has four 32-bit registers: two general-prupose registers `A` (**a**ccumulation) and `B` (o**b**erand) and two special-prupose registers `PC` (**p**rogram **c**ounter) and `SC` (**s**tack **c**ounter). Regarding memory, a single block of memory of a fixed size is provided, addressable as either numeric 4-byte values or individual bytes. Each Joy Assembler instruction consists of a _name_ paired with possibly four bytes representing an _argument_. All instructions' behavior is specified below.
+
+The simulated architecture can also be slightly modified using _pragmas_ (see below).
 
 # Instructions
 | instruction name          | argument                               | mnemonic                            | description                                                        |
