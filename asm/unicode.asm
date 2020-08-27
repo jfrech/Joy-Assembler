@@ -11,7 +11,7 @@ nop 0xaabbccdd
 msgptr:
     data[1] 0
 msg:
-    string "Hällö wörld. ♖"
+    data "Hällö wörld. ♖\n\0"
 
 print-string:
     mov @msg
@@ -30,8 +30,6 @@ print-string:
         jmp @print-string-loop
     print-string-end:
 
-    mov 0x0a
-    ptc
     hlt
 
 

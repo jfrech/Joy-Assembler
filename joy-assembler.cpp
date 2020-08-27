@@ -927,27 +927,6 @@ bool parse(std::string filename, ComputationState &cs) {
         }
 
         {
-            std::smatch _string;
-            std::regex_match(ln, _string, std::regex{"^string\\s*\"(.*?)\"$"});
-            if (_string.size() == 2) {
-                std::vector<byte_t> bytes{};
-                Util::UTF8Decoder decoder{};
-                for (byte_t b : static_cast<std::string>(_string[1]))
-                    decoder.decode(b);
-                decoder.finish();
-                for (rune_t rune : decoder.runes) {
-                    parsing.push_back(std::make_tuple(lineNumber,
-                        parsingData{rune}));
-                    memPtr += 4;
-                }
-                parsing.push_back(std::make_tuple(lineNumber,
-                    parsingData{0x00000000}));
-                memPtr += 4;
-                continue;
-            }
-        }
-
-        {
             std::smatch _instr;
             std::regex_match(ln, _instr, std::regex{"^(\\S+)(\\s+(\\S+))?$"});
             if (_instr.size() == 4) {
