@@ -11,7 +11,16 @@
 
 namespace Util {
     std::string to_upper(std::string);
-    std::string UInt32AsPaddedHex(uint32_t n); }
+    std::string UInt32AsPaddedHex(uint32_t n);
+
+    namespace std20 {
+        /* a custom std::map::contains (C++20) implementation */
+        template<typename K, typename V>
+        bool contains(std::map<K, V> map, K key) {
+            return map.count(key) != 0; }
+    }
+}
+
 
 enum class MemoryMode { LittleEndian, BigEndian };
 
@@ -93,7 +102,7 @@ namespace InstructionNameRepresentationHandler {
         return 0x00; }
 
     std::string to_string(InstructionName name) {
-        if (representation.contains(name))
+        if (Util::std20::contains<InstructionName, std::string>(representation, name))
             return representation[name];
         return representation[InstructionName::NOP]; }
 
@@ -690,7 +699,7 @@ bool parse(std::string filename, ComputationState &cs) {
         {
             if (dbg)
                 std::cout << "defining " << k << " to be " << v << "\n";
-            if (definitions.contains(k)) {
+            if (Util::std20::contains<std::string, std::string>(definitions, k)) {
                 parseError(lineNumber, "duplicate definition: " + k);
                 return false; }
             definitions[k] = v;
@@ -878,7 +887,7 @@ bool parse(std::string filename, ComputationState &cs) {
             std::optional<uint32_t> oValue{std::nullopt};
             if (oArg.has_value()) {
                 uint32_t value = 0;
-                if (definitions.contains(oArg.value()))
+                if (Util::std20::contains<std::string, std::string>(definitions, oArg.value()))
                     oArg = std::make_optional(definitions[oArg.value()]);
 
                 oValue = static_cast<std::optional<uint32_t>>(Util::stringToInt32(oArg.value()));
