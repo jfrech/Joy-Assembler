@@ -150,10 +150,10 @@ namespace Util {
         return b3 << 24 | b2 << 16 | b1 << 8 | b0; }
 
     void put_byte(byte_t b) {
-        std::putchar(b); }
+        cout.put(b); }
 
     byte_t get_byte() {
-        return std::getchar(); }
+        return cin.get(); }
 
     std::vector<byte_t> unicode_to_utf8(uint32_t unicode) {
         if (unicode <= 0x7f)
@@ -826,14 +826,14 @@ bool parse(std::string filename, ComputationState &cs) {
 
         if (dbg) {
             cs.visualize();
-            std::getchar(); }
+            cin.get(); }
     }
 
     return true;
 }
 
 
-int main(int argc, char **argv) {
+int main(int argc, char const*argv[]) {
     if (argc < 2) {
         std::cerr << "please provide an input joy assembly file\n";
         return EXIT_FAILURE; }
@@ -845,7 +845,6 @@ int main(int argc, char **argv) {
     ComputationState cs{};
 
     std::string filename{argv[1]};
-    std::vector<byte_t> memory;
     if (!parse(filename, cs)) {
         std::cerr << "faulty joy assembly file\n";
         return EXIT_FAILURE; }
@@ -854,7 +853,7 @@ int main(int argc, char **argv) {
         if (DO_VISUALIZE_STEPS)
             cs.visualize();
         if (DO_WAIT_FOR_USER)
-            getchar();
+            cin.get();
         else if (DO_VISUALIZE_STEPS)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (cs.step());
