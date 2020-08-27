@@ -27,6 +27,7 @@ typedef int32_t int_t;
 typedef uint_t reg_t;
 typedef uint_t mem_t;
 
+
 #define NO_ARG std::tuple{false, std::nullopt}
 #define REQ_ARG std::tuple{true, std::nullopt}
 #define OPT_ARG(ARG) std::tuple{true, std::optional<uint32_t>{ARG}}
@@ -129,6 +130,79 @@ namespace Util {
             return ansi + text + CLEAR; }
     }
 
+    char escaped_char(char ch) {
+        switch(ch) {
+            case '0': return 0x00;
+            case 'a': return 0x07;
+            case 'b': return 0x08;
+            case 'e': return 0x0b;
+            case 'f': return 0x0c;
+            case 'n': return 0x0a;
+            case 'r': return 0x0d;
+            case 't': return 0x09;
+            case 'v': return 0x0b;
+            default: return ch;
+        }; }
+
+    std::optional<std::string> parse_string(const std::string s) {
+        std::string p{""};
+        bool esc{false};
+
+        if (s.size() < 2 || s.front() != '"' || s.back() != '"')
+            return std::nullopt;
+
+        auto e{s.cend()};
+        --e;
+        auto i{s.cbegin()};
+        ++i;
+        for (; i < e; ++i) {
+            if (esc) {
+                p.push_back(escaped_char(*i));
+                esc = false;
+                continue; }
+            if (*i == '\\') {
+                esc = true;
+                continue; }
+            p.push_back(*i); }
+        if (esc)
+            return std::nullopt;
+        return std::optional{p}; }
+
+    /* TODO :: do not allow (implicit) octal escape codes */
+    /*
+    std::optional<uint32_t> stringToUInt32(std::string s) {
+        try {
+            long long int n{std::stoll(s, nullptr, 0)};
+            if (n < 0)
+                return std::nullopt;
+            return std::make_optional(static_cast<uint32_t>(n));
+        } catch (std::invalid_argument const&_) {
+            return std::nullopt; }} /*/
+
+    /* TODO :: do not allow (implicit) octal escape codes */
+    /*std::optional<int32_t> stringToInt32(std::string s) {
+        try {
+            long long int n{std::stoll(s, nullptr, 0)};
+            return std::make_optional(static_cast<int32_t>(n));
+        } catch (std::invalid_argument const&_) {
+            return std::nullopt; }}*/
+
+    std::optional<uint32_t> stringToUInt32(std::string s) {
+        typedef uint32_t word_t;
+        try {
+            if (std::regex_match(s, std::regex{"\\s*[+-]?0[xX][0-9a-fA-F]+\\s*"}))
+                return std::optional{static_cast<word_t>(std::stoll(s, nullptr, 16))};
+            if (std::regex_match(s, std::regex{"\\s*[+-]?0[bB][01]+\\s*"})) {
+                s = std::regex_replace(s, std::regex{"0[bB]"}, "");
+                return std::optional{static_cast<word_t>(std::stoll(s, nullptr, 2))}; }
+            if (std::regex_match(s, std::regex{"\\s*[+-]?[0-9]+\\s*"}))
+                return std::optional{static_cast<word_t>(std::stoll(s, nullptr, 10))};
+            return std::nullopt;
+        } catch (std::invalid_argument const&_) {
+            return std::nullopt; }}
+    std::optional<int32_t> stringToInt32(std::string s) {
+        return static_cast<std::optional<int32_t>>(stringToUInt32(s)); }
+
     std::string UInt32AsPaddedHex(uint32_t n) {
         char buf[11];
         std::snprintf(buf, 11, "0x%08x", n);
@@ -150,10 +224,10 @@ namespace Util {
         return b3 << 24 | b2 << 16 | b1 << 8 | b0; }
 
     void put_byte(byte_t b) {
-        cout.put(b); }
+        std::cout.put(b); }
 
     byte_t get_byte() {
-        return cin.get(); }
+        return std::cin.get(); }
 
     std::vector<byte_t> unicode_to_utf8(uint32_t unicode) {
         if (unicode <= 0x7f)
@@ -228,26 +302,7 @@ namespace Util {
             if (readBytes == bytes.size()) {
                 return unicode; }}
         return 0xfffd; }
-
-    /* TODO :: do not allow (implicit) octal escape codes */
-    std::optional<uint32_t> stringToUInt32(std::string s) {
-        try {
-            long long int n{std::stoll(s, nullptr, 0)};
-            if (n < 0)
-                return std::nullopt;
-            return std::make_optional(static_cast<uint32_t>(n));
-        } catch (std::invalid_argument const&_) {
-            return std::nullopt; }}
-
-    /* TODO :: do not allow (implicit) octal escape codes */
-    std::optional<int32_t> stringToInt32(std::string s) {
-        try {
-            long long int n{std::stoll(s, nullptr, 0)};
-            return std::make_optional(static_cast<int32_t>(n));
-        } catch (std::invalid_argument const&_) {
-            return std::nullopt; }}
 }
-
 
 
 class ComputationState {
@@ -433,6 +488,7 @@ class ComputationState {
                 std::cout << static_cast<uint32_t>(registerA) << "\n";
             }; break;
             case InstructionName::GTU: {
+                std::cout << "enter an unsigned number: ";
                 std::string get;
                 std::getline(std::cin, get);
                 std::optional<uint32_t> oUN = Util::stringToUInt32(get);
@@ -444,6 +500,7 @@ class ComputationState {
                 std::cout << static_cast<int32_t>(registerA) << "\n";
             }; break;
             case InstructionName::GTS: {
+                std::cout << "enter a signed number: ";
                 std::string get;
                 std::getline(std::cin, get);
                 std::optional<int32_t> oN = Util::stringToInt32(get);
@@ -455,6 +512,7 @@ class ComputationState {
                 std::cout << "0b" << std::bitset<32>(registerA) << "\n";
             }; break;
             case InstructionName::GTB: {
+                std::cout << "enter a string of bits: ";
                 std::string get;
                 std::getline(std::cin, get);
                 try {
@@ -467,6 +525,7 @@ class ComputationState {
                 Util::put_utf8_char(registerA);
                 break;
             case InstructionName::GTC:
+                std::cout << "enter a character: ";
                 registerA = Util::get_utf8_char();
                 break;
 
@@ -729,7 +788,6 @@ bool parse(std::string filename, ComputationState &cs) {
         {
             std::smatch _instr;
             std::regex_match(ln, _instr, std::regex{"^(\\S+)(\\s+(\\S+))?$"});
-            //std::cout << "instr: " << _instr[1] << ", " << _instr[3] << "\n";
             if (_instr.size() == 4) {
                 auto oName = InstructionNameRepresentationHandler::from_string(_instr[1]);
                 if (!oName.has_value()) {
@@ -749,9 +807,7 @@ bool parse(std::string filename, ComputationState &cs) {
         return false;
     }
 
-    auto memPtrMax{memPtr};
     memPtr = 0;
-
     for (auto [lineNumber, p] : parsing) {
         if (std::holds_alternative<parsingData>(p)) {
             uint32_t data{std::get<parsingData>(p)};
@@ -766,26 +822,8 @@ bool parse(std::string filename, ComputationState &cs) {
             std::optional<uint32_t> oValue{std::nullopt};
             if (oArg.has_value()) {
                 uint32_t value = 0;
-                {
-                    std::smatch _prgOffset;
-                    std::regex_match(oArg.value(), _prgOffset, std::regex{"^prg\\+(.*?)$"});
-                    if (_prgOffset.size() == 2) {
-                        value += memPtrMax;
-                        oArg = std::make_optional(_prgOffset[1]);
-                    }
-                }
-
                 if (definitions.contains(oArg.value()))
                     oArg = std::make_optional(definitions[oArg.value()]);
-
-                {
-                    std::smatch _prgOffset;
-                    std::regex_match(oArg.value(), _prgOffset, std::regex{"^prg\\+(.*?)$"});
-                    if (_prgOffset.size() == 2) {
-                        value += memPtrMax;
-                        oArg = std::make_optional(_prgOffset[1]);
-                    }
-                }
 
                 oValue = static_cast<std::optional<uint32_t>>(Util::stringToInt32(oArg.value()));
                 if (!oValue.has_value()) {
@@ -826,7 +864,7 @@ bool parse(std::string filename, ComputationState &cs) {
 
         if (dbg) {
             cs.visualize();
-            cin.get(); }
+            std::cin.get(); }
     }
 
     return true;
@@ -853,7 +891,7 @@ int main(int argc, char const*argv[]) {
         if (DO_VISUALIZE_STEPS)
             cs.visualize();
         if (DO_WAIT_FOR_USER)
-            cin.get();
+            std::cin.get();
         else if (DO_VISUALIZE_STEPS)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (cs.step());
