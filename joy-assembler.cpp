@@ -717,7 +717,7 @@ bool parse(std::string filename, ComputationState &cs) {
             }
         }
 
-        {
+        /*{
             std::smatch _data;
             std::regex_match(ln, _data, std::regex{"^data\\s*\\[(.+?)\\]\\s*(.+?)$"});
             if (_data.size() == 3) {
@@ -733,6 +733,62 @@ bool parse(std::string filename, ComputationState &cs) {
                     parsing.push_back(std::make_tuple(lineNumber,
                         parsingData{oValue.value()}));
                     memPtr += 4;
+                }
+                continue;
+            }
+        }*/
+
+        {
+            std::smatch _data;
+            std::regex_match(ln, _data, std::regex{"^data\\s*(.+)$"});
+            if (_data.size() == 2) {
+                std::string data{_data[1]};
+                while (!data.empty()) {
+                    std::smatch _item;
+                    std::regex_match(data, _item, std::regex{"(\"(?:[^\"\\\\]|\\\\.)*\"|[^\",]*)(,\\s*(.*))?"});
+                    if (_item.size() != 4) {
+                        parseError(lineNumber, "invalid data: " + data);
+                        return false; }
+                    std::string item{_item[1]};
+                    if (item[0] == '"') {
+                        auto p = Util::parse_string(item);
+                        if (!p.has_value()) {
+                            parseError(lineNumber, "invalid data: " + data);
+                            return false; }
+                        for(char c : p.value()) {
+                            parsing.push_back(std::make_tuple(lineNumber,
+                                parsingData{static_cast<uint32_t>(c)}));
+                            memPtr += 4; }
+                        data = _item[3];
+                        continue; }
+
+                    {
+                        std::smatch _match;
+                        if (std::regex_match(item, _match, std::regex{"\\[(.+)\\]\\s*(.+)"})) {
+                            auto oSize = Util::stringToUInt32(_match[1]);
+                            if (!oSize.has_value()) {
+                                parseError(lineNumber, "invalid data size: " + item + ", i.e. " + std::string{_match[1]});
+                                return false; }
+                            auto oValue = Util::stringToUInt32(_match[2]);
+                            if (!oValue.has_value()) {
+                                parseError(lineNumber, "invalid data value: " + item + ", i.e. " + std::string{_match[2]});
+                                return false; }
+                            for (uint64_t j = 0; j < oSize.value(); j++) {
+                                parsing.push_back(std::make_tuple(lineNumber,
+                                    parsingData{oValue.value()}));
+                                memPtr += 4; }
+                            data = _item[3];
+                            continue; }
+                    }
+
+                    auto oValue = Util::stringToUInt32(item);
+                    if (!oValue.has_value()) {
+                        parseError(lineNumber, "invalid data value: " + item);
+                        return false; }
+                    parsing.push_back(std::make_tuple(lineNumber,
+                        parsingData{oValue.value()}));
+                    memPtr += 4;
+                    data = _item[3];
                 }
                 continue;
             }
