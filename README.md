@@ -20,7 +20,7 @@ Joy Assembler mimics a 32-bit architecture. It has two general-purpose registers
 # Instructions
 | instruction name          | argument                               | mnemonic                            | description                                                        |
 |---------------------------|----------------------------------------|-------------------------------------|--------------------------------------------------------------------|
-| **no operation**          |                                        |                                     |                                                                    |
+| **nop**                   |                                        |                                     |                                                                    |
 | `nop`                     | -                                      | "**n**o o**p**eration"              | No operation.                                                      |
 | **memory**                |                                        |                                     |                                                                    |
 | `lda`                     | memory location                        | "**l**oa**d** **a**"                | Load the value at the specified memory location into register `A`. |
@@ -65,14 +65,14 @@ Joy Assembler mimics a 32-bit architecture. It has two general-purpose registers
 | `xor`                     | -                                      | "bitwise **xor**"                   | Perform a bit-wise `xor` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place. |
 | `add`                     | -                                      | "numeric **add**"                   | Add the value of register `B` to the value of register `A`, modifying register `A` in-place.        |
 | `sub`                     | -                                      | "numeric **sub**tract"              | Subtract the value of register `B` from the value of register `A`, modifying register `A` in-place. |
-| **input and output        |                                        |                                     |                                                                    |
+| **input and output**      |                                        |                                     |                                                                    |
 | `get`                     | -                                      | "**get** number                     | Input a numerical value from `stdin` to register `A`.                                            |
 | `gtc`                     | -                                      | "**g**e**t** **c**haracter          | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. |
 | `ptu`                     | -                                      | "**p**u**t** **u**nsigned"          | Output the unsigned numerical value of register `A` to `stdout`.   |
 | `pts`                     | -                                      | "**p**u**t** **s**igned"            | Output the signed numerical value of register `A` to `stdout`.     |
 | `ptb`                     | -                                      | "**p**u**t** **b**its"              | Output the bits of register `A` to `stdout`.                       |
 | `ptc`                     | -                                      | "**p**u**t** **u**nsigned"          | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`.                   |
-| **halt**                  |                                        |                                     |                                                                    |
+| **hlt**                   |                                        |                                     |                                                                    |
 | `hlt`                     | -                                      | "**h**a**lt**"                      | Halt the machine.                                                  |
 
 # Definitions
