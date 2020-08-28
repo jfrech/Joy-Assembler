@@ -1,7 +1,8 @@
 #! /bin/sh
+# test all .asm files in programs/
 
 root="$(dirname "$(realpath "$0")")"
-make -C "$root/.."
+make -C "$root/.." || exit 1
 
 pristine="$root/pristine"
 programs="$root/programs"

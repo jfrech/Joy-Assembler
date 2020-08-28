@@ -20,7 +20,7 @@ main:
     mov 3
     psh
     ; n
-    mov 5
+    mov 2
     psh
 
     cal @ack
@@ -29,9 +29,16 @@ main:
     pop
     ptu
     ; ignore (ack takes two argument, yet only returns one)
+    swp
     pop
 
+    mov -29
+    add
+
+    jnz @infinity
     hlt
+    infinity:
+        jmp @infinity
 
 
 ; ack(0, n) = n+1
