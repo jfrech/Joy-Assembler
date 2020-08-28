@@ -10,13 +10,13 @@
 #include <vector>
 
 namespace Util {
-    std::string to_upper(std::string);
-    std::string UInt32AsPaddedHex(uint32_t n);
+    std::string to_upper(std::string const&);
+    std::string UInt32AsPaddedHex(uint32_t const n);
 
     namespace std20 {
         /* a custom std::map::contains (C++20) implementation */
         template<typename K, typename V>
-        bool contains(std::map<K, V> map, K key) {
+        inline bool contains(std::map<K, V> const&map, K const&key) {
             return map.count(key) != 0; }
     }
 }
@@ -88,10 +88,10 @@ namespace InstructionNameRepresentationHandler {
             #undef ARG_TYPES
     };
 
-    std::optional<InstructionName> fromByteCode(byte_t opCode) {
+    std::optional<InstructionName> fromByteCode(byte_t const opCode) {
         return instructions[opCode]; }
 
-    byte_t toByteCode(InstructionName name) {
+    byte_t toByteCode(InstructionName const name) {
         for (uint16_t opCode = 0; opCode < 0x100; opCode++) {
             if (!instructions[opCode].has_value())
                 continue;
@@ -99,12 +99,12 @@ namespace InstructionNameRepresentationHandler {
                 return static_cast<byte_t>(opCode); }
         return 0x00; }
 
-    std::string to_string(InstructionName name) {
+    std::string to_string(InstructionName const name) {
         if (Util::std20::contains<InstructionName, std::string>(representation, name))
             return representation[name];
         return representation[InstructionName::NOP]; }
 
-    std::optional<InstructionName> from_string(std::string repr) {
+    std::optional<InstructionName> from_string(std::string const&repr) {
         for (auto const&[in, insr] : representation)
             if (insr == Util::to_upper(repr))
                 return std::optional<InstructionName>{in};
@@ -118,7 +118,7 @@ namespace InstructionNameRepresentationHandler {
 struct Instruction { InstructionName name; word_t argument; };
 
 namespace InstructionRepresentationHandler {
-    std::string to_string(Instruction instruction) {
+    std::string to_string(Instruction const instruction) {
         return InstructionNameRepresentationHandler::to_string(instruction.name)
                + " " + Util::UInt32AsPaddedHex(instruction.argument); }
 }
@@ -133,13 +133,13 @@ namespace Util {
         const std::string STACK_FAINT = "\33[38;5;53m";
         const std::string MEMORY_LOCATION_USED = "\33[1m";
 
-        std::string paint(std::string ansi, std::string text) {
+        std::string paint(std::string const&ansi, std::string const&text) {
             return ansi + text + CLEAR; }
     }
 
     rune_t ERROR_RUNE = static_cast<rune_t>(0xfffd);
     class UTF8Encoder {
-        public: bool encode(rune_t rune) {
+        public: bool encode(rune_t const rune) {
             if (rune <= 0x7f) {
                 bytes.push_back(static_cast<byte_t>(
                     0b0'0000000 | ( rune        & 0b0'1111111)));
@@ -186,7 +186,7 @@ namespace Util {
             buf.clear();
             return false; }
 
-        public: bool decode(byte_t b) {
+        public: bool decode(byte_t const b) {
             /* return value signals if another byte is required */
 
             auto invalid = [](byte_t b){
@@ -266,7 +266,7 @@ namespace Util {
 
     template<typename T>
     class Stream {
-        public: Stream(std::vector<T> values, T zeroValue) :
+        public: Stream(std::vector<T> const&values, T const&zeroValue) :
             p{0},
             values{values},
             zeroValue{zeroValue}
@@ -286,7 +286,7 @@ namespace Util {
             T zeroValue;
     };
 
-    std::optional<std::vector<rune_t>> parseString(std::string s) {
+    std::optional<std::vector<rune_t>> parseString(std::string const&s) {
         UTF8Decoder decoder{};
         for (byte_t b : s)
             decoder.decode(b);
@@ -374,41 +374,42 @@ namespace Util {
         return std::make_optional(unescaped);
     }
 
-    std::optional<word_t> stringToUInt32(std::string s) {
+    std::optional<word_t> stringToUInt32(std::string const&s) {
         try {
+            /* TODO dynamic_cast */
             if (std::regex_match(s, std::regex{"\\s*[+-]?0[xX][0-9a-fA-F]+\\s*"}))
                 return std::optional{static_cast<word_t>(std::stoll(s, nullptr, 16))};
             if (std::regex_match(s, std::regex{"\\s*[+-]?0[bB][01]+\\s*"})) {
-                s = std::regex_replace(s, std::regex{"0[bB]"}, "");
-                return std::optional{static_cast<word_t>(std::stoll(s, nullptr, 2))}; }
+                std::string s2{std::regex_replace(s, std::regex{"0[bB]"}, "")};
+                return std::optional{static_cast<word_t>(std::stoll(s2, nullptr, 2))}; }
             if (std::regex_match(s, std::regex{"\\s*[+-]?[0-9]+\\s*"}))
                 return std::optional{static_cast<word_t>(std::stoll(s, nullptr, 10))};
             return std::nullopt;
         } catch (std::invalid_argument const&_) {
             return std::nullopt; }}
 
-    std::string UInt32AsPaddedHex(uint32_t n) {
+    std::string UInt32AsPaddedHex(uint32_t const n) {
         char buf[11];
         std::snprintf(buf, 11, "0x%08x", n);
         return std::string{buf}; }
-    std::string UInt8AsPaddedHex(uint8_t n) {
+    std::string UInt8AsPaddedHex(uint8_t const n) {
         char buf[3];
         std::snprintf(buf, 3, "%02X", n);
         return std::string{buf}; }
 
-    std::string to_upper(std::string _str) {
+    std::string to_upper(std::string const&_str) {
         std::string str{_str};
         for (auto &c : str)
             c = std::toupper(c);
         return str; }
 
-    void put_byte(byte_t b) {
+    void put_byte(byte_t const b) {
         std::cout.put(b); }
 
     byte_t get_byte() {
         return std::cin.get(); }
 
-    void put_utf8_char(rune_t rune) {
+    void put_utf8_char(rune_t const rune) {
         UTF8Encoder encoder{};
         encoder.encode(rune);
         if (!encoder.finish())
@@ -657,7 +658,7 @@ class ComputationState {
         }
         std::printf("\n");
 
-        std::printf("\n=== CURRENT INSTRUCTION ===\n");
+        std::printf("=== CURRENT INSTRUCTION ===\n");
         byte_t opCode = loadMemory(static_cast<word_t>(registerPC));
         std::string opCodeName = "(err. NOP)";
         auto oInstructionName = InstructionNameRepresentationHandler
@@ -668,12 +669,12 @@ class ComputationState {
         word_t argument{loadMemory4(static_cast<word_t>(registerPC) + 1)};
         std::cout << "    " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) << " " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) << "\n";
 
-        std::printf("\n=== REGISTERS ===\n");
+        std::printf("=== REGISTERS ===\n");
         std::printf("    A:  0x%08x,    B:  0x%08x,\n    PC: 0x%08x,"
                     "    SC: 0x%08x\n"
                    , registerA, registerB, registerPC, registerSC);
 
-        std::printf("\n=== FLAGS ===\n");
+        std::printf("=== FLAGS ===\n");
         std::printf("    flagAZero: %d,    flagANegative: %d,\n    "
                     "flagAEven: %d\n", flagAZero, flagANegative
                    , flagAEven);
@@ -712,20 +713,20 @@ class ComputationState {
         flagAEven = registerA % 2 == 0;
     }
 
-    byte_t loadMemory(word_t m) {
+    byte_t loadMemory(word_t const m) {
         debugHighestUsedMemoryLocation = std::max(
             debugHighestUsedMemoryLocation, m);
         return m < MEMORY_SIZE ? memory[m] : 0;
     }
 
-    void storeMemory(word_t m, byte_t b) {
+    void storeMemory(word_t const m, byte_t const b) {
         debugHighestUsedMemoryLocation = std::max(
             debugHighestUsedMemoryLocation, m);
         if (m < MEMORY_SIZE)
             memory[m] = b;
     }
 
-    word_t loadMemory4(word_t m) {
+    word_t loadMemory4(word_t const m) {
         byte_t b3, b2, b1, b0;
         switch (MEMORY_MODE) {
             case MemoryMode::LittleEndian:
@@ -744,7 +745,7 @@ class ComputationState {
         return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
     }
 
-    void storeMemory4(word_t m, word_t w) {
+    void storeMemory4(word_t const m, word_t const w) {
         byte_t b3 = static_cast<byte_t>((w >> 24) & 0xff);
         byte_t b2 = static_cast<byte_t>((w >> 16) & 0xff);
         byte_t b1 = static_cast<byte_t>((w >>  8) & 0xff);
@@ -765,7 +766,7 @@ class ComputationState {
         }
     }
 
-    public: word_t storeInstruction(word_t m, Instruction instruction) {
+    public: word_t storeInstruction(word_t const m, Instruction const instruction) {
         storeMemory(m, InstructionNameRepresentationHandler
                        ::toByteCode(instruction.name));
         storeMemory4(1+m, instruction.argument);
@@ -773,14 +774,14 @@ class ComputationState {
         return 5;
     }
 
-    public: word_t storeData(word_t m, word_t data) {
+    public: word_t storeData(word_t const m, word_t const data) {
         storeMemory4(m, data);
         debugHighestUsedMemoryLocation = 0;
         return 4;
     }
 };
 
-bool parse(std::string filename, ComputationState &cs) {
+bool parse(std::string const&filename, ComputationState &cs) {
     bool dbg{false};
 
     std::ifstream is{filename};
@@ -801,7 +802,7 @@ bool parse(std::string filename, ComputationState &cs) {
 
     for (auto [lineNumber, ln] = std::tuple<line_number_t, std::string>{1, ""}; std::getline(is, ln); lineNumber++) {
         ln = std::regex_replace(ln, std::regex{";.*"}, "");
-        ln = std::regex_replace(ln, std::regex{"\\s\\s+"}, " ");
+        ln = std::regex_replace(ln, std::regex{"\\s+"}, " "); /* TODO refactor REGEXs from here */
         ln = std::regex_replace(ln, std::regex{"^\\s+"}, "");
         ln = std::regex_replace(ln, std::regex{"\\s+$"}, "");
 
@@ -969,8 +970,6 @@ bool parse(std::string filename, ComputationState &cs) {
                 oValue = std::make_optional(value);
             }
 
-
-
             auto [hasArgument, optionalValue] = InstructionNameRepresentationHandler
                                                 ::argumentType[name];
 
@@ -1006,7 +1005,7 @@ bool parse(std::string filename, ComputationState &cs) {
 }
 
 
-int main(int argc, char const*argv[]) {
+int main(int const argc, char const*argv[]) {
     if (argc < 2) {
         std::cerr << "please provide an input joy assembly file\n";
         return EXIT_FAILURE; }
