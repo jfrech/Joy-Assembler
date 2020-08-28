@@ -2,9 +2,11 @@
 
 #include <bitset>
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <set>
 #include <thread>
 #include <variant>
 #include <vector>
@@ -14,6 +16,8 @@
 
 bool DO_WAIT_FOR_USER = false;
 bool DO_VISUALIZE_STEPS = false;
+
+bool dbg{false};
 
 namespace InstructionNameRepresentationHandler {
     std::optional<InstructionName> fromByteCode(byte_t const opCode) {
@@ -408,36 +412,34 @@ class ComputationState {
 };
 
 typedef uint64_t line_number_t;
-/*
-bool parseFile(
-        std::string const&filename,
-        std::set<std::string> &parsedFilenames,
-        std::vector<std::tuple<std::string, line_number_t
-                              , std::variant<parsingInstruction
-                                            , parsingData>>> &parsing
-    ) {
-    return true; //TODO
-}
-*/
-// -> include "..."
 
-bool parse(std::string const&filename, ComputationState &cs) {
-    bool dbg{false};
+typedef std::tuple<InstructionName, std::optional<std::string>> parsingInstruction;
+typedef word_t parsingData;
+typedef std::vector<std::tuple<std::filesystem::path, line_number_t
+                              , std::variant<parsingInstruction, parsingData>>>
+        IntermediateParsingResult;
+typedef std::map<std::string, std::string> IntermediateParsingDefinitions;
 
-    std::ifstream is{filename};
+bool parseError(std::filesystem::path const&filepath, line_number_t const lineNumber, std::string const&msg) {
+    std::cerr << "file " << filepath << ", ln " << lineNumber << ": " << msg << std::endl;
+    return false; }
+
+bool parse1(
+        std::filesystem::path const&filepath,
+        std::set<std::filesystem::path> &parsedFilepaths,
+        IntermediateParsingResult &parsing, IntermediateParsingDefinitions &definitions) {
+
+    if (Util::std20::contains(parsedFilepaths, filepath)) {
+        std::cerr << "recursive file inclusion; not parsing file twice: " << filepath << std::endl;
+        return false; }
+    parsedFilepaths.insert(filepath);
+
+    std::ifstream is{filepath};
     if (!is.is_open()) {
-        std::cerr << "could not read input joy assembly file\n";
+        std::cerr << "unable to read file: " << filepath << std::endl;
         return false; }
 
-    typedef std::tuple<InstructionName, std::optional<std::string>> parsingInstruction;
-    typedef word_t parsingData;
-    std::vector<std::tuple<line_number_t, std::variant<parsingInstruction, parsingData>>> parsing;
-    std::map<std::string, std::string> definitions{};
-
     word_t memPtr{0};
-
-    auto parseError = [filename](line_number_t lineNumber, std::string msg){
-        std::cerr << filename << ", ln " << lineNumber << ": " << msg << "\n"; };
 
     for (auto [lineNumber, ln] = std::tuple<line_number_t, std::string>{1, ""}; std::getline(is, ln); lineNumber++) {
         ln = std::regex_replace(ln, std::regex{";.*"}, "");
@@ -451,14 +453,13 @@ bool parse(std::string const&filename, ComputationState &cs) {
         if (dbg)
             std::cout << "ln: " << ln << "\n";
 
-        auto define = [parseError, lineNumber, &definitions, dbg]
+        auto define = [filepath, lineNumber, &definitions]//dbg]
             (std::string k, std::string v)
         {
             if (dbg)
                 std::cout << "defining " << k << " to be " << v << "\n";
-            if (Util::std20::contains<std::string, std::string>(definitions, k)) {
-                parseError(lineNumber, "duplicate definition: " + k);
-                return false; }
+            if (Util::std20::contains<std::string, std::string>(definitions, k))
+                return parseError(filepath, lineNumber, "duplicate definition: " + k);
             definitions[k] = v;
             return true;
         };
@@ -491,17 +492,15 @@ bool parse(std::string const&filename, ComputationState &cs) {
                 while (!data.empty()) {
                     std::smatch _item;
                     std::regex_match(data, _item, std::regex{"(\"(?:[^\"\\\\]|\\\\.)*\"|[^\",]*)(,\\s*(.*))?"});
-                    if (_item.size() != 4) {
-                        parseError(lineNumber, "invalid data: " + data);
-                        return false; }
+                    if (_item.size() != 4)
+                        return parseError(filepath, lineNumber, "invalid data: " + data);
                     std::string item{_item[1]};
                     if (item[0] == '"') {
                         std::optional<std::vector<rune_t>> oRunes = Util::parseString(item);
-                        if (!oRunes.has_value()) {
-                            parseError(lineNumber, "invalid data: " + data);
-                            return false; }
+                        if (!oRunes.has_value())
+                            return parseError(filepath, lineNumber, "invalid data: " + data);
                         for (rune_t rune : oRunes.value()) {
-                            parsing.push_back(std::make_tuple(lineNumber,
+                            parsing.push_back(std::make_tuple(filepath, lineNumber,
                                 parsingData{static_cast<word_t>(rune)}));
                             memPtr += 4; }
                         data = _item[3];
@@ -511,15 +510,13 @@ bool parse(std::string const&filename, ComputationState &cs) {
                         std::smatch _match;
                         if (std::regex_match(item, _match, std::regex{"\\[(.+)\\]\\s*(.+)"})) {
                             auto oSize = Util::stringToUInt32(_match[1]);
-                            if (!oSize.has_value()) {
-                                parseError(lineNumber, "invalid data size: " + item + ", i.e. " + std::string{_match[1]});
-                                return false; }
+                            if (!oSize.has_value())
+                                return parseError(filepath, lineNumber, "invalid data size: " + item + ", i.e. " + std::string{_match[1]});
                             auto oValue = Util::stringToUInt32(_match[2]);
-                            if (!oValue.has_value()) {
-                                parseError(lineNumber, "invalid data value: " + item + ", i.e. " + std::string{_match[2]});
-                                return false; }
+                            if (!oValue.has_value())
+                                return parseError(filepath, lineNumber, "invalid data value: " + item + ", i.e. " + std::string{_match[2]});
                             for (std::size_t j = 0; j < oSize.value(); j++) {
-                                parsing.push_back(std::make_tuple(lineNumber,
+                                parsing.push_back(std::make_tuple(filepath, lineNumber,
                                     parsingData{oValue.value()}));
                                 memPtr += 4; }
                             data = _item[3];
@@ -527,10 +524,9 @@ bool parse(std::string const&filename, ComputationState &cs) {
                     }
 
                     auto oValue = Util::stringToUInt32(item);
-                    if (!oValue.has_value()) {
-                        parseError(lineNumber, "invalid data value: " + item);
-                        return false; }
-                    parsing.push_back(std::make_tuple(lineNumber,
+                    if (!oValue.has_value())
+                        return parseError(filepath, lineNumber, "invalid data value: " + item);
+                    parsing.push_back(std::make_tuple(filepath, lineNumber,
                         parsingData{oValue.value()}));
                     memPtr += 4;
                     data = _item[3];
@@ -544,15 +540,13 @@ bool parse(std::string const&filename, ComputationState &cs) {
             std::regex_match(ln, _int, std::regex{"^int\\s*\\[(.+?)\\]\\s*(.+?)$"});
             if (_int.size() == 3) {
                 auto oSize = Util::stringToUInt32(_int[1]);
-                if (!oSize.has_value() || oSize.value() <= 0) {
-                    parseError(lineNumber, "invalid int data size: " + std::string{_int[1]});
-                    return false; }
+                if (!oSize.has_value() || oSize.value() <= 0)
+                    return parseError(filepath, lineNumber, "invalid int data size: " + std::string{_int[1]});
                 std::optional<word_t> oValue{Util::stringToUInt32(_int[2])};
-                if (!oValue.has_value()) {
-                    parseError(lineNumber, "invalid int data value: " + std::string{_int[2]});
-                    return false; }
+                if (!oValue.has_value())
+                    return parseError(filepath, lineNumber, "invalid int data value: " + std::string{_int[2]});
                 for (std::size_t j = 0; j < oSize.value(); j++) {
-                    parsing.push_back(std::make_tuple(lineNumber,
+                    parsing.push_back(std::make_tuple(filepath, lineNumber,
                         parsingData{static_cast<word_t>(oValue.value())}));
                     memPtr += 4;
                 }
@@ -565,27 +559,27 @@ bool parse(std::string const&filename, ComputationState &cs) {
             std::regex_match(ln, _instr, std::regex{"^(\\S+)(\\s+(\\S+))?$"});
             if (_instr.size() == 4) {
                 auto oName = InstructionNameRepresentationHandler::from_string(_instr[1]);
-                if (!oName.has_value()) {
-                    parseError(lineNumber, "invalid instruction name: " + std::string{_instr[1]});
-                    return false; }
+                if (!oName.has_value())
+                    return parseError(filepath, lineNumber, "invalid instruction name: " + std::string{_instr[1]});
                 std::optional<std::string> oArg{std::nullopt};
                 if (_instr[3] != "")
                     oArg = std::optional{_instr[3]};
-                parsing.push_back(std::make_tuple(lineNumber,
+                parsing.push_back(std::make_tuple(filepath, lineNumber,
                     parsingInstruction{std::make_tuple(oName.value(), oArg)}));
                 memPtr += 5;
                 continue;
             }
         }
 
-        parseError(lineNumber, "incomprehensible");
-        return false;
+        return parseError(filepath, lineNumber, "incomprehensible");
     }
 
-    /**************************************************************************/
+    return true;
+}
 
-    memPtr = 0;
-    for (auto [lineNumber, p] : parsing) {
+bool parse2(IntermediateParsingResult const&parsing, IntermediateParsingDefinitions const&definitions, ComputationState &cs) {
+    word_t memPtr{0};//TODO
+    for (auto [filepath, lineNumber, p] : parsing) {
         if (std::holds_alternative<parsingData>(p)) {
             word_t data{std::get<parsingData>(p)};
             if (dbg)
@@ -599,13 +593,12 @@ bool parse(std::string const&filename, ComputationState &cs) {
             std::optional<word_t> oValue{std::nullopt};
             if (oArg.has_value()) {
                 word_t value = 0;
-                if (Util::std20::contains<std::string, std::string>(definitions, oArg.value()))
-                    oArg = std::make_optional(definitions[oArg.value()]);
+                if (Util::std20::contains(definitions, oArg.value()))
+                    oArg = std::make_optional(definitions.at(oArg.value()));
 
                 oValue = static_cast<std::optional<word_t>>(Util::stringToUInt32(oArg.value()));
-                if (!oValue.has_value()) {
-                    parseError(lineNumber, "invalid value: " + oArg.value());
-                    return false; }
+                if (!oValue.has_value())
+                    return parseError(filepath, lineNumber, "invalid value: " + oArg.value());
                 value += oValue.value();
 
                 oValue = std::make_optional(value);
@@ -614,13 +607,11 @@ bool parse(std::string const&filename, ComputationState &cs) {
             auto [hasArgument, optionalValue] = InstructionNameRepresentationHandler
                                                 ::argumentType[name];
 
-            if (!hasArgument && oValue.has_value()) {
-                parseError(lineNumber, "superfluous argument: " + InstructionNameRepresentationHandler::to_string(name) + " " + std::to_string(oValue.value()));
-                return false; }
+            if (!hasArgument && oValue.has_value())
+                return parseError(filepath, lineNumber, "superfluous argument: " + InstructionNameRepresentationHandler::to_string(name) + " " + std::to_string(oValue.value()));
             if (hasArgument) {
-                if (!optionalValue.has_value() && !oValue.has_value()) {
-                    parseError(lineNumber, "requiring argument: " + InstructionNameRepresentationHandler::to_string(name));
-                    continue; }
+                if (!optionalValue.has_value() && !oValue.has_value())
+                    return parseError(filepath, lineNumber, "requiring argument: " + InstructionNameRepresentationHandler::to_string(name));
                 if (!oValue.has_value())
                     oValue = optionalValue;
             }
@@ -677,12 +668,24 @@ int main(int const argc, char const*argv[]) {
     if (argc > 2 && std::string{argv[2]} == "step")
         DO_VISUALIZE_STEPS = DO_WAIT_FOR_USER = true;
 
-    ComputationState cs{0x10000};
+    std::filesystem::path filepath{std::filesystem::current_path() / std::filesystem::path(argv[1])};
 
-    std::string filename{argv[1]};
-    if (!parse(filename, cs)) {
-        std::cerr << "faulty joy assembly file\n";
+
+    std::set<std::filesystem::path> parsedFilepaths{};
+    IntermediateParsingResult parsing{};
+    IntermediateParsingDefinitions definitions{};
+    if (!parse1(filepath, parsedFilepaths, parsing, definitions)) {
+        std::cerr << "parsing failed at stage 1: " << filepath << std::endl;
         return EXIT_FAILURE; }
+
+    ComputationState cs{0x10000};
+    if (!parse2(parsing, definitions, cs)) {
+        std::cerr << "parsing failed at stage 2: " << filepath << std::endl;
+        return EXIT_FAILURE; }
+    //std::string filename{argv[1]};
+    /*if (!parse(filename, cs)) {
+        std::cerr << "faulty joy assembly file\n";
+        return EXIT_FAILURE; }*/
 
     if (argc > 2 && std::string{argv[2]} == "memory-dump") {
         do {

@@ -12,6 +12,11 @@ namespace Util {
         template<typename K, typename V>
         inline bool contains(std::map<K, V> const&map, K const&key) {
             return map.count(key) != 0; }
+
+        /* a custom std::set::contains (C++20) implementation */
+        template<typename V>
+        inline bool contains(std::set<V> const&set, V const&value) {
+            return set.count(value) != 0; }
     }
 }
 
