@@ -13,9 +13,9 @@ isoDate () {
     date +'%Y-%m-%dT%H:%M:%SZ'
 }
 buildInfo () {
-    sed --in-place "$(printf 's!\[//\]: # (build-info).*$![//]: # (build-info) %s!' "$1")" "$root/../README.md"
+    sed --in-place "$(printf 's!^\*\*Build: .*$!**Build: %s** (%s)!' "$1" "$(isoDate)")" "$root/../README.md"
 }
-buildInfo "$(printf '**build: \xf0\x9f\x9f\xa5 failing** (%s)' "$(isoDate)")"
+buildInfo "$(printf '\xf0\x9f\x9f\xa5 failing')"
 
 find "$root/programs" -mindepth 1 -maxdepth 1 -type f | while read prg; do
     printf 'testing: %s\n' "$prg"
@@ -32,6 +32,6 @@ find "$root/programs" -mindepth 1 -maxdepth 1 -type f | while read prg; do
     printf '        \33[38;5;154m[SUC]\33[0m memory dump match\n'
 done || exit 1
 
-buildInfo "$(printf '**build: \xf0\x9f\x9f\xa9 passing** (%s)' "$(isoDate)")"
+buildInfo "$(printf '\xf0\x9f\x9f\xa9 passing')"
 
 rm "$tmp"
