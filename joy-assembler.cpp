@@ -420,6 +420,14 @@ typedef std::vector<std::tuple<std::filesystem::path, line_number_t
         IntermediateParsingResult;
 typedef std::map<std::string, std::string> IntermediateParsingDefinitions;
 
+struct ParsingState {
+    std::vector<std::tuple<std::filesystem::path, line_number_t
+                          , std::variant<parsingInstruction, parsingData>>>
+        parsing;
+    std::map<std::string, std::string> definitions;
+};
+
+
 bool parseError(std::filesystem::path const&filepath, line_number_t const lineNumber, std::string const&msg) {
     std::cerr << "file " << filepath << ", ln " << lineNumber << ": " << msg << std::endl;
     return false; }
@@ -427,7 +435,10 @@ bool parseError(std::filesystem::path const&filepath, line_number_t const lineNu
 bool parse1(
         std::filesystem::path const&filepath,
         std::set<std::filesystem::path> &parsedFilepaths,
-        IntermediateParsingResult &parsing, IntermediateParsingDefinitions &definitions) {
+        ParsingState &ps) {
+
+    auto &parsing = ps.parsing;
+    auto &definitions = ps.definitions;
 
     if (Util::std20::contains(parsedFilepaths, filepath)) {
         std::cerr << "recursive file inclusion; not parsing file twice: " << filepath << std::endl;
@@ -577,7 +588,10 @@ bool parse1(
     return true;
 }
 
-bool parse2(IntermediateParsingResult const&parsing, IntermediateParsingDefinitions const&definitions, ComputationState &cs) {
+bool parse2(ParsingState &ps, ComputationState &cs) {
+    auto &parsing = ps.parsing;
+    auto &definitions = ps.definitions;
+
     word_t memPtr{0};//TODO
     for (auto [filepath, lineNumber, p] : parsing) {
         if (std::holds_alternative<parsingData>(p)) {
@@ -672,14 +686,13 @@ int main(int const argc, char const*argv[]) {
 
 
     std::set<std::filesystem::path> parsedFilepaths{};
-    IntermediateParsingResult parsing{};
-    IntermediateParsingDefinitions definitions{};
-    if (!parse1(filepath, parsedFilepaths, parsing, definitions)) {
+    ParsingState ps{};
+    if (!parse1(filepath, parsedFilepaths, ps)) {
         std::cerr << "parsing failed at stage 1: " << filepath << std::endl;
         return EXIT_FAILURE; }
 
     ComputationState cs{0x10000};
-    if (!parse2(parsing, definitions, cs)) {
+    if (!parse2(ps, cs)) {
         std::cerr << "parsing failed at stage 2: " << filepath << std::endl;
         return EXIT_FAILURE; }
     //std::string filename{argv[1]};
