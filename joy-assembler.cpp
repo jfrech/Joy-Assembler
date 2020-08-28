@@ -14,10 +14,10 @@
 #include "Util.cpp"
 #include "types.hh"
 
-bool DO_WAIT_FOR_USER = false;
-bool DO_VISUALIZE_STEPS = false;
-
-bool dbg{false};
+constexpr bool doLog{false};
+constexpr inline void log(std::string const&msg) {
+    if (doLog)
+        std::clog << msg << std::endl; }
 
 namespace InstructionNameRepresentationHandler {
     std::optional<InstructionName> fromByteCode(byte_t const opCode) {
@@ -51,6 +51,13 @@ namespace InstructionRepresentationHandler {
                + " " + Util::UInt32AsPaddedHex(instruction.argument); }
 }
 
+struct ComputationStateDebug {
+    word_t highestUsedMemoryLocation{0};
+    uint64_t executionCycles{0};
+    bool doWaitForUser{false};
+    bool doVisualizeSteps{false};
+};
+
 class ComputationState {
     private:
         word_t memorySize;
@@ -61,11 +68,10 @@ class ComputationState {
 
         bool flagAZero, flagANegative, flagAEven;
 
-        word_t debugProgramTextSize;
-        word_t debugHighestUsedMemoryLocation;
-        uint64_t debugExecutionCycles;
-
         bool mock;
+
+    public:
+        ComputationStateDebug debug;
 
     public: ComputationState(word_t const memorySize) :
         memorySize{memorySize},
@@ -76,11 +82,9 @@ class ComputationState {
 
         flagAZero{true}, flagANegative{false}, flagAEven{true},
 
-        debugProgramTextSize{0},
-        debugHighestUsedMemoryLocation{0},
-        debugExecutionCycles{0},
+        mock{false},
 
-        mock{false}
+        debug{}
     {
         updateFlags(); }
 
@@ -250,7 +254,7 @@ class ComputationState {
         }
 
         updateFlags();
-        debugExecutionCycles++;
+        debug.executionCycles++;
 
         std::flush(std::cout);
         return true;
@@ -275,14 +279,14 @@ class ComputationState {
                     std::cout << Util::ANSI_COLORS::STACK;
                 if (rPC <= pc && pc < rPC + 5)
                     std::cout << (pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
-                else if (m <= debugHighestUsedMemoryLocation)
+                else if (m <= debug.highestUsedMemoryLocation)
                     std::cout << Util::ANSI_COLORS::MEMORY_LOCATION_USED;
                 std::printf(" %02X", memory[y *w+ x]);
                 std::cout << Util::ANSI_COLORS::CLEAR;
                 pc++;
             }
 
-            if ((y+1)*w >= 0x100 && debugHighestUsedMemoryLocation+1 < (y+1)*w)
+            if ((y+1)*w >= 0x100 && debug.highestUsedMemoryLocation+1 < (y+1)*w)
                 break;
         }
         std::printf("\n");
@@ -313,7 +317,7 @@ class ComputationState {
     }
 
     void printExecutionCycles() {
-        std::cout << "Execution cycles: " << debugExecutionCycles << "\n"; }
+        std::cout << "Execution cycles: " << debug.executionCycles << "\n"; }
 
     public: void memoryDump() {
         mock = true;
@@ -344,14 +348,14 @@ class ComputationState {
 
     /* TODO throw on invalid memory location ~> machine should halt */
     byte_t loadMemory(word_t const m) {
-        debugHighestUsedMemoryLocation = std::max(
-            debugHighestUsedMemoryLocation, m);
+        debug.highestUsedMemoryLocation = std::max(
+            debug.highestUsedMemoryLocation, m);
         return m < memorySize ? memory[m] : 0;
     }
     /* TODO throw on invalid memory location ~> machine should halt */
     void storeMemory(word_t const m, byte_t const b) {
-        debugHighestUsedMemoryLocation = std::max(
-            debugHighestUsedMemoryLocation, m);
+        debug.highestUsedMemoryLocation = std::max(
+            debug.highestUsedMemoryLocation, m);
         if (m < memorySize)
             memory[m] = b;
     }
@@ -400,13 +404,13 @@ class ComputationState {
         storeMemory(m, InstructionNameRepresentationHandler
                        ::toByteCode(instruction.name));
         storeMemory4(1+m, instruction.argument);
-        debugHighestUsedMemoryLocation = 0;
+        debug.highestUsedMemoryLocation = 0;
         return 5;
     }
 
     public: word_t storeData(word_t const m, word_t const data) {
         storeMemory4(m, data);
-        debugHighestUsedMemoryLocation = 0;
+        debug.highestUsedMemoryLocation = 0;
         return 4;
     }
 };
@@ -430,24 +434,19 @@ struct ParsingState {
 };
 
 bool parse1(ParsingState &ps) {
-
     auto const&filepath = ps.filepath;
     auto &parsedFilepaths = ps.parsedFilepaths;
     auto &parsing = ps.parsing;
 
-    if (Util::std20::contains(parsedFilepaths, filepath)) {
-        std::cerr << "recursive file inclusion; not parsing file twice: " << filepath << std::endl;
-        return false; }
+    if (Util::std20::contains(parsedFilepaths, filepath))
+        return ps.error(0, "recursive file inclusion; not parsing file twice");
     parsedFilepaths.insert(filepath);
 
     std::ifstream is{filepath};
-    if (!is.is_open()) {
-        std::cerr << "unable to read file: " << filepath << std::endl;
-        return false; }
+    if (!is.is_open())
+        return ps.error(0, "unable to read file");
 
-    word_t memPtr{0};
-
-    for (auto [lineNumber, ln] = std::tuple<line_number_t, std::string>{1, ""}; std::getline(is, ln); lineNumber++) {
+    for (auto [memPtr, lineNumber, ln] = std::make_tuple<word_t, line_number_t, std::string>(0, 1, ""); std::getline(is, ln); lineNumber++) {
         ln = std::regex_replace(ln, std::regex{";.*"}, "");
         ln = std::regex_replace(ln, std::regex{"\\s+"}, " "); /* TODO refactor REGEXs from here */
         ln = std::regex_replace(ln, std::regex{"^\\s+"}, "");
@@ -456,14 +455,12 @@ bool parse1(ParsingState &ps) {
         if (ln == "")
             continue;
 
-        if (dbg)
-            std::cout << "ln: " << ln << "\n";
+        log("ln " + std::to_string(lineNumber) + ": " + ln);
 
-        auto define = [&ps, lineNumber]//dbg]
+        auto define = [&ps, lineNumber]
             (std::string k, std::string v)
         {
-            if (dbg)
-                std::cout << "defining " << k << " to be " << v << "\n";
+            log("defining " + k + " to be " + v);
             if (Util::std20::contains<std::string, std::string>(ps.definitions, k))
                 return ps.error(lineNumber, "duplicate definition: " + k);
             ps.definitions[k] = v;
@@ -584,14 +581,11 @@ bool parse1(ParsingState &ps) {
 }
 
 bool parse2(ParsingState &ps, ComputationState &cs) {
-    auto &parsing = ps.parsing;
-
-    word_t memPtr{0};//TODO
-    for (auto [filepath, lineNumber, p] : parsing) {
+    word_t memPtr{0};
+    for (auto [filepath, lineNumber, p] : ps.parsing) {
         if (std::holds_alternative<parsingData>(p)) {
             word_t data{std::get<parsingData>(p)};
-            if (dbg)
-                std::printf("data value 0x%08x\n", data);
+            log("data value " + Util::UInt32AsPaddedHex(data));
             memPtr += cs.storeData(memPtr, data);
         }
         else if (std::holds_alternative<parsingInstruction>(p)) {
@@ -625,43 +619,15 @@ bool parse2(ParsingState &ps, ComputationState &cs) {
             }
 
             if (oValue.has_value()) {
-                if (dbg)
-                    std::cout << "instruction " << InstructionNameRepresentationHandler::to_string(name) << " " << oValue.value() << "\n";
+                log("instruction " + InstructionNameRepresentationHandler::to_string(name) + " " + std::to_string(oValue.value()));
                 auto argument = oValue.value();
                 memPtr += cs.storeInstruction(memPtr, Instruction{name, argument});
             } else {
-                if (dbg)
-                    std::cout << "instruction " << InstructionNameRepresentationHandler::to_string(name) << " (none)\n";
+                log("instruction " + InstructionNameRepresentationHandler::to_string(name) + " (none)");
                 memPtr += cs.storeInstruction(memPtr, Instruction{name, 0x00000000});
             }
         }
-
-        if (dbg) {
-            cs.visualize();
-            std::cin.get(); }
     }
-
-    // TODO implement a stack macro; check sizes
-
-    /*if (Util::std20::contains(definitions, "pragma_memory-mode")) {
-        std::string pmm = definitions["pragma_memory-mode"];
-        if (pmm == "little-endian")
-            cs.memoryMode = MemoryMode::LittleEndian;
-        else if (pmm == "big-endian")
-            cs.memoryMode = MemoryMode::BigEndian;
-        else {
-            std::cerr << "unknown memory mode pragma: " << pmm << "\n";
-            return false; }}
-
-    if (Util::std20::contains(definitions, "pragma_memory-size")) {
-        std::string ms = definitions["pragma_memory-size"];
-        // TODO better parsing
-        try {
-            cs.memorySize = std::stol(ms, nullptr, 0); }
-        catch (std::invalid_argument const&_) {
-            std::cerr << "unknown memory size: " << ms << "\n";
-            return false; }}
-    */
 
     return true;
 }
@@ -671,10 +637,12 @@ int main(int const argc, char const*argv[]) {
     if (argc < 2) {
         std::cerr << "please provide an input joy assembly file\n";
         return EXIT_FAILURE; }
+    ComputationState cs{0x10000};
+
     if (argc > 2 && std::string{argv[2]} == "visualize")
-        DO_VISUALIZE_STEPS = true;
+        cs.debug.doVisualizeSteps = true;
     if (argc > 2 && std::string{argv[2]} == "step")
-        DO_VISUALIZE_STEPS = DO_WAIT_FOR_USER = true;
+        cs.debug.doVisualizeSteps = cs.debug.doWaitForUser = true;
 
     std::filesystem::path filepath{std::filesystem::current_path() / std::filesystem::path(argv[1])};
 
@@ -686,14 +654,9 @@ int main(int const argc, char const*argv[]) {
         std::cerr << "parsing failed at stage 1: " << filepath << std::endl;
         return EXIT_FAILURE; }
 
-    ComputationState cs{0x10000};
     if (!parse2(ps, cs)) {
         std::cerr << "parsing failed at stage 2: " << filepath << std::endl;
         return EXIT_FAILURE; }
-    //std::string filename{argv[1]};
-    /*if (!parse(filename, cs)) {
-        std::cerr << "faulty joy assembly file\n";
-        return EXIT_FAILURE; }*/
 
     if (argc > 2 && std::string{argv[2]} == "memory-dump") {
         do {
@@ -703,14 +666,15 @@ int main(int const argc, char const*argv[]) {
         return EXIT_SUCCESS; }
 
     do {
-        if (DO_VISUALIZE_STEPS)
+        if (cs.debug.doVisualizeSteps)
             cs.visualize();
-        if (DO_WAIT_FOR_USER)
+        if (cs.debug.doWaitForUser)
             std::cin.get();
-        else if (DO_VISUALIZE_STEPS)
+        else if (cs.debug.doVisualizeSteps)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (cs.step());
 
     if (argc > 2 && std::string{argv[2]} == "cycles")
         cs.printExecutionCycles();
+
 }

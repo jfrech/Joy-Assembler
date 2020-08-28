@@ -3,6 +3,7 @@
 
 #include "types.hh"
 
+
 namespace Util {
     std::string to_upper(std::string const&);
     std::string UInt32AsPaddedHex(uint32_t const n);
