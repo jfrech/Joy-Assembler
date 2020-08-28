@@ -41,6 +41,12 @@ namespace InstructionNameRepresentationHandler {
             if (insr == Util::to_upper(repr))
                 return std::optional<InstructionName>{in};
         return std::nullopt; }
+
+    bool isStackInstruction(InstructionName const name) {
+        return Util::std20::contains(std::set<InstructionName>{
+            InstructionName::CAL, InstructionName::RET, InstructionName::PSH,
+            InstructionName::POP, InstructionName::LSA, InstructionName::SSA,
+            InstructionName::LSC, InstructionName::SSC}, name); }
 }
 
 struct Instruction { InstructionName name; word_t argument; };
@@ -428,6 +434,9 @@ struct ParsingState {
         parsing;
     std::map<std::string, std::string> definitions;
 
+    bool stackInstructionWasUsed{false};
+    std::optional<word_t> stackBeginning{std::nullopt}, stackEnd{std::nullopt};
+
     bool error(line_number_t const lineNumber, std::string const&msg) {
         std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
                   << msg << std::endl;
@@ -437,7 +446,6 @@ struct ParsingState {
 bool parse1(ParsingState &ps) {
     auto const&filepath = ps.filepath;
     auto &parsedFilepaths = ps.parsedFilepaths;
-    auto &parsing = ps.parsing;
 
     if (Util::std20::contains(parsedFilepaths, filepath))
         return ps.error(0, "recursive file inclusion; not parsing file twice");
@@ -447,8 +455,6 @@ bool parse1(ParsingState &ps) {
     if (!is.is_open())
         return ps.error(0, "unable to read file");
 
-    /*std::string const&regexIdentifier{"[._a-zA-Z0-9-]+"};
-    std::string const&regexValue{"[@._a-zA-Z0-9-]+"};*/
     std::string const&regexIdentifier{"[._[:alpha:]-][._[:alnum:]-]*"};
     std::string const&regexValue{"[@._[:alnum:]-][._[:alnum:]-]*"};
 
@@ -479,29 +485,31 @@ bool parse1(ParsingState &ps) {
         };
 
 
-        {
-            std::smatch _def;
-            std::regex_match(ln, _def, std::regex{"^(" + regexIdentifier + ") := (" + regexValue + ")$"});
-            if (_def.size() == 3) {
-                if (!define(_def[1], _def[2]))
-                    return false;
-                continue;
-            }
+        #define ON_MATCH(REGEX, LAMBDA) { \
+            std::smatch smatch; \
+            if (std::regex_match(ln, smatch, std::regex{(REGEX)})) { \
+                if (!(LAMBDA)(smatch)) \
+                    return false; \
+                continue; \
+            } \
         }
 
-        {
-            std::smatch _label;
-            if (std::regex_match(ln, _label, std::regex{"^(" + regexIdentifier + "):$"})) {
-                if (!define("@" + std::string{_label[1]}, std::to_string(memPtr)))
-                    return false;
-                continue;
-            }
-        }
+        ON_MATCH("^(" + regexIdentifier + ") := (" + regexValue + ")$", (
+            [define](std::smatch const&smatch) {
+                return define(std::string{smatch[1]}, std::string{smatch[2]}); }))
 
-        {
-            std::smatch _data;
-            std::regex_match(ln, _data, std::regex{"^data ?(.+)$"});
-            if (_data.size() == 2) {
+        ON_MATCH("^(" + regexIdentifier + "):$", (
+            [define, &ps, &memPtr](std::smatch const&smatch) {
+                std::string label{smatch[1]};
+                if (!define("@" + label, std::to_string(memPtr)))
+                    return false;
+                if (label == "stack" && !ps.stackBeginning.has_value())
+                    ps.stackBeginning = std::make_optional(memPtr);
+                return true; }))
+
+        ON_MATCH("^data ?(.+)$", (
+            [filepath, lineNumber, &ps, &memPtr](std::smatch const&smatch) {
+                std::smatch _data{smatch};
                 std::string data{_data[1]};
                 while (!data.empty()) {
                     std::smatch _item;
@@ -514,7 +522,7 @@ bool parse1(ParsingState &ps) {
                         if (!oRunes.has_value())
                             return ps.error(lineNumber, "invalid data: " + data);
                         for (UTF8::rune_t rune : oRunes.value()) {
-                            parsing.push_back(std::make_tuple(filepath, lineNumber,
+                            ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
                                 parsingData{static_cast<word_t>(rune)}));
                             memPtr += 4; }
                         data = _item[3];
@@ -530,7 +538,7 @@ bool parse1(ParsingState &ps) {
                             if (!oValue.has_value())
                                 return ps.error(lineNumber, "invalid data value: " + item + ", i.e. " + std::string{_match[2]});
                             for (std::size_t j = 0; j < oSize.value(); j++) {
-                                parsing.push_back(std::make_tuple(filepath, lineNumber,
+                                ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
                                     parsingData{oValue.value()}));
                                 memPtr += 4; }
                             data = _item[3];
@@ -540,31 +548,27 @@ bool parse1(ParsingState &ps) {
                     auto oValue = Util::stringToUInt32(item);
                     if (!oValue.has_value())
                         return ps.error(lineNumber, "invalid data value: " + item);
-                    parsing.push_back(std::make_tuple(filepath, lineNumber,
+                    ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
                         parsingData{oValue.value()}));
                     memPtr += 4;
                     data = _item[3];
                 }
-                continue;
-            }
-        }
+                return true; }))
 
-        {
-            std::smatch _instr;
-            std::regex_match(ln, _instr, std::regex{"^(" + regexIdentifier + ")( (" + regexValue + "))?$"});
-            if (_instr.size() == 4) {
-                auto oName = InstructionNameRepresentationHandler::from_string(_instr[1]);
+        ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
+            [filepath, lineNumber, &ps, &memPtr](std::smatch smatch) {
+                auto oName = InstructionNameRepresentationHandler::from_string(smatch[1]);
                 if (!oName.has_value())
-                    return ps.error(lineNumber, "invalid instruction name: " + std::string{_instr[1]});
+                    return ps.error(lineNumber, "invalid instruction name: " + std::string{smatch[1]});
                 std::optional<std::string> oArg{std::nullopt};
-                if (_instr[3] != "")
-                    oArg = std::optional{_instr[3]};
-                parsing.push_back(std::make_tuple(filepath, lineNumber,
+                if (smatch[3] != "")
+                    oArg = std::optional{smatch[3]};
+                ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
                     parsingInstruction{std::make_tuple(oName.value(), oArg)}));
                 memPtr += 5;
-                continue;
-            }
-        }
+                return true; }))
+
+        #undef ON_MATCH
 
         return ps.error(lineNumber, "incomprehensible");
     }
@@ -573,14 +577,23 @@ bool parse1(ParsingState &ps) {
 }
 
 bool parse2(ParsingState &ps, ComputationState &cs) {
+
+    bool memPtrGTStackBeginningAndNonDataOccurred{false};
+
     word_t memPtr{0};
     for (auto [filepath, lineNumber, p] : ps.parsing) {
         if (std::holds_alternative<parsingData>(p)) {
             word_t data{std::get<parsingData>(p)};
             log("data value " + Util::UInt32AsPaddedHex(data));
             memPtr += cs.storeData(memPtr, data);
+
+            if (!memPtrGTStackBeginningAndNonDataOccurred)
+                ps.stackEnd = std::make_optional(memPtr);
         }
         else if (std::holds_alternative<parsingInstruction>(p)) {
+            if (memPtr > ps.stackBeginning)
+                memPtrGTStackBeginningAndNonDataOccurred = true;
+
             parsingInstruction instruction{std::get<parsingInstruction>(p)};
             InstructionName name = std::get<0>(instruction);
             auto oArg = std::get<1>(instruction);
@@ -618,8 +631,15 @@ bool parse2(ParsingState &ps, ComputationState &cs) {
                 log("instruction " + InstructionNameRepresentationHandler::to_string(name) + " (none)");
                 memPtr += cs.storeInstruction(memPtr, Instruction{name, 0x00000000});
             }
+
+            ps.stackInstructionWasUsed = ps.stackInstructionWasUsed
+                || InstructionNameRepresentationHandler
+                   ::isStackInstruction(name);
         }
     }
+
+    if (ps.stackInstructionWasUsed && !Util::std20::contains(ps.definitions, std::string{"@stack"}))
+        return ps.error(0, "stack instructions are used yet no stack was defined");
 
     return true;
 }
@@ -649,6 +669,8 @@ int main(int const argc, char const*argv[]) {
     if (!parse2(ps, cs)) {
         std::cerr << "parsing failed at stage 2: " << filepath << std::endl;
         return EXIT_FAILURE; }
+
+    //TODO std::cerr << "got for stack: " << ps.stackBeginning.value() << " and " << ps.stackEnd.value() << std::endl;
 
     if (argc > 2 && std::string{argv[2]} == "memory-dump") {
         do {
