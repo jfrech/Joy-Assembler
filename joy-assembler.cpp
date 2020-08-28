@@ -15,7 +15,7 @@
 #include "types.hh"
 
 constexpr bool doLog{false};
-constexpr inline void log(std::string const&msg) {
+inline void log(std::string const&msg) {
     if (doLog)
         std::clog << msg << std::endl; }
 
@@ -429,7 +429,8 @@ struct ParsingState {
     std::map<std::string, std::string> definitions;
 
     bool error(line_number_t const lineNumber, std::string const&msg) {
-        std::cerr << "file " << filepath << ", ln " << lineNumber << ": " << msg << std::endl;
+        std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
+                  << msg << std::endl;
         return false; }
 };
 
@@ -446,7 +447,17 @@ bool parse1(ParsingState &ps) {
     if (!is.is_open())
         return ps.error(0, "unable to read file");
 
-    for (auto [memPtr, lineNumber, ln] = std::make_tuple<word_t, line_number_t, std::string>(0, 1, ""); std::getline(is, ln); lineNumber++) {
+    /*std::string const&regexIdentifier{"[._a-zA-Z0-9-]+"};
+    std::string const&regexValue{"[@._a-zA-Z0-9-]+"};*/
+    std::string const&regexIdentifier{"[._[:alpha:]-][._[:alnum:]-]*"};
+    std::string const&regexValue{"[@._[:alnum:]-][._[:alnum:]-]*"};
+
+    for (
+        auto [memPtr, lineNumber, ln]
+            = std::make_tuple<word_t, line_number_t, std::string>(0, 1, "");
+        std::getline(is, ln);
+        lineNumber++
+    ) {
         ln = std::regex_replace(ln, std::regex{";.*$"}, "");
         ln = std::regex_replace(ln, std::regex{"\\s+"}, " ");
         ln = std::regex_replace(ln, std::regex{"^ +"}, "");
@@ -467,9 +478,10 @@ bool parse1(ParsingState &ps) {
             return true;
         };
 
+
         {
             std::smatch _def;
-            std::regex_match(ln, _def, std::regex{"^([^ ]+) +:= +([^ ]+)$"});
+            std::regex_match(ln, _def, std::regex{"^(" + regexIdentifier + ") := (" + regexValue + ")$"});
             if (_def.size() == 3) {
                 if (!define(_def[1], _def[2]))
                     return false;
@@ -479,8 +491,7 @@ bool parse1(ParsingState &ps) {
 
         {
             std::smatch _label;
-            std::regex_match(ln, _label, std::regex{"^([^ ]+):$"});
-            if (_label.size() == 2) {
+            if (std::regex_match(ln, _label, std::regex{"^(" + regexIdentifier + "):$"})) {
                 if (!define("@" + std::string{_label[1]}, std::to_string(memPtr)))
                     return false;
                 continue;
@@ -489,7 +500,7 @@ bool parse1(ParsingState &ps) {
 
         {
             std::smatch _data;
-            std::regex_match(ln, _data, std::regex{"^data *(.+)$"});
+            std::regex_match(ln, _data, std::regex{"^data ?(.+)$"});
             if (_data.size() == 2) {
                 std::string data{_data[1]};
                 while (!data.empty()) {
@@ -539,27 +550,8 @@ bool parse1(ParsingState &ps) {
         }
 
         {
-            std::smatch _int;
-            std::regex_match(ln, _int, std::regex{"^int *\\[(.+?)\\] *(.+?)$"});
-            if (_int.size() == 3) {
-                auto oSize = Util::stringToUInt32(_int[1]);
-                if (!oSize.has_value() || oSize.value() <= 0)
-                    return ps.error(lineNumber, "invalid int data size: " + std::string{_int[1]});
-                std::optional<word_t> oValue{Util::stringToUInt32(_int[2])};
-                if (!oValue.has_value())
-                    return ps.error(lineNumber, "invalid int data value: " + std::string{_int[2]});
-                for (std::size_t j = 0; j < oSize.value(); j++) {
-                    parsing.push_back(std::make_tuple(filepath, lineNumber,
-                        parsingData{static_cast<word_t>(oValue.value())}));
-                    memPtr += 4;
-                }
-                continue;
-            }
-        }
-
-        {
             std::smatch _instr;
-            std::regex_match(ln, _instr, std::regex{"^([^ ]+)( +([^ ]+))?$"});
+            std::regex_match(ln, _instr, std::regex{"^(" + regexIdentifier + ")( (" + regexValue + "))?$"});
             if (_instr.size() == 4) {
                 auto oName = InstructionNameRepresentationHandler::from_string(_instr[1]);
                 if (!oName.has_value())
