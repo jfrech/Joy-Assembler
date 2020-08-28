@@ -391,6 +391,10 @@ namespace Util {
         char buf[11];
         std::snprintf(buf, 11, "0x%08x", n);
         return std::string{buf}; }
+    std::string UInt8AsPaddedHex(uint8_t n) {
+        char buf[3];
+        std::snprintf(buf, 3, "%02X", n);
+        return std::string{buf}; }
 
     std::string to_upper(std::string _str) {
         std::string str{_str};
@@ -427,6 +431,7 @@ class ComputationState {
     private:
         std::vector<byte_t> memory;
         word_t registerA, registerB, registerPC, registerSC;
+        word_t memorySize;
 
         bool flagAZero, flagANegative, flagAEven;
 
@@ -434,13 +439,18 @@ class ComputationState {
         word_t debugHighestUsedMemoryLocation;
         uint64_t debugExecutionCycles;
 
+        bool mock;
+
     public: ComputationState() :
         memory{std::vector<byte_t>(MEMORY_SIZE)},
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
+        memorySize{MEMORY_SIZE},
 
         debugProgramTextSize{0},
         debugHighestUsedMemoryLocation{0},
-        debugExecutionCycles{0}
+        debugExecutionCycles{0},
+
+        mock{false}
     {
         updateFlags(); }
 
@@ -569,18 +579,29 @@ class ComputationState {
                 break;
 
             case InstructionName::PTU:
+                if (mock)
+                    break;
                 std::cout << static_cast<uint32_t>(registerA) << "\n";
                 break;
             case InstructionName::PTS:
+                if (mock)
+                    break;
                 std::cout << static_cast<int32_t>(registerA) << "\n";
                 break;
             case InstructionName::PTB:
+                if (mock)
+                    break;
                 std::cout << "0b" << std::bitset<32>(registerA) << "\n";
                 break;
             case InstructionName::PTC:
+                if (mock)
+                    break;
                 Util::put_utf8_char(registerA);
                 break;
             case InstructionName::GET: {
+                if (mock) {
+                    registerA = 0;
+                    break; }
                 std::optional<uint32_t> oN{std::nullopt};
                 while (!oN.has_value()) {
                     std::cout << "enter a number: ";
@@ -664,6 +685,24 @@ class ComputationState {
     void printExecutionCycles() {
         std::cout << "Execution cycles: " << debugExecutionCycles << "\n"; }
 
+    public: void memoryDump() {
+        mock = true;
+
+        std::string dump{""};
+        dump += "A: " + Util::UInt32AsPaddedHex(registerA);
+        dump += ", B: " + Util::UInt32AsPaddedHex(registerB);
+        dump += ", PC: " + Util::UInt32AsPaddedHex(registerPC);
+        dump += ", SC: " + Util::UInt32AsPaddedHex(registerSC);
+        dump += "; memory (" + std::to_string(memorySize) + "B):";
+        word_t mx = memorySize;
+        while (--mx != 0 && memory[mx] == 0)
+            ;
+        mx++;
+        for (word_t m = 0; m < mx; m++)
+            dump += " " + Util::UInt8AsPaddedHex(memory[m]);
+
+        std::cout << dump << "\n";
+    }
 
     private:
 
@@ -982,6 +1021,13 @@ int main(int argc, char const*argv[]) {
     if (!parse(filename, cs)) {
         std::cerr << "faulty joy assembly file\n";
         return EXIT_FAILURE; }
+
+    if (argc > 2 && std::string{argv[2]} == "memory-dump") {
+        do {
+            cs.memoryDump();
+        } while (cs.step());
+        cs.memoryDump();
+        return EXIT_SUCCESS; }
 
     do {
         if (DO_VISUALIZE_STEPS)
