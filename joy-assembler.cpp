@@ -9,85 +9,13 @@
 #include <variant>
 #include <vector>
 
-namespace Util {
-    std::string to_upper(std::string const&);
-    std::string UInt32AsPaddedHex(uint32_t const n);
-
-    namespace std20 {
-        /* a custom std::map::contains (C++20) implementation */
-        template<typename K, typename V>
-        inline bool contains(std::map<K, V> const&map, K const&key) {
-            return map.count(key) != 0; }
-    }
-}
-
-
-typedef uint8_t byte_t;
-typedef uint32_t word_t;
-typedef uint32_t rune_t;
-
-enum class MemoryMode { LittleEndian, BigEndian };
-
-word_t MEMORY_SIZE = 0x10000;
-MemoryMode MEMORY_MODE = MemoryMode::LittleEndian;
+#include "Util.cpp"
+#include "types.hh"
 
 bool DO_WAIT_FOR_USER = false;
 bool DO_VISUALIZE_STEPS = false;
 
-
-#define NO_ARG std::tuple{false, std::nullopt}
-#define REQ_ARG std::tuple{true, std::nullopt}
-#define OPT_ARG(ARG) std::tuple{true, std::optional<word_t>{ARG}}
-#define MAP_ON_INSTRUCTION_NAMES(M) \
-    M(NOP, OPT_ARG(0)), \
-    \
-    M(LDA, REQ_ARG), M(LDB, REQ_ARG), M(STA, REQ_ARG), M(STB, REQ_ARG), \
-    M(LIA, OPT_ARG(0)), M(SIA, OPT_ARG(0)), M(LPC, NO_ARG), M(SPC, NO_ARG), \
-    M(LYA, REQ_ARG), M(SYA, REQ_ARG), \
-    \
-    M(JMP, REQ_ARG), M(JZ, REQ_ARG), M(JNZ, REQ_ARG), M(JN, REQ_ARG), \
-    M(JNN, REQ_ARG), M(JE, REQ_ARG), M(JNE, REQ_ARG), \
-    \
-    M(CAL, REQ_ARG), M(RET, NO_ARG), M(PSH, NO_ARG), M(POP, NO_ARG), \
-    M(LSA, OPT_ARG(0)), M(SSA, OPT_ARG(0)), M(LSC, NO_ARG), M(SSC, NO_ARG), \
-    \
-    M(MOV, REQ_ARG), M(NOT, NO_ARG), M(SHL, OPT_ARG(1)), M(SHR, OPT_ARG(1)), \
-    M(INC, OPT_ARG(1)), M(DEC, OPT_ARG(1)), M(NEG, NO_ARG), \
-    \
-    M(SWP, NO_ARG), M(ADD, NO_ARG), M(SUB, NO_ARG), M(AND, NO_ARG), \
-    M(OR, NO_ARG), M(XOR, NO_ARG), \
-    \
-    M(GET, NO_ARG), M(GTC, NO_ARG), \
-    M(PTU, NO_ARG), M(PTS, NO_ARG), M(PTB, NO_ARG), M(PTC, NO_ARG), \
-    \
-    M(HLT, NO_ARG)
-
-enum class InstructionName {
-    #define ID(ACT, _) ACT
-    MAP_ON_INSTRUCTION_NAMES(ID)
-    #undef ID
-};
-
 namespace InstructionNameRepresentationHandler {
-    std::map<InstructionName, std::string> representation = {
-        #define REPR(ACT, _) {InstructionName::ACT, #ACT}
-        MAP_ON_INSTRUCTION_NAMES(REPR)
-        #undef REPR
-    };
-    std::array<std::optional<InstructionName>, 256> instructions = {
-        #define NAMESPACE_ID(ACT, _) InstructionName::ACT
-        MAP_ON_INSTRUCTION_NAMES(NAMESPACE_ID)
-        #undef NAMESPACE_ID
-    };
-
-    std::map<InstructionName, std::tuple<bool, std::optional<word_t>>>
-        argumentType = {
-            #define ARG_TYPES(ACT, CANDEF) \
-                {InstructionName::ACT, CANDEF}
-            MAP_ON_INSTRUCTION_NAMES(ARG_TYPES)
-            #undef ARG_TYPES
-    };
-
     std::optional<InstructionName> fromByteCode(byte_t const opCode) {
         return instructions[opCode]; }
 
@@ -110,10 +38,6 @@ namespace InstructionNameRepresentationHandler {
                 return std::optional<InstructionName>{in};
         return std::nullopt; }
 }
-#undef NO_ARG
-#undef REQ_ARG
-#undef OPT_ARG
-#undef MAP_ON_INSTRUCTION_NAMES
 
 struct Instruction { InstructionName name; word_t argument; };
 
@@ -123,316 +47,13 @@ namespace InstructionRepresentationHandler {
                + " " + Util::UInt32AsPaddedHex(instruction.argument); }
 }
 
-namespace Util {
-    namespace ANSI_COLORS {
-        const std::string CLEAR = "\33[0m";
-
-        const std::string INSTRUCTION_NAME = "\33[38;5;119m";
-        const std::string INSTRUCTION_ARGUMENT = "\33[38;5;121m";
-        const std::string STACK = "\33[38;5;127m";
-        const std::string STACK_FAINT = "\33[38;5;53m";
-        const std::string MEMORY_LOCATION_USED = "\33[1m";
-
-        std::string paint(std::string const&ansi, std::string const&text) {
-            return ansi + text + CLEAR; }
-    }
-
-    rune_t ERROR_RUNE = static_cast<rune_t>(0xfffd);
-    class UTF8Encoder {
-        public: bool encode(rune_t const rune) {
-            if (rune <= 0x7f) {
-                bytes.push_back(static_cast<byte_t>(
-                    0b0'0000000 | ( rune        & 0b0'1111111)));
-                return true; }
-            if (rune <= 0x07ff) {
-                bytes.push_back(static_cast<byte_t>(
-                    0b110'00000 | ((rune >>  6) & 0b000'11111)));
-                bytes.push_back(static_cast<byte_t>(
-                    0b10'000000 | ( rune        & 0b00'111111)));
-                return true; }
-            if (rune <= 0xffff) {
-                bytes.push_back(static_cast<byte_t>(
-                    0b1110'0000 | ((rune >> 12) & 0b0000'1111)));
-                bytes.push_back(static_cast<byte_t>(
-                    0b10'000000 | ((rune >>  6) & 0b00'111111)));
-                bytes.push_back(static_cast<byte_t>(
-                    0b10'000000 | ( rune        & 0b00'111111)));
-                return true; }
-            if (rune <= 0x10ffff) {
-                bytes.push_back(static_cast<byte_t>(
-                    0b11110'000 | ((rune >> 18) & 0b00000'111)));
-                bytes.push_back(static_cast<byte_t>(
-                    0b10'000000 | ((rune >> 12) & 0b00'111111)));
-                bytes.push_back(static_cast<byte_t>(
-                    0b10'000000 | ((rune >>  6) & 0b00'111111)));
-                bytes.push_back(static_cast<byte_t>(
-                    0b10'000000 | ( rune        & 0b00'111111)));
-                return true; }
-            return erroneous = false;
-        }
-
-        public: bool finish() {
-            return !erroneous; }
-
-        public:
-            std::vector<byte_t> bytes{};
-        private:
-            bool erroneous{false};
-    };
-    class UTF8Decoder {
-        private: bool err() {
-            erroneous = true;
-            runes.push_back(ERROR_RUNE);
-            buf.clear();
-            return false; }
-
-        public: bool decode(byte_t const b) {
-            /* return value signals if another byte is required */
-
-            auto invalid = [](byte_t b){
-                return (0b11'000000 & b) != 0b10'000000; };
-
-            buf.push_back(b);
-
-            if ((buf[0] & 0b1'0000000) == 0b0'0000000) {
-                if (buf.size() < 1)
-                    return true;
-                if (buf.size() != 1)
-                    return err();
-
-                runes.push_back(static_cast<rune_t>(
-                       0b0'1111111 & buf[0]));
-                buf.clear();
-                return false;
-            }
-
-            if ((buf[0] & 0b111'00000) == 0b110'00000) {
-                if (buf.size() < 2)
-                    return true;
-                if (buf.size() != 2 || invalid(buf[1]))
-                    return err();
-
-                runes.push_back(static_cast<rune_t>(
-                      (0b000'11111 & buf[0]) <<  6
-                    | (0b00'111111 & buf[1])));
-                buf.clear();
-                return false;
-            }
-
-            if ((buf[0] & 0b1111'0000) == 0b1110'0000) {
-                if (buf.size() < 3)
-                    return true;
-                if (buf.size() != 3 || invalid(buf[1]) || invalid(buf[2]))
-                    return err();
-
-                runes.push_back(static_cast<rune_t>(
-                      (0b0000'1111 & buf[0]) << 12
-                    | (0b00'111111 & buf[1]) <<  6
-                    | (0b00'111111 & buf[2])));
-                buf.clear();
-                return false;
-            }
-
-            if ((buf[0] & 0b11111'000) == 0b11110'000) {
-                if (buf.size() < 4)
-                    return true;
-                if (buf.size() != 4 || invalid(buf[1]) || invalid(buf[2]) || invalid(buf[3]))
-                    return err();
-
-                runes.push_back(static_cast<rune_t>(
-                      (0b00000'111 & buf[0]) << 18
-                    | (0b00'111111 & buf[1]) << 12
-                    | (0b00'111111 & buf[2]) <<  6
-                    | (0b00'111111 & buf[3])));
-                buf.clear();
-                return false;
-            }
-
-            return err();
-        }
-
-        public: bool finish() {
-            if (buf.empty())
-                return !erroneous;
-            err();
-            return false; }
-
-        public:
-            std::vector<rune_t> runes{};
-        private:
-            std::vector<byte_t> buf{};
-            bool erroneous{false};
-    };
-
-    template<typename T>
-    class Stream {
-        public: Stream(std::vector<T> const&values, T const&zeroValue) :
-            p{0},
-            values{values},
-            zeroValue{zeroValue}
-        { ; }
-
-        public: T read() {
-            if (exhausted())
-                return zeroValue;
-            return values.at(p++); }
-
-        public: bool exhausted() {
-            return p >= values.size(); }
-
-        private:
-            std::size_t p;
-            std::vector<T> values;
-            T zeroValue;
-    };
-
-    std::optional<std::vector<rune_t>> parseString(std::string const&s) {
-        UTF8Decoder decoder{};
-        for (byte_t b : s)
-            decoder.decode(b);
-        if (!decoder.finish())
-            return std::nullopt;
-
-        std::map<rune_t, rune_t> oneRuneEscapes = {
-            {static_cast<rune_t>('0'), static_cast<rune_t>('\0')},
-            {static_cast<rune_t>('a'), static_cast<rune_t>('\a')},
-            {static_cast<rune_t>('b'), static_cast<rune_t>('\b')},
-            {static_cast<rune_t>('e'), static_cast<rune_t>(0x0b)},
-            {static_cast<rune_t>('f'), static_cast<rune_t>('\f')},
-            {static_cast<rune_t>('n'), static_cast<rune_t>('\n')},
-            {static_cast<rune_t>('r'), static_cast<rune_t>('\r')},
-            {static_cast<rune_t>('t'), static_cast<rune_t>('\t')},
-            {static_cast<rune_t>('v'), static_cast<rune_t>('\v')},
-            {static_cast<rune_t>('"'), static_cast<rune_t>('"')}
-        };
-        std::map<rune_t, uint8_t> nibbleEscapes = {
-            {static_cast<rune_t>('0'), 0x0},
-            {static_cast<rune_t>('1'), 0x1},
-            {static_cast<rune_t>('2'), 0x2},
-            {static_cast<rune_t>('3'), 0x3},
-            {static_cast<rune_t>('4'), 0x4},
-            {static_cast<rune_t>('5'), 0x5},
-            {static_cast<rune_t>('6'), 0x6},
-            {static_cast<rune_t>('7'), 0x7},
-            {static_cast<rune_t>('8'), 0x8},
-            {static_cast<rune_t>('9'), 0x9},
-            {static_cast<rune_t>('a'), 0xa},
-            {static_cast<rune_t>('b'), 0xb},
-            {static_cast<rune_t>('c'), 0xc},
-            {static_cast<rune_t>('d'), 0xd},
-            {static_cast<rune_t>('e'), 0xe},
-            {static_cast<rune_t>('f'), 0xf},
-            {static_cast<rune_t>('A'), 0xa},
-            {static_cast<rune_t>('B'), 0xb},
-            {static_cast<rune_t>('C'), 0xc},
-            {static_cast<rune_t>('D'), 0xd},
-            {static_cast<rune_t>('E'), 0xe},
-            {static_cast<rune_t>('F'), 0xf},
-        };
-
-        std::vector<rune_t> unescaped{};
-        Stream<rune_t> stream{decoder.runes, static_cast<rune_t>(0x00000000)};
-        while (!stream.exhausted()) {
-            rune_t rune{stream.read()};
-            if (rune != static_cast<rune_t>('\\')) {
-                unescaped.push_back(rune);
-                continue; }
-            if (stream.exhausted())
-                return std::nullopt;
-
-            rune_t emprisonedRune{stream.read()};
-            if (std20::contains(oneRuneEscapes, emprisonedRune)) {
-                unescaped.push_back(oneRuneEscapes[emprisonedRune]);
-                continue; }
-            if (emprisonedRune == static_cast<rune_t>('u') || emprisonedRune == static_cast<rune_t>('U')) {
-                uint8_t escapeLength = emprisonedRune == static_cast<rune_t>('u') ? 4 : 8;
-                rune_t escapedRune = static_cast<rune_t>(0x00000000);
-                for (uint8_t j = 0; j < escapeLength; j++) {
-                    if (stream.exhausted())
-                        return std::nullopt;
-                    rune_t emprisonedNibble{stream.read()};
-                    if (!std20::contains(nibbleEscapes, emprisonedNibble))
-                        return std::nullopt;
-                    escapedRune <<= 4;
-                    escapedRune |= 0xf & nibbleEscapes[emprisonedNibble];
-                }
-                unescaped.push_back(escapedRune);
-                continue; }
-
-            return std::nullopt;
-        }
-
-        if (unescaped.size() <= 2)
-            return std::nullopt;
-        if (unescaped.front() != static_cast<rune_t>('"'))
-            return std::nullopt;
-        unescaped.erase(unescaped.begin());
-        if (unescaped.back() != static_cast<rune_t>('"'))
-            return std::nullopt;
-        unescaped.pop_back();
-
-        return std::make_optional(unescaped);
-    }
-
-    std::optional<word_t> stringToUInt32(std::string const&s) {
-        try {
-            /* TODO dynamic_cast */
-            if (std::regex_match(s, std::regex{"\\s*[+-]?0[xX][0-9a-fA-F]+\\s*"}))
-                return std::optional{static_cast<word_t>(std::stoll(s, nullptr, 16))};
-            if (std::regex_match(s, std::regex{"\\s*[+-]?0[bB][01]+\\s*"})) {
-                std::string s2{std::regex_replace(s, std::regex{"0[bB]"}, "")};
-                return std::optional{static_cast<word_t>(std::stoll(s2, nullptr, 2))}; }
-            if (std::regex_match(s, std::regex{"\\s*[+-]?[0-9]+\\s*"}))
-                return std::optional{static_cast<word_t>(std::stoll(s, nullptr, 10))};
-            return std::nullopt;
-        } catch (std::invalid_argument const&_) {
-            return std::nullopt; }}
-
-    std::string UInt32AsPaddedHex(uint32_t const n) {
-        char buf[11];
-        std::snprintf(buf, 11, "0x%08x", n);
-        return std::string{buf}; }
-    std::string UInt8AsPaddedHex(uint8_t const n) {
-        char buf[3];
-        std::snprintf(buf, 3, "%02X", n);
-        return std::string{buf}; }
-
-    std::string to_upper(std::string const&_str) {
-        std::string str{_str};
-        for (auto &c : str)
-            c = std::toupper(c);
-        return str; }
-
-    void put_byte(byte_t const b) {
-        std::cout.put(b); }
-
-    byte_t get_byte() {
-        return std::cin.get(); }
-
-    void put_utf8_char(rune_t const rune) {
-        UTF8Encoder encoder{};
-        encoder.encode(rune);
-        if (!encoder.finish())
-            return;
-        for (byte_t b : encoder.bytes)
-            put_byte(b); }
-
-    rune_t get_utf8_char() {
-        UTF8Decoder decoder{};
-        while (decoder.decode(get_byte()))
-            ;
-        if (!decoder.finish())
-            return Util::ERROR_RUNE;
-        if (decoder.runes.size() != 1)
-            return Util::ERROR_RUNE;
-        return decoder.runes[0]; }
-}
-
 class ComputationState {
     private:
-        std::vector<byte_t> memory;
-        word_t registerA, registerB, registerPC, registerSC;
         word_t memorySize;
+        std::vector<byte_t> memory;
+        MemoryMode memoryMode;
+
+        word_t registerA, registerB, registerPC, registerSC;
 
         bool flagAZero, flagANegative, flagAEven;
 
@@ -442,10 +63,14 @@ class ComputationState {
 
         bool mock;
 
-    public: ComputationState() :
-        memory{std::vector<byte_t>(MEMORY_SIZE)},
+    public: ComputationState(word_t const memorySize) :
+        memorySize{memorySize},
+        memory{std::vector<byte_t>(memorySize)},
+        memoryMode{MemoryMode::LittleEndian},
+
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
-        memorySize{MEMORY_SIZE},
+
+        flagAZero{true}, flagANegative{false}, flagAEven{true},
 
         debugProgramTextSize{0},
         debugHighestUsedMemoryLocation{0},
@@ -713,22 +338,23 @@ class ComputationState {
         flagAEven = registerA % 2 == 0;
     }
 
+    /* TODO throw on invalid memory location ~> machine should halt */
     byte_t loadMemory(word_t const m) {
         debugHighestUsedMemoryLocation = std::max(
             debugHighestUsedMemoryLocation, m);
-        return m < MEMORY_SIZE ? memory[m] : 0;
+        return m < memorySize ? memory[m] : 0;
     }
-
+    /* TODO throw on invalid memory location ~> machine should halt */
     void storeMemory(word_t const m, byte_t const b) {
         debugHighestUsedMemoryLocation = std::max(
             debugHighestUsedMemoryLocation, m);
-        if (m < MEMORY_SIZE)
+        if (m < memorySize)
             memory[m] = b;
     }
 
     word_t loadMemory4(word_t const m) {
         byte_t b3, b2, b1, b0;
-        switch (MEMORY_MODE) {
+        switch (memoryMode) {
             case MemoryMode::LittleEndian:
                 b3 = loadMemory(m+3);
                 b2 = loadMemory(m+2);
@@ -750,7 +376,7 @@ class ComputationState {
         byte_t b2 = static_cast<byte_t>((w >> 16) & 0xff);
         byte_t b1 = static_cast<byte_t>((w >>  8) & 0xff);
         byte_t b0 = static_cast<byte_t>( w        & 0xff);
-        switch (MEMORY_MODE) {
+        switch (memoryMode) {
             case MemoryMode::LittleEndian:
                 storeMemory(m+3, b3);
                 storeMemory(m+2, b2);
@@ -781,6 +407,20 @@ class ComputationState {
     }
 };
 
+typedef uint64_t line_number_t;
+/*
+bool parseFile(
+        std::string const&filename,
+        std::set<std::string> &parsedFilenames,
+        std::vector<std::tuple<std::string, line_number_t
+                              , std::variant<parsingInstruction
+                                            , parsingData>>> &parsing
+    ) {
+    return true; //TODO
+}
+*/
+// -> include "..."
+
 bool parse(std::string const&filename, ComputationState &cs) {
     bool dbg{false};
 
@@ -791,7 +431,6 @@ bool parse(std::string const&filename, ComputationState &cs) {
 
     typedef std::tuple<InstructionName, std::optional<std::string>> parsingInstruction;
     typedef word_t parsingData;
-    typedef uint64_t line_number_t;
     std::vector<std::tuple<line_number_t, std::variant<parsingInstruction, parsingData>>> parsing;
     std::map<std::string, std::string> definitions{};
 
@@ -943,6 +582,8 @@ bool parse(std::string const&filename, ComputationState &cs) {
         return false;
     }
 
+    /**************************************************************************/
+
     memPtr = 0;
     for (auto [lineNumber, p] : parsing) {
         if (std::holds_alternative<parsingData>(p)) {
@@ -1001,6 +642,28 @@ bool parse(std::string const&filename, ComputationState &cs) {
             std::cin.get(); }
     }
 
+    // TODO implement a stack macro; check sizes
+
+    /*if (Util::std20::contains(definitions, "pragma_memory-mode")) {
+        std::string pmm = definitions["pragma_memory-mode"];
+        if (pmm == "little-endian")
+            cs.memoryMode = MemoryMode::LittleEndian;
+        else if (pmm == "big-endian")
+            cs.memoryMode = MemoryMode::BigEndian;
+        else {
+            std::cerr << "unknown memory mode pragma: " << pmm << "\n";
+            return false; }}
+
+    if (Util::std20::contains(definitions, "pragma_memory-size")) {
+        std::string ms = definitions["pragma_memory-size"];
+        // TODO better parsing
+        try {
+            cs.memorySize = std::stol(ms, nullptr, 0); }
+        catch (std::invalid_argument const&_) {
+            std::cerr << "unknown memory size: " << ms << "\n";
+            return false; }}
+    */
+
     return true;
 }
 
@@ -1014,7 +677,7 @@ int main(int const argc, char const*argv[]) {
     if (argc > 2 && std::string{argv[2]} == "step")
         DO_VISUALIZE_STEPS = DO_WAIT_FOR_USER = true;
 
-    ComputationState cs{};
+    ComputationState cs{0x10000};
 
     std::string filename{argv[1]};
     if (!parse(filename, cs)) {
