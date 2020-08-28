@@ -3,7 +3,6 @@
 
 typedef uint8_t byte_t;
 typedef uint32_t word_t;
-typedef uint32_t rune_t;
 
 enum class MemoryMode { LittleEndian, BigEndian };
 

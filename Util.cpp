@@ -58,71 +58,71 @@ namespace Util {
             T zeroValue;
     };
 
-    std::optional<std::vector<rune_t>> parseString(std::string const&s) {
+    std::optional<std::vector<UTF8::rune_t>> parseString(std::string const&s) {
         UTF8::Decoder decoder{};
         for (byte_t b : s)
             decoder.decode(b);
         if (!decoder.finish())
             return std::nullopt;
 
-        std::map<rune_t, rune_t> oneRuneEscapes = {
-            {static_cast<rune_t>('0'), static_cast<rune_t>('\0')},
-            {static_cast<rune_t>('a'), static_cast<rune_t>('\a')},
-            {static_cast<rune_t>('b'), static_cast<rune_t>('\b')},
-            {static_cast<rune_t>('e'), static_cast<rune_t>(0x0b)},
-            {static_cast<rune_t>('f'), static_cast<rune_t>('\f')},
-            {static_cast<rune_t>('n'), static_cast<rune_t>('\n')},
-            {static_cast<rune_t>('r'), static_cast<rune_t>('\r')},
-            {static_cast<rune_t>('t'), static_cast<rune_t>('\t')},
-            {static_cast<rune_t>('v'), static_cast<rune_t>('\v')},
-            {static_cast<rune_t>('"'), static_cast<rune_t>('"')}
+        std::map<UTF8::rune_t, UTF8::rune_t> oneRuneEscapes = {
+            {static_cast<UTF8::rune_t>('0'), static_cast<UTF8::rune_t>('\0')},
+            {static_cast<UTF8::rune_t>('a'), static_cast<UTF8::rune_t>('\a')},
+            {static_cast<UTF8::rune_t>('b'), static_cast<UTF8::rune_t>('\b')},
+            {static_cast<UTF8::rune_t>('e'), static_cast<UTF8::rune_t>(0x0b)},
+            {static_cast<UTF8::rune_t>('f'), static_cast<UTF8::rune_t>('\f')},
+            {static_cast<UTF8::rune_t>('n'), static_cast<UTF8::rune_t>('\n')},
+            {static_cast<UTF8::rune_t>('r'), static_cast<UTF8::rune_t>('\r')},
+            {static_cast<UTF8::rune_t>('t'), static_cast<UTF8::rune_t>('\t')},
+            {static_cast<UTF8::rune_t>('v'), static_cast<UTF8::rune_t>('\v')},
+            {static_cast<UTF8::rune_t>('"'), static_cast<UTF8::rune_t>('"')}
         };
-        std::map<rune_t, uint8_t> nibbleEscapes = {
-            {static_cast<rune_t>('0'), 0x0},
-            {static_cast<rune_t>('1'), 0x1},
-            {static_cast<rune_t>('2'), 0x2},
-            {static_cast<rune_t>('3'), 0x3},
-            {static_cast<rune_t>('4'), 0x4},
-            {static_cast<rune_t>('5'), 0x5},
-            {static_cast<rune_t>('6'), 0x6},
-            {static_cast<rune_t>('7'), 0x7},
-            {static_cast<rune_t>('8'), 0x8},
-            {static_cast<rune_t>('9'), 0x9},
-            {static_cast<rune_t>('a'), 0xa},
-            {static_cast<rune_t>('b'), 0xb},
-            {static_cast<rune_t>('c'), 0xc},
-            {static_cast<rune_t>('d'), 0xd},
-            {static_cast<rune_t>('e'), 0xe},
-            {static_cast<rune_t>('f'), 0xf},
-            {static_cast<rune_t>('A'), 0xa},
-            {static_cast<rune_t>('B'), 0xb},
-            {static_cast<rune_t>('C'), 0xc},
-            {static_cast<rune_t>('D'), 0xd},
-            {static_cast<rune_t>('E'), 0xe},
-            {static_cast<rune_t>('F'), 0xf},
+        std::map<UTF8::rune_t, uint8_t> nibbleEscapes = {
+            {static_cast<UTF8::rune_t>('0'), 0x0},
+            {static_cast<UTF8::rune_t>('1'), 0x1},
+            {static_cast<UTF8::rune_t>('2'), 0x2},
+            {static_cast<UTF8::rune_t>('3'), 0x3},
+            {static_cast<UTF8::rune_t>('4'), 0x4},
+            {static_cast<UTF8::rune_t>('5'), 0x5},
+            {static_cast<UTF8::rune_t>('6'), 0x6},
+            {static_cast<UTF8::rune_t>('7'), 0x7},
+            {static_cast<UTF8::rune_t>('8'), 0x8},
+            {static_cast<UTF8::rune_t>('9'), 0x9},
+            {static_cast<UTF8::rune_t>('a'), 0xa},
+            {static_cast<UTF8::rune_t>('b'), 0xb},
+            {static_cast<UTF8::rune_t>('c'), 0xc},
+            {static_cast<UTF8::rune_t>('d'), 0xd},
+            {static_cast<UTF8::rune_t>('e'), 0xe},
+            {static_cast<UTF8::rune_t>('f'), 0xf},
+            {static_cast<UTF8::rune_t>('A'), 0xa},
+            {static_cast<UTF8::rune_t>('B'), 0xb},
+            {static_cast<UTF8::rune_t>('C'), 0xc},
+            {static_cast<UTF8::rune_t>('D'), 0xd},
+            {static_cast<UTF8::rune_t>('E'), 0xe},
+            {static_cast<UTF8::rune_t>('F'), 0xf},
         };
 
-        std::vector<rune_t> unescaped{};
-        Stream<rune_t> stream{decoder.runes, static_cast<rune_t>(0x00000000)};
+        std::vector<UTF8::rune_t> unescaped{};
+        Stream<UTF8::rune_t> stream{decoder.runes, static_cast<UTF8::rune_t>(0x00000000)};
         while (!stream.exhausted()) {
-            rune_t rune{stream.read()};
-            if (rune != static_cast<rune_t>('\\')) {
+            UTF8::rune_t rune{stream.read()};
+            if (rune != static_cast<UTF8::rune_t>('\\')) {
                 unescaped.push_back(rune);
                 continue; }
             if (stream.exhausted())
                 return std::nullopt;
 
-            rune_t emprisonedRune{stream.read()};
+            UTF8::rune_t emprisonedRune{stream.read()};
             if (std20::contains(oneRuneEscapes, emprisonedRune)) {
                 unescaped.push_back(oneRuneEscapes[emprisonedRune]);
                 continue; }
-            if (emprisonedRune == static_cast<rune_t>('u') || emprisonedRune == static_cast<rune_t>('U')) {
-                uint8_t escapeLength = emprisonedRune == static_cast<rune_t>('u') ? 4 : 8;
-                rune_t escapedRune = static_cast<rune_t>(0x00000000);
+            if (emprisonedRune == static_cast<UTF8::rune_t>('u') || emprisonedRune == static_cast<UTF8::rune_t>('U')) {
+                uint8_t escapeLength = emprisonedRune == static_cast<UTF8::rune_t>('u') ? 4 : 8;
+                UTF8::rune_t escapedRune = static_cast<UTF8::rune_t>(0x00000000);
                 for (uint8_t j = 0; j < escapeLength; j++) {
                     if (stream.exhausted())
                         return std::nullopt;
-                    rune_t emprisonedNibble{stream.read()};
+                    UTF8::rune_t emprisonedNibble{stream.read()};
                     if (!std20::contains(nibbleEscapes, emprisonedNibble))
                         return std::nullopt;
                     escapedRune <<= 4;
@@ -136,10 +136,10 @@ namespace Util {
 
         if (unescaped.size() <= 2)
             return std::nullopt;
-        if (unescaped.front() != static_cast<rune_t>('"'))
+        if (unescaped.front() != static_cast<UTF8::rune_t>('"'))
             return std::nullopt;
         unescaped.erase(unescaped.begin());
-        if (unescaped.back() != static_cast<rune_t>('"'))
+        if (unescaped.back() != static_cast<UTF8::rune_t>('"'))
             return std::nullopt;
         unescaped.pop_back();
 
@@ -181,7 +181,7 @@ namespace Util {
     byte_t get_byte() {
         return std::cin.get(); }
 
-    void put_utf8_char(rune_t const rune) {
+    void put_utf8_char(UTF8::rune_t const rune) {
         UTF8::Encoder encoder{};
         encoder.encode(rune);
         if (!encoder.finish())
@@ -189,7 +189,7 @@ namespace Util {
         for (byte_t b : encoder.bytes)
             put_byte(b); }
 
-    rune_t get_utf8_char() {
+    UTF8::rune_t get_utf8_char() {
         UTF8::Decoder decoder{};
         while (decoder.decode(get_byte()))
             ;

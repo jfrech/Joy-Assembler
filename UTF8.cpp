@@ -1,9 +1,12 @@
 #ifndef JOY_ASSEMBLER__UTF8_CPP
 #define JOY_ASSEMBLER__UTF8_CPP
 
-#include "types.hh"
+#include <vector>
 
 namespace UTF8 {
+    typedef uint32_t rune_t;
+    typedef uint8_t byte_t;
+
     rune_t ERROR_RUNE = static_cast<rune_t>(0xfffd);
 
     class Encoder {

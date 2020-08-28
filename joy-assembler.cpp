@@ -499,10 +499,10 @@ bool parse1(ParsingState &ps) {
                         return ps.error(lineNumber, "invalid data: " + data);
                     std::string item{_item[1]};
                     if (item[0] == '"') {
-                        std::optional<std::vector<rune_t>> oRunes = Util::parseString(item);
+                        std::optional<std::vector<UTF8::rune_t>> oRunes = Util::parseString(item);
                         if (!oRunes.has_value())
                             return ps.error(lineNumber, "invalid data: " + data);
-                        for (rune_t rune : oRunes.value()) {
+                        for (UTF8::rune_t rune : oRunes.value()) {
                             parsing.push_back(std::make_tuple(filepath, lineNumber,
                                 parsingData{static_cast<word_t>(rune)}));
                             memPtr += 4; }
