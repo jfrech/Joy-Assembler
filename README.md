@@ -104,9 +104,11 @@ A static _data block_ can be defined using `data [optional-size]optional-value, 
 primes:
     data 2, 3, 5, 7, 11, 13, 17 ; ... (finite memory)
 global-x:
-    data[1] 0
+    data [1]0
 global-y:
-    data[1] 0
+    data [1]0
+buf:
+    data [0xff]0xffffffff
 stack:
     data [0xfff]
 ````
