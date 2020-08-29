@@ -1,18 +1,16 @@
 ; memory layout
 
-mov @stack
-lsc
 mov 0xffeefeff
 psh
 
 jmp @main
 
 global-m:
-    data[1] 0
+    data 0
 global-n:
-    data[1] 0
+    data 0
 global-a:
-    data[1] 0
+    data 0
 
 ; main program
 main:
@@ -124,4 +122,4 @@ ack:
         ret
 
 stack:
-    data[0xfff] 0
+    data [0xfff]

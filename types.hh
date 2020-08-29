@@ -73,6 +73,8 @@ struct ComputationStateDebug {
     bool doWaitForUser{false};
     bool doVisualizeSteps{false};
     bool doShowFinalCycles{false};
+
+    std::optional<std::tuple<word_t, word_t>> stackBoundaries{std::nullopt};
 };
 
 namespace Parsing {

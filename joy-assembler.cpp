@@ -76,14 +76,21 @@ class ComputationState {
 
     public: void enableVisualization() {
         debug.doVisualizeSteps = true; }
+
     public: void enableStepping() {
         enableVisualization();
         debug.doWaitForUser = true; }
+
     public: void enableFinalCycles() {
         debug.doShowFinalCycles = true; }
+
     public: void finalCycles() {
         if (debug.doShowFinalCycles)
             printExecutionCycles(); }
+
+    public: void initializeStack(word_t const stackBeginning, word_t const stackEnd) {
+        debug.stackBoundaries = std::make_tuple(stackBeginning, stackEnd);
+        registerSC = stackBeginning; }
 
     private: std::optional<Instruction> nextInstruction() {
         byte_t opCode{loadMemory(static_cast<word_t>(registerPC++))};
@@ -442,11 +449,28 @@ class ComputationState {
         }
     }
 
-    /* TODO assert stack boundaries and aligment */
     word_t loadMemory4Stack(word_t const m) {
+        if (!debug.stackBoundaries.has_value()) {
+            err("loadMemory4Stack: no stack boundaries defined");
+            return 0; }
+        if (m < std::get<0>(debug.stackBoundaries.value())) {
+            err("loadMemory4Stack: stack underflow");
+            return 0; }
+        if (m >= std::get<1>(debug.stackBoundaries.value())) {
+            err("loadMemory4Stack: stack overflow");
+            return 0; }
         return loadMemory4(m); }
-    /* TODO assert stack boundaries and aligment */
+
     void storeMemory4Stack(word_t const m, word_t const w) {
+        if (!debug.stackBoundaries.has_value()) {
+            err("storeMemory4Stack: no stack boundaries defined");
+            return; }
+        if (m < std::get<0>(debug.stackBoundaries.value())) {
+            err("storeMemory4Stack: stack underflow");
+            return; }
+        if (m >= std::get<1>(debug.stackBoundaries.value())) {
+            err("storeMemory4Stack: stack overflow");
+            return; }
         storeMemory4(m, w); }
 
     public: word_t storeInstruction(
@@ -689,6 +713,16 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
     if (ps.stackInstructionWasUsed && !Util::std20::contains(ps.definitions, std::string{"@stack"}))
         return ps.error(0, "stack instructions are used yet no stack was defined");
 
+    if (ps.stackBeginning.has_value() != ps.stackEnd.has_value())
+        return ps.error(0, "inconsistent stack boundaries");
+
+    if (ps.stackBeginning.has_value() && ps.stackEnd.has_value()) {
+        log("got as stack boundaries: " + std::to_string(ps.stackBeginning.value()) + " and " + std::to_string(ps.stackEnd.value()));
+
+        cs.initializeStack(ps.stackBeginning.value(), ps.stackEnd.value());
+    } else
+        log("no stack was defined");
+
     return true;
 }
 
@@ -713,8 +747,6 @@ int main(int const argc, char const*argv[]) {
         return ps.error(0, "parsing failed at stage 1"), EXIT_FAILURE;
     if (!parse2(ps, cs))
         return ps.error(0, "parsing failed at stage 2"), EXIT_FAILURE;
-
-    //TODO std::cerr << "got for stack: " << ps.stackBeginning.value() << " and " << ps.stackEnd.value() << std::endl;
 
     if (argc > 2 && std::string{argv[2]} == "memory-dump") {
         do cs.memoryDump(); while (cs.step()); cs.memoryDump();

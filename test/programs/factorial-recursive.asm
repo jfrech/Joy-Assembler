@@ -6,9 +6,6 @@
 ; return address, not the first argument. The first argument is loaded into
 ; register `A` via `lsa -8`, the second via `lsa -12` and so forth.
 
-mov @stack
-lsc
-
 ; initialize the stack with a visual marker
 mov 0xffffffff
 psh
@@ -17,15 +14,15 @@ jmp @main
 
 ; global variables in memeory
 global-x:
-    data[1] 0
+    data 0
 global-y:
-    data[1] 0
+    data 0
 global-z:
-    data[1] 0
+    data 0
 global-w:
-    data[1] 0
+    data 0
 global-v:
-    data[1] 0
+    data 0
 
 
 factorial:
@@ -143,4 +140,4 @@ main:
     hlt
 
 stack:
-    data[0x20] 0
+    data [0x20]

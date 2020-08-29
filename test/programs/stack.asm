@@ -1,6 +1,3 @@
-mov @stack
-lsc
-
 mov 0xfe
 psh
 mov 0xef
@@ -12,4 +9,4 @@ and
 hlt
 
 stack:
-    data[0xff] 0
+    data [0xff]0

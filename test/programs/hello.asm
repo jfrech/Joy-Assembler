@@ -1,6 +1,3 @@
-mov @stack
-lsc
-
 mov @hello
 cal @print
 
@@ -26,4 +23,4 @@ some-data:
     data 2, 3, 5
 
 stack:
-    data[0x20] 0
+    data [0x20]
