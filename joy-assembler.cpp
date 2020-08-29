@@ -51,7 +51,6 @@ namespace InstructionRepresentationHandler {
 
 class ComputationState {
     private:
-        word_t memorySize;
         std::vector<byte_t> memory;
         MemoryMode memoryMode;
         word_t registerA, registerB, registerPC, registerSC;
@@ -62,8 +61,7 @@ class ComputationState {
         ComputationStateDebug debug;
 
     public: ComputationState(word_t const memorySize) :
-        memorySize{memorySize},
-        memory{std::vector<byte_t>(memorySize)},
+        memory{std::vector<byte_t>(memorySize, 0x00)},
         memoryMode{MemoryMode::LittleEndian},
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
         flagAZero{true}, flagANegative{false}, flagAEven{true},
@@ -374,8 +372,8 @@ class ComputationState {
         dump += ", B: " + Util::UInt32AsPaddedHex(registerB);
         dump += ", PC: " + Util::UInt32AsPaddedHex(registerPC);
         dump += ", SC: " + Util::UInt32AsPaddedHex(registerSC);
-        dump += "; memory (" + std::to_string(memorySize) + "B):";
-        word_t mx = memorySize;
+        dump += "; memory (" + std::to_string(memory.size()) + "B):";
+        word_t mx = memory.size();
         while (--mx != 0 && memory[mx] == 0)
             ;
         mx++;
@@ -397,7 +395,7 @@ class ComputationState {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
         if (/*m < 0 || */m >= memory.size()) {
-            err("loadMemory: memory out of bounds");
+            err("loadMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return 0; }
         return memory[m]; }
 
@@ -405,7 +403,7 @@ class ComputationState {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
         if (/*m < 0 || */m >= memory.size()) {
-            err("storeMemory: memory out of bounds");
+            err("loadMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return; }
         memory[m] = b; }
 
