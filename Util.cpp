@@ -4,6 +4,9 @@
 #include "UTF8.cpp"
 #include "types.hh"
 
+#include <chrono>
+#include <thread>
+
 namespace Util {
     std::string to_upper(std::string const&);
     std::string UInt32AsPaddedHex(uint32_t const n);
@@ -36,6 +39,11 @@ namespace Util {
 
         std::string paint(std::string const&ansi, std::string const&text) {
             return ansi + text + CLEAR; }
+    }
+
+    namespace IO {
+        void wait() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
     }
 
     template<typename T>

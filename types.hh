@@ -72,6 +72,7 @@ struct ComputationStateDebug {
     uint64_t executionCycles{0};
     bool doWaitForUser{false};
     bool doVisualizeSteps{false};
+    bool doShowFinalCycles{false};
 };
 
 namespace Parsing {
@@ -82,17 +83,29 @@ namespace Parsing {
     typedef word_t parsingData;
 
     struct ParsingState {
-        std::filesystem::path filepath;
-        std::set<std::filesystem::path> parsedFilepaths;
-        std::vector<std::tuple<std::filesystem::path, line_number_t,
-            std::variant<parsingInstruction, parsingData>>> parsing;
-        std::map<std::string, std::string> definitions;
+        public:
+            std::filesystem::path filepath;
+            std::set<std::filesystem::path> parsedFilepaths;
+            std::vector<std::tuple<std::filesystem::path, line_number_t,
+                std::variant<parsingInstruction, parsingData>>> parsing;
+            std::map<std::string, std::string> definitions;
 
-        bool stackInstructionWasUsed{false};
-        std::optional<word_t> stackBeginning{std::nullopt};
-        std::optional<word_t> stackEnd{std::nullopt};
+            bool stackInstructionWasUsed;
+            std::optional<word_t> stackBeginning;
+            std::optional<word_t> stackEnd;
 
-        bool error(line_number_t const lineNumber, std::string const&msg) {
+        public: ParsingState(std::filesystem::path const&filepath) :
+            filepath{filepath},
+            parsedFilepaths{},
+            parsing{},
+            definitions{},
+
+            stackInstructionWasUsed{false},
+            stackBeginning{std::nullopt},
+            stackEnd{std::nullopt}
+        { ; }
+
+        public: bool error(line_number_t const lineNumber, std::string const&msg) {
             std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
                       << msg << std::endl;
             return false; }

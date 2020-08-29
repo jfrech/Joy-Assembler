@@ -1,13 +1,11 @@
 // Jonathan Frech, August 2020
 
 #include <bitset>
-#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <regex>
 #include <set>
-#include <thread>
 #include <variant>
 #include <vector>
 
@@ -76,7 +74,18 @@ class ComputationState {
     {
         updateFlags(); }
 
-    public: std::optional<Instruction> nextInstruction() {
+    public: void enableVisualization() {
+        debug.doVisualizeSteps = true; }
+    public: void enableStepping() {
+        enableVisualization();
+        debug.doWaitForUser = true; }
+    public: void enableFinalCycles() {
+        debug.doShowFinalCycles = true; }
+    public: void finalCycles() {
+        if (debug.doShowFinalCycles)
+            printExecutionCycles(); }
+
+    private: std::optional<Instruction> nextInstruction() {
         byte_t opCode{loadMemory(static_cast<word_t>(registerPC++))};
         word_t arg{loadMemory4(static_cast<word_t>((registerPC += 4) - 4))};
 
@@ -279,7 +288,12 @@ class ComputationState {
         return true;
     }
 
-    void visualize() {
+    public: void visualize() {
+        visualize(true); }
+    public: void visualize(bool blockAllowed) {
+        if (!debug.doVisualizeSteps)
+            return;
+
         std::printf("\n\n\n");
 
         std::printf("\n=== MEMORY ===\n");
@@ -333,9 +347,16 @@ class ComputationState {
 
         std::cout << "\n";
         printExecutionCycles();
+
+        if (blockAllowed) {
+            if (debug.doWaitForUser)
+                UTF8IO::getRune();
+            else if (debug.doVisualizeSteps)
+                Util::IO::wait();
+        }
     }
 
-    void printExecutionCycles() {
+    private: void printExecutionCycles() {
         std::cout << "Execution cycles: " << debug.executionCycles << "\n"; }
 
     public: void memoryDump() {
@@ -651,46 +672,30 @@ int main(int const argc, char const*argv[]) {
     if (argc < 2) {
         std::cerr << "please provide an input joy assembly file\n";
         return EXIT_FAILURE; }
+
     ComputationState cs{0x10000};
 
     if (argc > 2 && std::string{argv[2]} == "visualize")
-        cs.debug.doVisualizeSteps = true;
+        cs.enableVisualization();
     if (argc > 2 && std::string{argv[2]} == "step")
-        cs.debug.doVisualizeSteps = cs.debug.doWaitForUser = true;
+        cs.enableStepping();
+    if (argc > 2 && std::string{argv[2]} == "cycles")
+        cs.enableFinalCycles();
 
-    std::filesystem::path filepath{std::filesystem::current_path() / std::filesystem::path(argv[1])};
-
-
-    std::set<std::filesystem::path> parsedFilepaths{};
-    Parsing::ParsingState ps{};
-    ps.filepath = filepath;
-    if (!parse1(ps)) {
-        std::cerr << "parsing failed at stage 1: " << filepath << std::endl;
-        return EXIT_FAILURE; }
-
-    if (!parse2(ps, cs)) {
-        std::cerr << "parsing failed at stage 2: " << filepath << std::endl;
-        return EXIT_FAILURE; }
+    Parsing::ParsingState ps{
+        std::filesystem::current_path() / std::filesystem::path(argv[1])};
+    if (!parse1(ps))
+        return ps.error(0, "parsing failed at stage 1"), EXIT_FAILURE;
+    if (!parse2(ps, cs))
+        return ps.error(0, "parsing failed at stage 2"), EXIT_FAILURE;
 
     //TODO std::cerr << "got for stack: " << ps.stackBeginning.value() << " and " << ps.stackEnd.value() << std::endl;
 
     if (argc > 2 && std::string{argv[2]} == "memory-dump") {
-        do {
-            cs.memoryDump();
-        } while (cs.step());
-        cs.memoryDump();
+        do cs.memoryDump(); while (cs.step()); cs.memoryDump();
         return EXIT_SUCCESS; }
 
-    do {
-        if (cs.debug.doVisualizeSteps)
-            cs.visualize();
-        if (cs.debug.doWaitForUser)
-            std::cin.get();
-        else if (cs.debug.doVisualizeSteps)
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    } while (cs.step());
+    do cs.visualize(); while (cs.step()); cs.finalCycles();
 
-    if (argc > 2 && std::string{argv[2]} == "cycles")
-        cs.printExecutionCycles();
-
+    return EXIT_SUCCESS;
 }
