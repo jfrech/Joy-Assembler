@@ -9,12 +9,12 @@ Joy Assembler requires the `C++17` standard and is best build using the provided
 # Usage
 Joy Assembler provides a basic command-line interface:
 ````
-./joy-assembler <input-file.asm> [visualize | step | cycles]
+./joy-assembler <input-file.asm> [visualize | step | cycles | memory-dump]
 ````
-The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `cycles` prints the number of execution cycles that were performed.
+The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `cycles` prints the number of execution cycles that were performed. `memory-dump` mocks any I/O and outputs a step-by-step memory dump to `stdout` whilst executing.
 
 # Example Programs
-Example Joy Assembler programs can be found in the `asm` directory.
+Example Joy Assembler programs can be found in the `test/programs` directory. All can be automatically tested using `make test`.
 
 # Architecture
 Joy Assembler mimics a 32-bit architecture. It has four 32-bit registers: two general-prupose registers `A` (**a**ccumulation) and `B` (o**b**erand) and two special-prupose registers `PC` (**p**rogram **c**ounter) and `SC` (**s**tack **c**ounter). Regarding memory, a single block of memory of a fixed size is provided, addressable as either numeric 4-byte values or individual bytes. Each Joy Assembler instruction consists of a _name_ paired with possibly four bytes representing an _argument_. All instructions' behavior is specified below.
