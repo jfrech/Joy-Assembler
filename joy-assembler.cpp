@@ -481,12 +481,30 @@ bool parse1(Parsing::ParsingState &ps) {
     std::string const&regexIdentifier{"[._[:alpha:]-][._[:alnum:]-]*"};
     std::string const&regexValue{"[@._[:alnum:]-][._[:alnum:]-]*"};
 
+
     for (
         auto [memPtr, lineNumber, ln]
             = std::make_tuple<word_t, Parsing::line_number_t, std::string>(0, 1, "");
         std::getline(is, ln);
         lineNumber++
     ) {
+
+
+        auto pushData = [&](uint32_t const data) {
+            log("pushing data: " + Util::UInt32AsPaddedHex(data));
+            ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
+                Parsing::parsingData{data}));
+            memPtr += 4;
+        };
+        auto pushInstruction = [&](InstructionName const&name, std::optional<std::string> const&oArg) {
+            log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or("(no arg.)"));
+            ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
+                Parsing::parsingInstruction{std::make_tuple(name, oArg)}));
+            memPtr += 5;
+        };
+
+
+
         ln = std::regex_replace(ln, std::regex{";.*$"}, "");
         ln = std::regex_replace(ln, std::regex{"\\s+"}, " ");
         ln = std::regex_replace(ln, std::regex{"^ +"}, "");
@@ -531,16 +549,9 @@ bool parse1(Parsing::ParsingState &ps) {
                 return true; }))
 
         ON_MATCH("^data ?(.+)$", (
-            [filepath, lineNumber, regexValue, &ps, &memPtr](std::smatch const&smatch) {
-
-                auto pushData = [&](uint32_t data) {
-                    log("pushing data: " + Util::UInt32AsPaddedHex(data));
-                    ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                        Parsing::parsingData{data}));
-                    memPtr += 4;
-                };
-
+            [pushData, lineNumber, regexValue, &ps, &memPtr](std::smatch const&smatch) {
                 log("parsing `data` ...");
+
                 std::string commaSeparated{std::string{smatch[1]} + ","};
                 for (uint64_t elementNumber{1}; commaSeparated != ""; elementNumber++) {
                     std::smatch smatch{};
@@ -595,16 +606,14 @@ bool parse1(Parsing::ParsingState &ps) {
 
 
         ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
-            [filepath, lineNumber, &ps, &memPtr](std::smatch smatch) {
+            [pushInstruction, lineNumber, &ps, &memPtr](std::smatch const&smatch) {
                 auto oName = InstructionNameRepresentationHandler::from_string(smatch[1]);
                 if (!oName.has_value())
                     return ps.error(lineNumber, "invalid instruction name: " + std::string{smatch[1]});
                 std::optional<std::string> oArg{std::nullopt};
                 if (smatch[3] != "")
                     oArg = std::optional{smatch[3]};
-                ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                    Parsing::parsingInstruction{std::make_tuple(oName.value(), oArg)}));
-                memPtr += 5;
+                pushInstruction(oName.value(), oArg);
                 return true; }))
 
         #undef ON_MATCH
