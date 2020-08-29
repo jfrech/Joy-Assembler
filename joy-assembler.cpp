@@ -509,7 +509,7 @@ bool parse1(Parsing::ParsingState &ps) {
 
 
         #define ON_MATCH(REGEX, LAMBDA) { \
-            std::smatch smatch; \
+            std::smatch smatch{}; \
             if (std::regex_match(ln, smatch, std::regex{(REGEX)})) { \
                 if (!(LAMBDA)(smatch)) \
                     return false; \
@@ -531,52 +531,68 @@ bool parse1(Parsing::ParsingState &ps) {
                 return true; }))
 
         ON_MATCH("^data ?(.+)$", (
-            [filepath, lineNumber, &ps, &memPtr](std::smatch const&smatch) {
-                std::smatch _data{smatch};
-                std::string data{_data[1]};
-                while (!data.empty()) {
-                    std::smatch _item;
-                    std::regex_match(data, _item, std::regex{"^(\"(?:[^\"\\\\]|\\\\.)*\"|[^\",]*)(, *(.*))?$"});
-                    if (_item.size() != 4)
-                        return ps.error(lineNumber, "invalid data: " + data);
-                    std::string item{_item[1]};
-                    if (item[0] == '"') {
-                        std::optional<std::vector<UTF8::rune_t>> oRunes = Util::parseString(item);
-                        if (!oRunes.has_value())
-                            return ps.error(lineNumber, "invalid data: " + data);
-                        for (UTF8::rune_t rune : oRunes.value()) {
-                            ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                                Parsing::parsingData{static_cast<word_t>(rune)}));
-                            memPtr += 4; }
-                        data = _item[3];
-                        continue; }
+            [filepath, lineNumber, regexValue, &ps, &memPtr](std::smatch const&smatch) {
 
-                    {
-                        std::smatch _match;
-                        if (std::regex_match(item, _match, std::regex{"^\\[(.+)\\] *(.+)$"})) {
-                            auto oSize = Util::stringToUInt32(_match[1]);
-                            if (!oSize.has_value())
-                                return ps.error(lineNumber, "invalid data size: " + item + ", i.e. " + std::string{_match[1]});
-                            auto oValue = Util::stringToUInt32(_match[2]);
-                            if (!oValue.has_value())
-                                return ps.error(lineNumber, "invalid data value: " + item + ", i.e. " + std::string{_match[2]});
-                            for (std::size_t j = 0; j < oSize.value(); j++) {
-                                ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                                    Parsing::parsingData{oValue.value()}));
-                                memPtr += 4; }
-                            data = _item[3];
-                            continue; }
-                    }
-
-                    auto oValue = Util::stringToUInt32(item);
-                    if (!oValue.has_value())
-                        return ps.error(lineNumber, "invalid data value: " + item);
+                auto pushData = [&](uint32_t data) {
+                    log("pushing data: " + Util::UInt32AsPaddedHex(data));
                     ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                        Parsing::parsingData{oValue.value()}));
+                        Parsing::parsingData{data}));
                     memPtr += 4;
-                    data = _item[3];
+                };
+
+                log("parsing `data` ...");
+                std::string commaSeparated{std::string{smatch[1]} + ","};
+                for (uint64_t elementNumber{1}; commaSeparated != ""; elementNumber++) {
+                    std::smatch smatch{};
+                    if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + ")?") + "|" + (std::string{"\""} + "([^\"]|\\\")*?" + "\"") + ") ?, ?(.*)$"})) {
+
+                        log("smatch of size " + std::to_string(smatch.size()));
+                        for (auto j = 0u; j < smatch.size(); j++)
+                            log("smatch[" + std::to_string(j) + "]: @@@" + std::string{smatch[j]} + "@@@");
+
+                        std::string unparsedElement{smatch[1]};
+                        std::string unparsedSize{smatch[3]};
+                        std::string unparsedValue{smatch[4]};
+                        commaSeparated = std::string{smatch[6]};
+
+                        if (unparsedElement == "")
+                            return ps.error(lineNumber, "invalid data element (element number " + std::to_string(elementNumber) + "): empty element");
+
+                        if (unparsedElement.front() == '\"') {
+                            log("parsing string: " + unparsedElement);
+                            std::optional<std::vector<UTF8::rune_t>> oRunes = Util::parseString(unparsedElement);
+                            if (!oRunes.has_value())
+                                return ps.error(lineNumber, "invalid data string element (element number " + std::to_string(elementNumber) + "): " + unparsedElement);
+                            for (UTF8::rune_t rune : oRunes.value())
+                                pushData(static_cast<word_t>(rune));
+                            continue;
+                        }
+
+                        log("parsing uint: " + unparsedElement);
+
+                        if (unparsedSize == "")
+                            unparsedSize = std::string{"1"};
+                        std::optional<word_t> oSize{Util::stringToUInt32(unparsedSize)};
+                        if (!oSize.has_value())
+                            return ps.error(lineNumber, "invalid data uint element size (element number " + std::to_string(elementNumber) + "): " + unparsedSize);
+                        log("    ~> size: " + std::to_string(oSize.value()));
+
+                        if (unparsedValue == "")
+                            unparsedValue = std::string{"0"};
+                        std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
+                        if (!oValue.has_value())
+                            return ps.error(lineNumber, "invalid data uint element value (element number " + std::to_string(elementNumber) + "): " + unparsedValue);
+                        log("    ~> value: " + std::to_string(oValue.value()));
+
+                        for (word_t j = 0; j < oSize.value(); j++)
+                            pushData(oValue.value());
+                        continue;
+                    }
+                    return ps.error(lineNumber, "incomprehensible data element (element number " + std::to_string(elementNumber) + ")");
                 }
-                return true; }))
+                return true;
+            }))
+
 
         ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
             [filepath, lineNumber, &ps, &memPtr](std::smatch smatch) {
