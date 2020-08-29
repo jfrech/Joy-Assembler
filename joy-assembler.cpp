@@ -651,23 +651,27 @@ bool parse1(Parsing::ParsingState &ps) {
                 if (oIncludeFilepathRunes.has_value())
                     oIncludeFilepath = UTF8::runeVectorToOptionalString(
                         oIncludeFilepathRunes.value());
-                if (!oIncludeFilepath)
+                if (oIncludeFilepath.has_value())
+                    oIncludeFilepath = Util::
+                        startingFilepathFilepathToOptionalResolvedFilepath(
+                            ps.filepath.parent_path(),
+                            oIncludeFilepath.value());
+                if (!oIncludeFilepath.has_value())
                     return ps.error(lineNumber, "malformed include string");
-                std::filesystem::path includeFilepath{
-                    ps.filepath.parent_path() / oIncludeFilepath.value()};
 
-                bool succ{};
+                std::filesystem::path includeFilepath{oIncludeFilepath.value()};
+                bool success{};
 
                 log("including with memPtr = " + std::to_string(ps.memPtr));
                 std::filesystem::path filepath{ps.filepath};
                 {
                     ps.filepath = includeFilepath;
-                    succ = parse1(ps);
+                    success = parse1(ps);
                 }
                 ps.filepath = filepath;
                 log("included with memPtr = " + std::to_string(ps.memPtr));
 
-                if (!succ)
+                if (!success)
                     return ps.error(lineNumber, "could not include file: "
                         + std::string{includeFilepath});
                 return true; }))

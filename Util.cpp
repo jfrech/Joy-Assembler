@@ -184,6 +184,55 @@ namespace Util {
         for (auto &c : str)
             c = std::toupper(c);
         return str; }
+
+    std::optional<std::filesystem::path>
+    startingFilepathFilepathToOptionalResolvedFilepath(
+        std::filesystem::path const&start, std::filesystem::path const&further
+    ) {
+        std::string startStr{start}, furtherStr{further};
+        if (furtherStr == "")
+            return std::nullopt;
+        if (furtherStr.front() == '/')
+            return std::make_optional(further);
+
+        auto extendSplit = [](
+            std::vector<std::string> &parts, std::string const&s
+        ) {
+            std::string buf{};
+            for (auto const&c : s) {
+                if (c == '/') {
+                    if (!buf.empty())
+                        parts.push_back(buf);
+                    buf = std::string{};
+                    continue; }
+                buf += std::string{c}; }
+            if (!buf.empty())
+                parts.push_back(buf);
+        };
+
+        std::vector<std::string> parts{};
+        extendSplit(parts, startStr);
+        extendSplit(parts, furtherStr);
+
+        for (std::size_t j = 0; j < parts.size(); j++) {
+            if (parts[j] == "..") {
+                if (j < 1)
+                    return std::nullopt;
+                parts.erase(parts.begin()+j);
+                parts.erase(parts.begin()+j-1);
+                j -= 2;
+                continue; }
+            if (parts[j] == ".") {
+                parts.erase(parts.begin()+j);
+                j -= 1;
+                continue; }
+        }
+        std::string pathStr{};
+        for (std::string const&part : parts)
+            pathStr += "/" + part;
+
+        return std::filesystem::path{pathStr};
+    }
 }
 
 #endif
