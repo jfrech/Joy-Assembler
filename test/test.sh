@@ -8,22 +8,24 @@ pristine="$root/pristine"
 programs="$root/programs"
 tmp="$root/.tmp.dmp"
 
-find "$root/programs" -mindepth 1 -maxdepth 1 -type f | while read prg; do
+find "$root/programs" -mindepth 1 -maxdepth 1 -type f | sort | \
+while read prg; do
     printf 'testing: %s\n' "$prg"
-    pristineMemoryDump="$pristine/$(realpath "$prg" --relative-to="$programs").dmp"
+    _mirrored="$(realpath "$prg" --relative-to="$programs").dmp"
+    pristineMemoryDump="$pristine/$_mirrored"
     printf '    looking for pristine memory dump: %s\n' "$pristineMemoryDump"
     [ ! -f "$pristineMemoryDump" ] \
         && printf '    \33[38;5;124m[ERR]\33[0m could not find pristine ' \
-                  'memory dump\n' && exit 1
+        && printf 'memory dump\n' && exit 1
     printf '    executing: %s ...\n' "$prg"
     "$root/../joy-assembler" "$prg" memory-dump > "$tmp"
     printf '    comparing to pristine memory dump\n'
     ! cmp 2>/dev/null "$pristineMemoryDump" "$tmp" \
         && printf '        \33[38;5;124m[ERR]\33[0m memory dump ' \
-                  'mismatch\n' && exit 1
+        && printf 'mismatch\n' && exit 1
 
     printf '        \33[38;5;154m[SUC]\33[0m memory dump match\n'
 done || exit 1
 
 rm "$tmp"
-printf '\n\33[38;5;154m[SUC]\33[0m all tests have passed\n' && exit 0
+printf '\n\33[38;5;154m[SUC]\33[0m every test has passed\n' && exit 0

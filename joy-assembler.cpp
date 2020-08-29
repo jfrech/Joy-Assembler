@@ -649,8 +649,8 @@ bool parse1(Parsing::ParsingState &ps) {
 }
 
 bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
-
     bool memPtrGTStackBeginningAndNonDataOccurred{false};
+    bool haltInstructionWasUsed{false};
 
     word_t memPtr{0};
     for (auto [filepath, lineNumber, p] : ps.parsing) {
@@ -704,11 +704,14 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
                 memPtr += cs.storeInstruction(memPtr, Instruction{name, 0x00000000});
             }
 
-            ps.stackInstructionWasUsed = ps.stackInstructionWasUsed
-                || InstructionNameRepresentationHandler
-                   ::isStackInstruction(name);
+            haltInstructionWasUsed |= InstructionName::HLT == name;
+            ps.stackInstructionWasUsed |=
+                InstructionNameRepresentationHandler::isStackInstruction(name);
         }
     }
+
+    if (!haltInstructionWasUsed)
+        return ps.error(0, "no halt instruction was used");
 
     if (ps.stackInstructionWasUsed && !Util::std20::contains(ps.definitions, std::string{"@stack"}))
         return ps.error(0, "stack instructions are used yet no stack was defined");
