@@ -457,6 +457,9 @@ class ComputationState {
         if (m >= std::get<1>(debug.stackBoundaries.value())) {
             err("loadMemory4Stack: stack overflow");
             return 0; }
+        if ((m - std::get<0>(debug.stackBoundaries.value())) % 4 != 0) {
+            err("loadMemory4Stack: stack misalignment");
+            return 0; }
         return loadMemory4(m); }
 
     void storeMemory4Stack(word_t const m, word_t const w) {
@@ -468,6 +471,9 @@ class ComputationState {
             return; }
         if (m >= std::get<1>(debug.stackBoundaries.value())) {
             err("storeMemory4Stack: stack overflow");
+            return; }
+        if ((m - std::get<0>(debug.stackBoundaries.value())) % 4 != 0) {
+            err("storeMemory4Stack: stack misalignment");
             return; }
         storeMemory4(m, w); }
 
