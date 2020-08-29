@@ -33,5 +33,6 @@ find "$root/programs" -mindepth 1 -maxdepth 1 -type f | while read prg; do
 done || exit 1
 
 buildInfo "$(printf '\xf0\x9f\x9f\xa9 passing')"
-
 rm "$tmp"
+
+printf '\n\33[38;5;154m[SUC]\33[0m all tests have passed\n'

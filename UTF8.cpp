@@ -7,11 +7,18 @@ namespace UTF8 {
     typedef uint32_t rune_t;
     typedef uint8_t byte_t;
 
-    rune_t ERROR_RUNE = static_cast<rune_t>(0xfffd);
+    rune_t constexpr ERROR_RUNE = static_cast<rune_t>(0xfffd);
 
     class Encoder {
         public:
-            std::vector<byte_t> bytes{};
+            std::vector<byte_t> bytes;
+        private:
+            bool erroneous;
+
+        public: Encoder() :
+            bytes{},
+            erroneous{false}
+        { ; }
 
         public: bool encode(rune_t const rune) {
             if (rune <= 0x7f) {
@@ -47,14 +54,22 @@ namespace UTF8 {
 
         public: bool finish() {
             return !erroneous; }
-
-        private:
-            bool erroneous{false};
     };
 
     class Decoder {
         public:
             std::vector<rune_t> runes{};
+        private:
+            std::vector<byte_t> buf{};
+            bool erroneous{false};
+
+        public: Decoder() :
+            runes{},
+            buf{},
+            erroneous{false}
+        {
+            buf.reserve(4);
+        }
 
         /* return value signals if another byte is required */
         public: bool decode(byte_t const b) {
@@ -136,10 +151,6 @@ namespace UTF8 {
             runes.push_back(ERROR_RUNE);
             buf.clear();
             return false; }
-
-        private:
-            std::vector<byte_t> buf{};
-            bool erroneous{false};
     };
 }
 
