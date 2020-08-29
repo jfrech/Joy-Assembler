@@ -154,6 +154,20 @@ namespace UTF8 {
             buf.clear();
             return false; }
     };
+
+    std::optional<std::string> runeVectorToOptionalString(
+        std::vector<rune_t> const&runes
+    ) {
+        std::string s{""};
+        for (rune_t rune : runes) {
+            if (rune > 0x7f)
+                return std::nullopt;
+            char buf[2];
+            buf[0] = static_cast<byte_t>(rune);
+            buf[1] = '\0';
+            s += std::string{buf}; }
+        return std::make_optional(s);
+    }
 }
 
 namespace UTF8IO {

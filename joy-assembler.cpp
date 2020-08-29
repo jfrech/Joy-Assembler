@@ -508,30 +508,28 @@ bool parse1(Parsing::ParsingState &ps) {
 
     std::string const&regexIdentifier{"[._[:alpha:]-][._[:alnum:]-]*"};
     std::string const&regexValue{"[@._[:alnum:]-][._[:alnum:]-]*"};
-
+    std::string const&regexString{"\"([^\"]|\\\")*?\""};
 
     for (
-        auto [memPtr, lineNumber, ln]
-            = std::make_tuple<word_t, Parsing::line_number_t, std::string>(0, 1, "");
+        auto [lineNumber, ln]
+            = std::make_tuple<Parsing::line_number_t, std::string>(1, "");
         std::getline(is, ln);
         lineNumber++
     ) {
-
 
         auto pushData = [&](uint32_t const data) {
             log("pushing data: " + Util::UInt32AsPaddedHex(data));
             ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
                 Parsing::parsingData{data}));
-            memPtr += 4;
+            ps.memPtr += 4;
         };
+
         auto pushInstruction = [&](InstructionName const&name, std::optional<std::string> const&oArg) {
-            log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or("(no arg.)"));
+            log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or(" (no arg.)"));
             ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
                 Parsing::parsingInstruction{std::make_tuple(name, oArg)}));
-            memPtr += 5;
+            ps.memPtr += 5;
         };
-
-
 
         ln = std::regex_replace(ln, std::regex{";.*$"}, "");
         ln = std::regex_replace(ln, std::regex{"\\s+"}, " ");
@@ -553,7 +551,6 @@ bool parse1(Parsing::ParsingState &ps) {
             return true;
         };
 
-
         #define ON_MATCH(REGEX, LAMBDA) { \
             std::smatch smatch{}; \
             if (std::regex_match(ln, smatch, std::regex{(REGEX)})) { \
@@ -568,22 +565,24 @@ bool parse1(Parsing::ParsingState &ps) {
                 return define(std::string{smatch[1]}, std::string{smatch[2]}); }))
 
         ON_MATCH("^(" + regexIdentifier + "):$", (
-            [define, &ps, &memPtr](std::smatch const&smatch) {
+            [define, &ps](std::smatch const&smatch) {
                 std::string label{smatch[1]};
-                if (!define("@" + label, std::to_string(memPtr)))
+                if (!define("@" + label, std::to_string(ps.memPtr)))
                     return false;
                 if (label == "stack" && !ps.stackBeginning.has_value())
-                    ps.stackBeginning = std::make_optional(memPtr);
+                    ps.stackBeginning = std::make_optional(ps.memPtr);
                 return true; }))
 
         ON_MATCH("^data ?(.+)$", (
-            [pushData, lineNumber, regexValue, &ps, &memPtr](std::smatch const&smatch) {
+            [pushData, lineNumber, regexValue, regexString, &ps](std::smatch const&smatch) {
                 log("parsing `data` ...");
-
                 std::string commaSeparated{std::string{smatch[1]} + ","};
                 for (uint64_t elementNumber{1}; commaSeparated != ""; elementNumber++) {
+                    auto error = [lineNumber, elementNumber, &ps](std::string const&msg, std::string const&detail) {
+                        return ps.error(lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
+
                     std::smatch smatch{};
-                    if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + ")?") + "|" + (std::string{"\""} + "([^\"]|\\\")*?" + "\"") + ") ?, ?(.*)$"})) {
+                    if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
 
                         log("smatch of size " + std::to_string(smatch.size()));
                         for (auto j = 0u; j < smatch.size(); j++)
@@ -595,13 +594,13 @@ bool parse1(Parsing::ParsingState &ps) {
                         commaSeparated = std::string{smatch[6]};
 
                         if (unparsedElement == "")
-                            return ps.error(lineNumber, "invalid data element (element number " + std::to_string(elementNumber) + "): empty element");
+                            return error("invalid data element", "empty element");
 
                         if (unparsedElement.front() == '\"') {
                             log("parsing string: " + unparsedElement);
                             std::optional<std::vector<UTF8::rune_t>> oRunes = Util::parseString(unparsedElement);
                             if (!oRunes.has_value())
-                                return ps.error(lineNumber, "invalid data string element (element number " + std::to_string(elementNumber) + "): " + unparsedElement);
+                                return error("invalid data string element", unparsedElement);
                             for (UTF8::rune_t rune : oRunes.value())
                                 pushData(static_cast<word_t>(rune));
                             continue;
@@ -613,35 +612,64 @@ bool parse1(Parsing::ParsingState &ps) {
                             unparsedSize = std::string{"1"};
                         std::optional<word_t> oSize{Util::stringToUInt32(unparsedSize)};
                         if (!oSize.has_value())
-                            return ps.error(lineNumber, "invalid data uint element size (element number " + std::to_string(elementNumber) + "): " + unparsedSize);
+                            return error("invalid data uint element size", unparsedSize);
                         log("    ~> size: " + std::to_string(oSize.value()));
 
                         if (unparsedValue == "")
                             unparsedValue = std::string{"0"};
                         std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
                         if (!oValue.has_value())
-                            return ps.error(lineNumber, "invalid data uint element value (element number " + std::to_string(elementNumber) + "): " + unparsedValue);
+                            return error("invalid data uint element value", unparsedValue);
                         log("    ~> value: " + std::to_string(oValue.value()));
 
                         for (word_t j = 0; j < oSize.value(); j++)
                             pushData(oValue.value());
                         continue;
                     }
-                    return ps.error(lineNumber, "incomprehensible data element (element number " + std::to_string(elementNumber) + ")");
+                    return error("incomprehensible data element trunk", commaSeparated);
                 }
-                return true;
-            }))
-
+                return true; }))
 
         ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
-            [pushInstruction, lineNumber, &ps, &memPtr](std::smatch const&smatch) {
-                auto oName = InstructionNameRepresentationHandler::from_string(smatch[1]);
+            [pushInstruction, lineNumber, &ps](std::smatch const&smatch) {
+                auto oName = InstructionNameRepresentationHandler
+                    ::from_string(smatch[1]);
                 if (!oName.has_value())
-                    return ps.error(lineNumber, "invalid instruction name: " + std::string{smatch[1]});
+                    return ps.error(lineNumber, "invalid instruction name: "
+                        + std::string{smatch[1]});
                 std::optional<std::string> oArg{std::nullopt};
                 if (smatch[3] != "")
                     oArg = std::optional{smatch[3]};
                 pushInstruction(oName.value(), oArg);
+                return true; }))
+
+        ON_MATCH("^include ?(" + regexString + ")$", (
+            [lineNumber, &ps](std::smatch const&smatch) {
+                std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes
+                    = Util::parseString(std::string{smatch[1]});
+                std::optional<std::string> oIncludeFilepath{std::nullopt};
+                if (oIncludeFilepathRunes.has_value())
+                    oIncludeFilepath = UTF8::runeVectorToOptionalString(
+                        oIncludeFilepathRunes.value());
+                if (!oIncludeFilepath)
+                    return ps.error(lineNumber, "malformed include string");
+                std::filesystem::path includeFilepath{
+                    ps.filepath.parent_path() / oIncludeFilepath.value()};
+
+                bool succ{};
+
+                log("including with memPtr = " + std::to_string(ps.memPtr));
+                std::filesystem::path filepath{ps.filepath};
+                {
+                    ps.filepath = includeFilepath;
+                    succ = parse1(ps);
+                }
+                ps.filepath = filepath;
+                log("included with memPtr = " + std::to_string(ps.memPtr));
+
+                if (!succ)
+                    return ps.error(lineNumber, "could not include file: "
+                        + std::string{includeFilepath});
                 return true; }))
 
         #undef ON_MATCH
@@ -653,6 +681,8 @@ bool parse1(Parsing::ParsingState &ps) {
 }
 
 bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
+    log("@@@ parse2 @@@");
+
     bool memPtrGTStackBeginningAndNonDataOccurred{false};
     bool haltInstructionWasUsed{false};
 
@@ -670,7 +700,8 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
             if (memPtr > ps.stackBeginning)
                 memPtrGTStackBeginningAndNonDataOccurred = true;
 
-            Parsing::parsingInstruction instruction{std::get<Parsing::parsingInstruction>(p)};
+            Parsing::parsingInstruction instruction{
+                std::get<Parsing::parsingInstruction>(p)};
             InstructionName name = std::get<0>(instruction);
             auto oArg = std::get<1>(instruction);
             std::optional<word_t> oValue{std::nullopt};
@@ -679,34 +710,54 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
                 if (Util::std20::contains(ps.definitions, oArg.value()))
                     oArg = std::make_optional(ps.definitions.at(oArg.value()));
 
-                oValue = static_cast<std::optional<word_t>>(Util::stringToUInt32(oArg.value()));
+                if (oArg.value() == "")
+                    return ps.error(lineNumber, "no instruction argument");
+                if (oArg.value().front() == '@') {
+                    std::string label{oArg.value()};
+                    label.erase(label.begin());
+
+                    /* TODO :: Possibly sort by Levenshtein distance? */
+                    std::string definedLabels{"\n    ~ defined labels ~"};
+                    for (auto const&[label, _] : ps.definitions)
+                        definedLabels += "\n        " + label;
+                    return ps.error(lineNumber, "label @" + label
+                        + " was not defined" + definedLabels); }
+
+                oValue = static_cast<std::optional<word_t>>(
+                    Util::stringToUInt32(oArg.value()));
                 if (!oValue.has_value())
-                    return ps.error(lineNumber, "invalid value: " + oArg.value());
+                    return ps.error(lineNumber, "invalid argument value: "
+                        + oArg.value());
                 value += oValue.value();
 
                 oValue = std::make_optional(value);
             }
 
-            auto [hasArgument, optionalValue] = InstructionNameRepresentationHandler
-                                                ::argumentType[name];
-
+            auto [hasArgument, optionalValue] =
+                InstructionNameRepresentationHandler::argumentType[name];
             if (!hasArgument && oValue.has_value())
-                return ps.error(lineNumber, "superfluous argument: " + InstructionNameRepresentationHandler::to_string(name) + " " + std::to_string(oValue.value()));
+                return ps.error(lineNumber, "superfluous argument: "
+                    + InstructionNameRepresentationHandler::to_string(name)
+                    + " " + std::to_string(oValue.value()));
             if (hasArgument) {
                 if (!optionalValue.has_value() && !oValue.has_value())
-                    return ps.error(lineNumber, "requiring argument: " + InstructionNameRepresentationHandler::to_string(name));
+                    return ps.error(lineNumber, "requiring argument: "
+                        + InstructionNameRepresentationHandler
+                          ::to_string(name));
                 if (!oValue.has_value())
-                    oValue = optionalValue;
-            }
+                    oValue = optionalValue; }
 
             if (oValue.has_value()) {
-                log("instruction " + InstructionNameRepresentationHandler::to_string(name) + " " + std::to_string(oValue.value()));
+                log("instruction " + InstructionNameRepresentationHandler
+                    ::to_string(name) + " " + std::to_string(oValue.value()));
                 auto argument = oValue.value();
-                memPtr += cs.storeInstruction(memPtr, Instruction{name, argument});
+                memPtr += cs.storeInstruction(memPtr, Instruction{
+                    name, argument});
             } else {
-                log("instruction " + InstructionNameRepresentationHandler::to_string(name) + " (none)");
-                memPtr += cs.storeInstruction(memPtr, Instruction{name, 0x00000000});
-            }
+                log("instruction " + InstructionNameRepresentationHandler
+                    ::to_string(name) + " (none)");
+                memPtr += cs.storeInstruction(memPtr, Instruction{
+                    name, 0x00000000}); }
 
             haltInstructionWasUsed |= InstructionName::HLT == name;
             ps.stackInstructionWasUsed |=
@@ -717,14 +768,18 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
     if (!haltInstructionWasUsed)
         return ps.error(0, "no halt instruction was used");
 
-    if (ps.stackInstructionWasUsed && !Util::std20::contains(ps.definitions, std::string{"@stack"}))
-        return ps.error(0, "stack instructions are used yet no stack was defined");
+    if (ps.stackInstructionWasUsed)
+        if (!Util::std20::contains(ps.definitions, std::string{"@stack"}))
+            return ps.error(0, std::string{"stack instructions are used "}
+                + "yet no stack was defined");
 
     if (ps.stackBeginning.has_value() != ps.stackEnd.has_value())
         return ps.error(0, "inconsistent stack boundaries");
 
     if (ps.stackBeginning.has_value() && ps.stackEnd.has_value()) {
-        log("got as stack boundaries: " + std::to_string(ps.stackBeginning.value()) + " and " + std::to_string(ps.stackEnd.value()));
+        log("got as stack boundaries: "
+            + std::to_string(ps.stackBeginning.value()) + " and "
+            + std::to_string(ps.stackEnd.value()));
 
         cs.initializeStack(ps.stackBeginning.value(), ps.stackEnd.value());
     } else

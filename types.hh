@@ -96,6 +96,8 @@ namespace Parsing {
             std::optional<word_t> stackBeginning;
             std::optional<word_t> stackEnd;
 
+            word_t memPtr;
+
         public: ParsingState(std::filesystem::path const&filepath) :
             filepath{filepath},
             parsedFilepaths{},
@@ -104,7 +106,9 @@ namespace Parsing {
 
             stackInstructionWasUsed{false},
             stackBeginning{std::nullopt},
-            stackEnd{std::nullopt}
+            stackEnd{std::nullopt},
+
+            memPtr{0}
         { ; }
 
         public: bool error(line_number_t const lineNumber, std::string const&msg) {

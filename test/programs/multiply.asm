@@ -15,7 +15,7 @@ global-z:
 x := 342
 y := 83
 
-; multply the value at address global-x with those at
+; multiply the value at address global-x with those at
 ; address global-y and store the result in addr_mutliply-z
 multiply:
     ; initialize the result to zero
