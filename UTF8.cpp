@@ -1,13 +1,15 @@
 #ifndef JOY_ASSEMBLER__UTF8_CPP
 #define JOY_ASSEMBLER__UTF8_CPP
 
+#include <iostream>
 #include <vector>
 
 namespace UTF8 {
     typedef uint32_t rune_t;
     typedef uint8_t byte_t;
 
-    rune_t constexpr ERROR_RUNE = static_cast<rune_t>(0xfffd);
+    rune_t constexpr NULL_RUNE = static_cast<rune_t>(0x00000000);
+    rune_t constexpr ERROR_RUNE = static_cast<rune_t>(0x0000fffd);
 
     class Encoder {
         public:
@@ -77,7 +79,7 @@ namespace UTF8 {
             for (size_t j = 1; j < 4; j++) {
                 if (j >= buf.size())
                     break;
-                invalid = invalid || ((0b11'000000 & buf[j]) != 0b10'000000); }
+                invalid |= ((0b11'000000 & buf[j]) != 0b10'000000); }
             if (invalid)
                 return err();
 
@@ -152,6 +154,32 @@ namespace UTF8 {
             buf.clear();
             return false; }
     };
+}
+
+namespace UTF8IO {
+    void putByte(UTF8::byte_t const b) {
+        std::cout.put(b); }
+
+    UTF8::byte_t getByte() {
+        return std::cin.get(); }
+
+    void putRune(UTF8::rune_t const rune) {
+        UTF8::Encoder encoder{};
+        encoder.encode(rune);
+        if (!encoder.finish())
+            return;
+        for (UTF8::byte_t b : encoder.bytes)
+            putByte(b); }
+
+    UTF8::rune_t getRune() {
+        UTF8::Decoder decoder{};
+        while (decoder.decode(getByte()))
+            ;
+        if (!decoder.finish())
+            return UTF8::ERROR_RUNE;
+        if (decoder.runes.size() != 1)
+            return UTF8::ERROR_RUNE;
+        return decoder.runes.front(); }
 }
 
 #endif

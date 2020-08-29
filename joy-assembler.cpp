@@ -14,8 +14,8 @@
 #include "Util.cpp"
 #include "types.hh"
 
-constexpr bool doLog{false};
-inline void log(std::string const&msg) {
+bool constexpr doLog{false};
+void log(std::string const&msg) {
     if (doLog)
         std::clog << msg << std::endl; }
 
@@ -236,7 +236,7 @@ class ComputationState {
             case InstructionName::PTC:
                 if (mock)
                     break;
-                Util::put_utf8_char(registerA);
+                UTF8IO::putRune(static_cast<UTF8::rune_t>(registerA));
                 break;
             case InstructionName::GET: {
                 if (mock) {
@@ -253,7 +253,7 @@ class ComputationState {
             }; break;
             case InstructionName::GTC:
                 std::cout << "enter a character: ";
-                registerA = Util::get_utf8_char();
+                registerA = static_cast<word_t>(UTF8IO::getRune());
                 break;
 
             case InstructionName::HLT: return false;
