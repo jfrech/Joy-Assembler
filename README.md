@@ -79,63 +79,42 @@ The simulated architecture can also be slightly modified using _pragmas_ (see be
 | **hlt**                   |                                        |                                     |                                                                    |
 | `hlt`                     | -                                      | "**h**a**lt**"                      | Halt the machine.                                                  |
 
-# Definitions
-To define a constant value, one can use the _definition operator_ ` := `.
-## Example
-To statically lay out memory or define other constants, a header like the following might be appropriate. `prg+` statically adds the program offset, that is the number of instructions times five (since each instruction is represented using five bytes).
+# Labels
+One can either hard-code program positions to jump to or use an abstraction; _program labels_. A label is defined by an identifier succeeded by a colon (`:`) and accessed by the same identifier preceded by an at sign (`@`). A label definition has to be unique, yet can be used arbitrarily often:
 ````
-addr_value-x := prg+0
-addr_value-y := prg+4
-addr_value-z := prg+8
-
-value := 0xfc
+ack:
+    ; ...
+main:
+    mov 2
+    psh
+    mov 3
+    psh
+    cal @ack
+    pop
+    ptu
+    pop
+    hlt
+stack:
+    data [0xfff]
 ````
 
 # Data Blocks
-A static _data block_ can be defined using `uint[size] default-value`:
+A static _data block_ can be defined using `data [optional-size]optional-value, [optional-size]optional-value, ...`:
 ````
+primes:
+    data 2, 3, 5, 7, 11, 13, 17 ; ... (finite memory)
 global-x:
-    uint[1] 0
+    data[1] 0
 global-y:
-    uint[1] 0
+    data[1] 0
 stack:
-    uint[0xffff] 0
+    data [0xfff]
 ````
 
-# Labels
-One can either hard-code program positions to jump to or use a special kind of definition called _program labels_. A label is defined by an identifier succeeded by a colon (`:`) and accessed by the same identifier preceded by an at sign (`@`). A label definition has to be unique, yet can be used arbitrarily often.
-## Example
-The following Joy Assembler code snippet calculates the number of set bits in register `A` and stores this number in register `A`, using the four bytes memory location `addr_temporary-value-a` and the four bytes at memory location `addr_temporary-value-b` as a temporary value storage.
+# Definitions
+To define a constant value, one can use the _definition operator_ ` := `:
 ````
-count-bits:
-    sta addr_temporary-value-a
-    mov 0
-    sta addr_temporary-value-b
-
-    count-bits-loop:
-        mov 1
-        swp
-        lda addr_temporary-value-a
-        and
-        swp
-
-        lda addr_temporary-value-a
-        shr
-        sta addr_temporary-value-a
-
-        swp
-        jz @not-set
-            lda addr_temporary-value-b
-            inc
-            sta addr_temporary-value-b
-        not-set:
-
-        lda addr_temporary-value-a
-        jnz @count-bits-loop
-
-    lda addr_temporary-value-b
-
-    jmp @back
+n := 5
 ````
 
 # Pragmas
