@@ -13,11 +13,7 @@
 
 #include "Util.cpp"
 #include "types.hh"
-
-bool constexpr doLog{false};
-void log(std::string const&msg) {
-    if (doLog)
-        std::clog << msg << std::endl; }
+#include "log.cpp"
 
 namespace InstructionNameRepresentationHandler {
     std::optional<InstructionName> fromByteCode(byte_t const opCode) {
@@ -32,7 +28,7 @@ namespace InstructionNameRepresentationHandler {
         return 0x00; }
 
     std::string to_string(InstructionName const name) {
-        if (Util::std20::contains<InstructionName, std::string>(representation, name))
+        if (Util::std20::contains(representation, name))
             return representation[name];
         return representation[InstructionName::NOP]; }
 
@@ -49,33 +45,21 @@ namespace InstructionNameRepresentationHandler {
             InstructionName::LSC, InstructionName::SSC}, name); }
 }
 
-struct Instruction { InstructionName name; word_t argument; };
-
 namespace InstructionRepresentationHandler {
     std::string to_string(Instruction const instruction) {
         return InstructionNameRepresentationHandler::to_string(instruction.name)
                + " " + Util::UInt32AsPaddedHex(instruction.argument); }
 }
 
-struct ComputationStateDebug {
-    word_t highestUsedMemoryLocation{0};
-    uint64_t executionCycles{0};
-    bool doWaitForUser{false};
-    bool doVisualizeSteps{false};
-};
-
 class ComputationState {
     private:
         word_t memorySize;
         std::vector<byte_t> memory;
         MemoryMode memoryMode;
-
         word_t registerA, registerB, registerPC, registerSC;
-
         bool flagAZero, flagANegative, flagAEven;
-
         bool mock;
-
+        bool erroneous;
     public:
         ComputationStateDebug debug;
 
@@ -83,40 +67,46 @@ class ComputationState {
         memorySize{memorySize},
         memory{std::vector<byte_t>(memorySize)},
         memoryMode{MemoryMode::LittleEndian},
-
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
-
         flagAZero{true}, flagANegative{false}, flagAEven{true},
-
         mock{false},
+        erroneous{false},
 
         debug{}
     {
         updateFlags(); }
 
-    public: Instruction nextInstruction() {
+    public: std::optional<Instruction> nextInstruction() {
         byte_t opCode{loadMemory(static_cast<word_t>(registerPC++))};
         word_t arg{loadMemory4(static_cast<word_t>((registerPC += 4) - 4))};
 
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
         if (!oInstructionName.has_value())
-            return Instruction{InstructionName::NOP, 0x00000000};
+            return std::nullopt;
 
         InstructionName name = oInstructionName.value();
         word_t argument = arg;
 
-        return Instruction{name, argument};
-    }
+        return std::make_optional(Instruction{name, argument}); }
+
+    private: bool err(std::string const&msg) {
+        std::cerr << "ComputationState: " << msg << std::endl;
+        return !(erroneous = true); }
 
     public: bool step() {
-        auto instruction = nextInstruction();
+        std::optional<Instruction> oInstruction = nextInstruction();
+        if (!oInstruction.has_value())
+            return err("step: failed to fetch next instruction");
+        Instruction instruction = oInstruction.value();
+
         auto jmp = [&](bool cnd) {
             if (cnd)
                 registerPC = static_cast<word_t>(instruction.argument); };
 
         switch (instruction.name) {
-            case InstructionName::NOP: break;
+            case InstructionName::NOP:
+                break;
 
             case InstructionName::LDA:
                 registerA = loadMemory4(instruction.argument);
@@ -136,8 +126,12 @@ class ComputationState {
             case InstructionName::SIA:
                 storeMemory4(registerB + instruction.argument, registerA);
                 break;
-            case InstructionName::LPC: registerPC = registerA; break;
-            case InstructionName::SPC: registerA = registerPC; break;
+            case InstructionName::LPC:
+                registerPC = registerA;
+                break;
+            case InstructionName::SPC:
+                registerA = registerPC;
+                break;
             case InstructionName::LYA:
                 registerA = (registerA                        & 0xffffff00)
                           | (loadMemory(instruction.argument) & 0x000000ff);
@@ -148,40 +142,48 @@ class ComputationState {
                 break;
 
             case InstructionName::JMP: jmp(true); break;
-            case InstructionName::JZ: jmp(flagAZero); break;
+            case InstructionName::JZ : jmp(flagAZero); break;
             case InstructionName::JNZ: jmp(!flagAZero); break;
-            case InstructionName::JN: jmp(flagANegative); break;
+            case InstructionName::JN : jmp(flagANegative); break;
             case InstructionName::JNN: jmp(!flagANegative); break;
-            case InstructionName::JE: jmp(flagAEven); break;
+            case InstructionName::JE : jmp(flagAEven); break;
             case InstructionName::JNE: jmp(!flagAEven); break;
 
             case InstructionName::CAL:
-                storeMemory4(registerSC, registerPC);
+                storeMemory4Stack(registerSC, registerPC);
                 registerSC += 4;
                 registerPC = instruction.argument;
                 break;
             case InstructionName::RET:
                 registerSC -= 4;
-                registerPC = loadMemory4(registerSC);
+                registerPC = loadMemory4Stack(registerSC);
                 break;
             case InstructionName::PSH:
-                storeMemory4(registerSC, registerA);
+                storeMemory4Stack(registerSC, registerA);
                 registerSC += 4;
                 break;
             case InstructionName::POP:
-                registerA = loadMemory4(registerSC -= 4);
+                registerA = loadMemory4Stack(registerSC -= 4);
                 break;
             case InstructionName::LSA:
-                registerA = loadMemory4(registerSC + instruction.argument);
+                registerA = loadMemory4Stack(registerSC + instruction.argument);
                 break;
             case InstructionName::SSA:
-                storeMemory4(registerSC + instruction.argument, registerA);
+                storeMemory4Stack(registerSC + instruction.argument, registerA);
                 break;
-            case InstructionName::LSC: registerSC = registerA; break;
-            case InstructionName::SSC: registerA = registerSC; break;
+            case InstructionName::LSC:
+                registerSC = registerA;
+                break;
+            case InstructionName::SSC:
+                registerA = registerSC;
+                break;
 
-            case InstructionName::MOV: registerA = instruction.argument; break;
-            case InstructionName::NOT: registerA = ~registerA; break;
+            case InstructionName::MOV:
+                registerA = instruction.argument;
+                break;
+            case InstructionName::NOT:
+                registerA = ~registerA;
+                break;
             case InstructionName::SHL:
                 registerA = static_cast<uint32_t>(registerA)
                           << static_cast<uint8_t>(instruction.argument);
@@ -203,10 +205,18 @@ class ComputationState {
                     -static_cast<int32_t>(registerA));
                 break;
 
-            case InstructionName::SWP: std::swap(registerA, registerB); break;
-            case InstructionName::AND: registerA &= registerB; break;
-            case InstructionName::OR: registerA |= registerB; break;
-            case InstructionName::XOR: registerA ^= registerB; break;
+            case InstructionName::SWP:
+                std::swap(registerA, registerB);
+                break;
+            case InstructionName::AND:
+                registerA &= registerB;
+                break;
+            case InstructionName::OR:
+                registerA |= registerB;
+                break;
+            case InstructionName::XOR:
+                registerA ^= registerB;
+                break;
             case InstructionName::ADD:
                 registerA = static_cast<word_t>(
                     static_cast<int32_t>(registerA)
@@ -260,9 +270,12 @@ class ComputationState {
         }
 
         updateFlags();
+        std::flush(std::cout);
         debug.executionCycles++;
 
-        std::flush(std::cout);
+        if (erroneous)
+            return err("step: erroneous machine state");
+
         return true;
     }
 
@@ -352,19 +365,21 @@ class ComputationState {
         flagAEven = registerA % 2 == 0;
     }
 
-    /* TODO throw on invalid memory location ~> machine should halt */
     byte_t loadMemory(word_t const m) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
-        return m < memorySize ? memory[m] : 0;
-    }
-    /* TODO throw on invalid memory location ~> machine should halt */
+        if (/*m < 0 || */m >= memory.size()) {
+            err("loadMemory: memory out of bounds");
+            return 0; }
+        return memory[m]; }
+
     void storeMemory(word_t const m, byte_t const b) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
-        if (m < memorySize)
-            memory[m] = b;
-    }
+        if (/*m < 0 || */m >= memory.size()) {
+            err("storeMemory: memory out of bounds");
+            return; }
+        memory[m] = b; }
 
     word_t loadMemory4(word_t const m) {
         byte_t b3, b2, b1, b0;
@@ -406,7 +421,16 @@ class ComputationState {
         }
     }
 
-    public: word_t storeInstruction(word_t const m, Instruction const instruction) {
+    /* TODO assert stack boundaries and aligment */
+    word_t loadMemory4Stack(word_t const m) {
+        return loadMemory4(m); }
+    /* TODO assert stack boundaries and aligment */
+    void storeMemory4Stack(word_t const m, word_t const w) {
+        storeMemory4(m, w); }
+
+    public: word_t storeInstruction(
+            word_t const m, Instruction const instruction
+    ) {
         storeMemory(m, InstructionNameRepresentationHandler
                        ::toByteCode(instruction.name));
         storeMemory4(1+m, instruction.argument);
@@ -421,29 +445,7 @@ class ComputationState {
     }
 };
 
-typedef uint64_t line_number_t;
-
-typedef std::tuple<InstructionName, std::optional<std::string>> parsingInstruction;
-typedef word_t parsingData;
-
-struct ParsingState {
-    std::filesystem::path filepath;
-    std::set<std::filesystem::path> parsedFilepaths;
-    std::vector<std::tuple<std::filesystem::path, line_number_t
-                          , std::variant<parsingInstruction, parsingData>>>
-        parsing;
-    std::map<std::string, std::string> definitions;
-
-    bool stackInstructionWasUsed{false};
-    std::optional<word_t> stackBeginning{std::nullopt}, stackEnd{std::nullopt};
-
-    bool error(line_number_t const lineNumber, std::string const&msg) {
-        std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
-                  << msg << std::endl;
-        return false; }
-};
-
-bool parse1(ParsingState &ps) {
+bool parse1(Parsing::ParsingState &ps) {
     auto const&filepath = ps.filepath;
     auto &parsedFilepaths = ps.parsedFilepaths;
 
@@ -460,7 +462,7 @@ bool parse1(ParsingState &ps) {
 
     for (
         auto [memPtr, lineNumber, ln]
-            = std::make_tuple<word_t, line_number_t, std::string>(0, 1, "");
+            = std::make_tuple<word_t, Parsing::line_number_t, std::string>(0, 1, "");
         std::getline(is, ln);
         lineNumber++
     ) {
@@ -478,7 +480,7 @@ bool parse1(ParsingState &ps) {
             (std::string k, std::string v)
         {
             log("defining " + k + " to be " + v);
-            if (Util::std20::contains<std::string, std::string>(ps.definitions, k))
+            if (Util::std20::contains(ps.definitions, k))
                 return ps.error(lineNumber, "duplicate definition: " + k);
             ps.definitions[k] = v;
             return true;
@@ -523,7 +525,7 @@ bool parse1(ParsingState &ps) {
                             return ps.error(lineNumber, "invalid data: " + data);
                         for (UTF8::rune_t rune : oRunes.value()) {
                             ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                                parsingData{static_cast<word_t>(rune)}));
+                                Parsing::parsingData{static_cast<word_t>(rune)}));
                             memPtr += 4; }
                         data = _item[3];
                         continue; }
@@ -539,7 +541,7 @@ bool parse1(ParsingState &ps) {
                                 return ps.error(lineNumber, "invalid data value: " + item + ", i.e. " + std::string{_match[2]});
                             for (std::size_t j = 0; j < oSize.value(); j++) {
                                 ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                                    parsingData{oValue.value()}));
+                                    Parsing::parsingData{oValue.value()}));
                                 memPtr += 4; }
                             data = _item[3];
                             continue; }
@@ -549,7 +551,7 @@ bool parse1(ParsingState &ps) {
                     if (!oValue.has_value())
                         return ps.error(lineNumber, "invalid data value: " + item);
                     ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                        parsingData{oValue.value()}));
+                        Parsing::parsingData{oValue.value()}));
                     memPtr += 4;
                     data = _item[3];
                 }
@@ -564,7 +566,7 @@ bool parse1(ParsingState &ps) {
                 if (smatch[3] != "")
                     oArg = std::optional{smatch[3]};
                 ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
-                    parsingInstruction{std::make_tuple(oName.value(), oArg)}));
+                    Parsing::parsingInstruction{std::make_tuple(oName.value(), oArg)}));
                 memPtr += 5;
                 return true; }))
 
@@ -576,25 +578,25 @@ bool parse1(ParsingState &ps) {
     return true;
 }
 
-bool parse2(ParsingState &ps, ComputationState &cs) {
+bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
 
     bool memPtrGTStackBeginningAndNonDataOccurred{false};
 
     word_t memPtr{0};
     for (auto [filepath, lineNumber, p] : ps.parsing) {
-        if (std::holds_alternative<parsingData>(p)) {
-            word_t data{std::get<parsingData>(p)};
+        if (std::holds_alternative<Parsing::parsingData>(p)) {
+            word_t data{std::get<Parsing::parsingData>(p)};
             log("data value " + Util::UInt32AsPaddedHex(data));
             memPtr += cs.storeData(memPtr, data);
 
             if (!memPtrGTStackBeginningAndNonDataOccurred)
                 ps.stackEnd = std::make_optional(memPtr);
         }
-        else if (std::holds_alternative<parsingInstruction>(p)) {
+        else if (std::holds_alternative<Parsing::parsingInstruction>(p)) {
             if (memPtr > ps.stackBeginning)
                 memPtrGTStackBeginningAndNonDataOccurred = true;
 
-            parsingInstruction instruction{std::get<parsingInstruction>(p)};
+            Parsing::parsingInstruction instruction{std::get<Parsing::parsingInstruction>(p)};
             InstructionName name = std::get<0>(instruction);
             auto oArg = std::get<1>(instruction);
             std::optional<word_t> oValue{std::nullopt};
@@ -660,7 +662,7 @@ int main(int const argc, char const*argv[]) {
 
 
     std::set<std::filesystem::path> parsedFilepaths{};
-    ParsingState ps{};
+    Parsing::ParsingState ps{};
     ps.filepath = filepath;
     if (!parse1(ps)) {
         std::cerr << "parsing failed at stage 1: " << filepath << std::endl;

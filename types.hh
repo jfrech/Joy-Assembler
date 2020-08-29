@@ -39,6 +39,8 @@ enum class InstructionName {
     #undef ID
 };
 
+struct Instruction { InstructionName name; word_t argument; };
+
 namespace InstructionNameRepresentationHandler {
     std::map<InstructionName, std::string> representation = {
         #define REPR(ACT, _) {InstructionName::ACT, #ACT}
@@ -64,5 +66,37 @@ namespace InstructionNameRepresentationHandler {
 #undef REQ_ARG
 #undef OPT_ARG
 #undef MAP_ON_INSTRUCTION_NAMES
+
+struct ComputationStateDebug {
+    word_t highestUsedMemoryLocation{0};
+    uint64_t executionCycles{0};
+    bool doWaitForUser{false};
+    bool doVisualizeSteps{false};
+};
+
+namespace Parsing {
+    typedef uint64_t line_number_t;
+
+    typedef std::tuple<InstructionName, std::optional<std::string>>
+        parsingInstruction;
+    typedef word_t parsingData;
+
+    struct ParsingState {
+        std::filesystem::path filepath;
+        std::set<std::filesystem::path> parsedFilepaths;
+        std::vector<std::tuple<std::filesystem::path, line_number_t,
+            std::variant<parsingInstruction, parsingData>>> parsing;
+        std::map<std::string, std::string> definitions;
+
+        bool stackInstructionWasUsed{false};
+        std::optional<word_t> stackBeginning{std::nullopt};
+        std::optional<word_t> stackEnd{std::nullopt};
+
+        bool error(line_number_t const lineNumber, std::string const&msg) {
+            std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
+                      << msg << std::endl;
+            return false; }
+    };
+}
 
 #endif
