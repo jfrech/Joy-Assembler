@@ -1,16 +1,17 @@
 #ifndef JOY_ASSEMBLER__UTIL_CPP
 #define JOY_ASSEMBLER__UTIL_CPP
 
-#include "UTF8.cpp"
-#include "types.hh"
-
 #include <chrono>
 #include <thread>
+
+#include "Types.hh"
+#include "UTF8.cpp"
 
 namespace Util {
     std::string to_upper(std::string const&);
     std::string UInt32AsPaddedHex(uint32_t const n);
 
+    /* custom C++20 implementations */
     namespace std20 {
         /* a custom std::map::contains (C++20) implementation */
         template<typename K, typename V>
@@ -234,7 +235,7 @@ namespace Util {
 
 #define LOCALLY_CHANGE(VAR, LOCAL, LOCAL_EXPR) \
     { \
-        auto _tmp{VAR}; \
+        auto _tmp{(VAR)}; \
         (VAR) = (LOCAL); \
         { \
             LOCAL_EXPR; \

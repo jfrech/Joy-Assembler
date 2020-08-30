@@ -1,5 +1,8 @@
-#ifndef JOY_ASSEMBLER__UTF8_CPP
-#define JOY_ASSEMBLER__UTF8_CPP
+/* Jonathan Frech, August 2020 */
+/* A C++ UTF-8 decoding and encoding implementation. */
+
+#ifndef UTF8_CPP
+#define UTF8_CPP
 
 #include <iostream>
 #include <vector>
