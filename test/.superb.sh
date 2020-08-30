@@ -4,12 +4,15 @@
 root="$(dirname "$(realpath "$0")")"
 make -C "$root/.." || exit 1
 
-pristine="$root/pristine"
+pristineHashes="$root/pristine-hashes"
 programs="$root/programs"
+
+mkdir -p "pristineHashes"
 
 find "$root/programs" -mindepth 1 -maxdepth 1 -type f | sort | \
 while read prg; do
-    pristineMemoryDump="$pristine/$(realpath "$prg" --relative-to="$programs").dmp"
+    pristineMemoryDumpHash="$pristineHashes/$(realpath "$prg" --relative-to="$programs").dmp.hsh"
     printf 'running: %s ...\n' "$prg"
-    "$root/../joy-assembler" "$prg" memory-dump > "$pristineMemoryDump"
+    "$root/../joy-assembler" "$prg" memory-dump | sha512sum \
+        > "$pristineMemoryDumpHash"
 done
