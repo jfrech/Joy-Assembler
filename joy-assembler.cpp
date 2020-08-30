@@ -506,8 +506,8 @@ bool parse1(Parsing::ParsingState &ps) {
     if (!is.is_open())
         return ps.error(0, "unable to read file");
 
-    std::string const&regexIdentifier{"[._[:alpha:]-][._[:alnum:]-]*"};
-    std::string const&regexValue{"[@._[:alnum:]-][._[:alnum:]-]*"};
+    std::string const&regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
+    std::string const&regexValue{"[@.$'_[:alnum:]-][.$'_[:alnum:]\\\\-]*"};
     std::string const&regexString{"\"([^\"]|\\\")*?\""};
 
     for (
@@ -710,7 +710,6 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
             auto oArg = std::get<1>(instruction);
             std::optional<word_t> oValue{std::nullopt};
             if (oArg.has_value()) {
-                word_t value = 0;
                 if (Util::std20::contains(ps.definitions, oArg.value()))
                     oArg = std::make_optional(ps.definitions.at(oArg.value()));
 
@@ -725,16 +724,28 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
                     for (auto const&[label, _] : ps.definitions)
                         definedLabels += "\n        " + label;
                     return ps.error(lineNumber, "label @" + label
-                        + " was not defined" + definedLabels); }
+                        + " was not defined" + definedLabels);
+                }
 
-                oValue = static_cast<std::optional<word_t>>(
-                    Util::stringToUInt32(oArg.value()));
-                if (!oValue.has_value())
-                    return ps.error(lineNumber, "invalid argument value: "
-                        + oArg.value());
-                value += oValue.value();
 
-                oValue = std::make_optional(value);
+                if (oArg.value().front() == '\'') {
+                    if (oArg.value().size() < 2 || oArg.value().back() != '\'')
+                        return ps.error(lineNumber, "invalid character literal");
+                    std::string s{oArg.value()};
+                    s.front() = s.back() = '"';
+                    std::optional<std::vector<UTF8::rune_t>> oRunes{Util::parseString(s)};
+                    if (oRunes.has_value() && oRunes.value().size() != 1)
+                        oRunes = std::nullopt;
+                    if (!oRunes.has_value())
+                        return ps.error(lineNumber, "invalid character literal");
+                    oValue = static_cast<std::optional<word_t>>(std::make_optional(oRunes.value().at(0)));
+                } else {
+                    oValue = static_cast<std::optional<word_t>>(
+                        Util::stringToUInt32(oArg.value()));
+                    if (!oValue.has_value())
+                        return ps.error(lineNumber, "invalid argument value: "
+                            + oArg.value());
+                }
             }
 
             auto [hasArgument, optionalValue] =
