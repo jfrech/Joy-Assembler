@@ -560,7 +560,7 @@ bool parse1(Parsing::ParsingState &ps) {
             } \
         }
 
-        ON_MATCH("^(" + regexIdentifier + ") := (" + regexValue + ")$", (
+        ON_MATCH("^(" + regexIdentifier + ") ?:= ?(" + regexValue + ")$", (
             [define](std::smatch const&smatch) {
                 return define(std::string{smatch[1]}, std::string{smatch[2]}); }))
 
@@ -675,6 +675,11 @@ bool parse1(Parsing::ParsingState &ps) {
                     return ps.error(lineNumber, "could not include file: "
                         + std::string{includeFilepath});
                 return true; }))
+        ON_MATCH("^include.*$", (
+            [lineNumber, &ps](std::smatch const&_) {
+                (void) _;
+                return ps.error(lineNumber,
+                    "improper include: either empty or missing quotes"); }))
 
         #undef ON_MATCH
 
