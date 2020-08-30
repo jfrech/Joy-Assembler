@@ -76,16 +76,17 @@ namespace Util {
             return std::nullopt;
 
         std::map<UTF8::rune_t, UTF8::rune_t> const&oneRuneEscapes = {
-            {static_cast<UTF8::rune_t>('0'), static_cast<UTF8::rune_t>('\0')},
-            {static_cast<UTF8::rune_t>('a'), static_cast<UTF8::rune_t>('\a')},
-            {static_cast<UTF8::rune_t>('b'), static_cast<UTF8::rune_t>('\b')},
-            {static_cast<UTF8::rune_t>('e'), static_cast<UTF8::rune_t>(0x0b)},
-            {static_cast<UTF8::rune_t>('f'), static_cast<UTF8::rune_t>('\f')},
-            {static_cast<UTF8::rune_t>('n'), static_cast<UTF8::rune_t>('\n')},
-            {static_cast<UTF8::rune_t>('r'), static_cast<UTF8::rune_t>('\r')},
-            {static_cast<UTF8::rune_t>('t'), static_cast<UTF8::rune_t>('\t')},
-            {static_cast<UTF8::rune_t>('v'), static_cast<UTF8::rune_t>('\v')},
-            {static_cast<UTF8::rune_t>('"'), static_cast<UTF8::rune_t>('"')}
+            {static_cast<UTF8::rune_t>('0'),  static_cast<UTF8::rune_t>('\0')},
+            {static_cast<UTF8::rune_t>('a'),  static_cast<UTF8::rune_t>('\a')},
+            {static_cast<UTF8::rune_t>('b'),  static_cast<UTF8::rune_t>('\b')},
+            {static_cast<UTF8::rune_t>('e'),  static_cast<UTF8::rune_t>(0x0b)},
+            {static_cast<UTF8::rune_t>('f'),  static_cast<UTF8::rune_t>('\f')},
+            {static_cast<UTF8::rune_t>('n'),  static_cast<UTF8::rune_t>('\n')},
+            {static_cast<UTF8::rune_t>('r'),  static_cast<UTF8::rune_t>('\r')},
+            {static_cast<UTF8::rune_t>('t'),  static_cast<UTF8::rune_t>('\t')},
+            {static_cast<UTF8::rune_t>('v'),  static_cast<UTF8::rune_t>('\v')},
+            {static_cast<UTF8::rune_t>('\"'), static_cast<UTF8::rune_t>('\"')},
+            {static_cast<UTF8::rune_t>('\''), static_cast<UTF8::rune_t>('\'')},
         };
         std::map<UTF8::rune_t, uint8_t> const&nibbleEscapes{[](){
             std::map<UTF8::rune_t, uint8_t> nibbleEscapes{};
