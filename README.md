@@ -4,7 +4,7 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-08-30T19:13:36Z)
+**Build: 🟩 passing** (2020-08-30T22:05:57Z)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
@@ -118,6 +118,9 @@ To define a constant value, one can use the _definition operator_ ` := `:
 ````
 n := 5
 ````
+
+# Comments
+A comment is defined as any characters from a semicolon (`;`) to the end of the line. One quirk of implementation is that string or character literals cannot contain an unescaped semicolon, as this would be interpreted as a comment.
 
 # Pragmas
 Pragmas are used to alter the simulated machine's fundamental behavior or capability.
