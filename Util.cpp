@@ -219,20 +219,16 @@ namespace Util {
             if (parts[j] == "..") {
                 if (j < 1)
                     return std::nullopt;
-                parts.erase(parts.begin()+j);
-                parts.erase(parts.begin()+j-1);
-                j -= 2;
-                continue; }
-            if (parts[j] == ".") {
-                parts.erase(parts.begin()+j);
-                j -= 1;
-                continue; }
+                parts.erase(parts.begin() + j--);
+                parts.erase(parts.begin() + j--); }
+            else if (parts[j] == ".")
+                parts.erase(parts.begin() + j--);
         }
-        std::string pathStr{};
+        std::filesystem::path path{"/"};
         for (std::string const&part : parts)
-            pathStr += "/" + part;
+            path /= part;
 
-        return std::filesystem::path{pathStr};
+        return path;
     }
 }
 

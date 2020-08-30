@@ -31,7 +31,7 @@ enum class MemoryMode { LittleEndian, BigEndian };
     M(GET, NO_ARG), M(GTC, NO_ARG), \
     M(PTU, NO_ARG), M(PTS, NO_ARG), M(PTB, NO_ARG), M(PTC, NO_ARG), \
     \
-    M(HLT, NO_ARG)
+    M(HLT, NO_ARG),
 
 enum class InstructionName {
     #define ID(ACT, _) ACT
@@ -68,13 +68,18 @@ namespace InstructionNameRepresentationHandler {
 #undef MAP_ON_INSTRUCTION_NAMES
 
 struct ComputationStateDebug {
-    word_t highestUsedMemoryLocation{0};
-    uint64_t executionCycles{0};
-    bool doWaitForUser{false};
-    bool doVisualizeSteps{false};
-    bool doShowFinalCycles{false};
+    public:
+        word_t highestUsedMemoryLocation;
+        uint64_t executionCycles;
+        bool doWaitForUser, doVisualizeSteps, doShowFinalCycles;
+        std::optional<std::tuple<word_t, word_t>> stackBoundaries;
 
-    std::optional<std::tuple<word_t, word_t>> stackBoundaries{std::nullopt};
+    public: ComputationStateDebug() :
+        highestUsedMemoryLocation{0},
+        executionCycles{0},
+        doWaitForUser{false}, doVisualizeSteps{false}, doShowFinalCycles{false},
+        stackBoundaries{std::nullopt}
+    { ; }
 };
 
 namespace Parsing {
