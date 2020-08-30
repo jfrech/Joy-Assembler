@@ -495,14 +495,11 @@ class ComputationState {
 };
 
 bool parse1(Parsing::ParsingState &ps) {
-    auto const&filepath = ps.filepath;
-    auto &parsedFilepaths = ps.parsedFilepaths;
-
-    if (Util::std20::contains(parsedFilepaths, filepath))
+    if (Util::std20::contains(ps.parsedFilepaths, ps.filepath))
         return ps.error(0, "recursive file inclusion; not parsing file twice");
-    parsedFilepaths.insert(filepath);
+    ps.parsedFilepaths.insert(ps.filepath);
 
-    std::ifstream is{filepath};
+    std::ifstream is{ps.filepath};
     if (!is.is_open())
         return ps.error(0, "unable to read file");
 
@@ -519,14 +516,14 @@ bool parse1(Parsing::ParsingState &ps) {
 
         auto pushData = [&](uint32_t const data) {
             log("pushing data: " + Util::UInt32AsPaddedHex(data));
-            ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
+            ps.parsing.push_back(std::make_tuple(ps.filepath, lineNumber,
                 Parsing::parsingData{data}));
             ps.memPtr += 4;
         };
 
         auto pushInstruction = [&](InstructionName const&name, std::optional<std::string> const&oArg) {
             log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or(" (no arg.)"));
-            ps.parsing.push_back(std::make_tuple(filepath, lineNumber,
+            ps.parsing.push_back(std::make_tuple(ps.filepath, lineNumber,
                 Parsing::parsingInstruction{std::make_tuple(name, oArg)}));
             ps.memPtr += 5;
         };
@@ -663,12 +660,8 @@ bool parse1(Parsing::ParsingState &ps) {
                 bool success{};
 
                 log("including with memPtr = " + std::to_string(ps.memPtr));
-                std::filesystem::path filepath{ps.filepath};
-                {
-                    ps.filepath = includeFilepath;
-                    success = parse1(ps);
-                }
-                ps.filepath = filepath;
+                LOCALLY_CHANGE(ps.filepath, includeFilepath, (
+                    success = parse1(ps)))
                 log("included with memPtr = " + std::to_string(ps.memPtr));
 
                 if (!success)

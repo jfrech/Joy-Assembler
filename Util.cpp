@@ -232,4 +232,14 @@ namespace Util {
     }
 }
 
+#define LOCALLY_CHANGE(VAR, LOCAL, LOCAL_EXPR) \
+    { \
+        auto _tmp{VAR}; \
+        (VAR) = (LOCAL); \
+        { \
+            LOCAL_EXPR; \
+        } \
+        (VAR) = _tmp; \
+    }
+
 #endif
