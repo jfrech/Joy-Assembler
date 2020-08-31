@@ -90,7 +90,7 @@ To easily facilitate recursion, Joy Assembler provides native support for a *sta
 ````
 stack:
     data [0xfff]
-```
+````
 A stack is required when using any stack instruction. Stack underflow, overflow and misalignment are strictly enforced. `SC` is initialized with `@stack` when present.
 
 # Instructions
