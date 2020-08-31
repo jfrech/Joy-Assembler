@@ -57,16 +57,16 @@ namespace UTF8 {
             return erroneous = false;
         }
 
-        public: bool finish() {
+        public: bool finish() const {
             return !erroneous; }
     };
 
     class Decoder {
         public:
-            std::vector<rune_t> runes{};
+            std::vector<rune_t> runes;
         private:
-            std::vector<byte_t> buf{};
-            bool erroneous{false};
+            std::vector<byte_t> buf;
+            bool erroneous;
 
         public: Decoder() :
             runes{},

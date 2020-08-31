@@ -3,6 +3,8 @@
 
 #include "Types.hh"
 
+/* TODO refactor into a `Parsing` class */
+
 bool parse1(Parsing::ParsingState &ps) {
     if (Util::std20::contains(ps.parsedFilepaths, ps.filepath))
         return ps.error(0, "recursive file inclusion; not parsing file twice");
@@ -62,9 +64,7 @@ bool parse1(Parsing::ParsingState &ps) {
             if (std::regex_match(ln, smatch, std::regex{(REGEX)})) { \
                 if (!(LAMBDA)(smatch)) \
                     return false; \
-                continue; \
-            } \
-        }
+                continue; }}
 
         ON_MATCH("^(" + regexIdentifier + ") ?:= ?(" + regexValue + ")$", (
             [define](std::smatch const&smatch) {
@@ -136,19 +136,6 @@ bool parse1(Parsing::ParsingState &ps) {
                 }
                 return true; }))
 
-        ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
-            [pushInstruction, lineNumber, &ps](std::smatch const&smatch) {
-                auto oName = InstructionNameRepresentationHandler
-                    ::from_string(smatch[1]);
-                if (!oName.has_value())
-                    return ps.error(lineNumber, "invalid instruction name: "
-                        + std::string{smatch[1]});
-                std::optional<std::string> oArg{std::nullopt};
-                if (smatch[3] != "")
-                    oArg = std::optional{smatch[3]};
-                pushInstruction(oName.value(), oArg);
-                return true; }))
-
         ON_MATCH("^include ?(" + regexString + ")$", (
             [lineNumber, &ps](std::smatch const&smatch) {
                 std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes
@@ -177,11 +164,25 @@ bool parse1(Parsing::ParsingState &ps) {
                     return ps.error(lineNumber, "could not include file: "
                         + std::string{includeFilepath});
                 return true; }))
+
         ON_MATCH("^include.*$", (
             [lineNumber, &ps](std::smatch const&_) {
                 (void) _;
                 return ps.error(lineNumber,
                     "improper include: either empty or missing quotes"); }))
+
+        ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
+            [pushInstruction, lineNumber, &ps](std::smatch const&smatch) {
+                auto oName = InstructionNameRepresentationHandler
+                    ::from_string(smatch[1]);
+                if (!oName.has_value())
+                    return ps.error(lineNumber, "invalid instruction name: "
+                        + std::string{smatch[1]});
+                std::optional<std::string> oArg{std::nullopt};
+                if (smatch[3] != "")
+                    oArg = std::optional{smatch[3]};
+                pushInstruction(oName.value(), oArg);
+                return true; }))
 
         #undef ON_MATCH
 

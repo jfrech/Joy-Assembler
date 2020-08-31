@@ -8,9 +8,6 @@
 #include "UTF8.cpp"
 
 namespace Util {
-    std::string to_upper(std::string const&);
-    std::string UInt32AsPaddedHex(uint32_t const n);
-
     /* custom C++20 implementations */
     namespace std20 {
         /* a custom std::map::contains (C++20) implementation */
@@ -65,7 +62,7 @@ namespace Util {
                 return zeroValue;
             return values.at(p++); }
 
-        public: bool exhausted() {
+        public: bool exhausted() const {
             return p >= values.size(); }
     };
 
@@ -181,7 +178,7 @@ namespace Util {
         std::snprintf(buf, 3, "%02X", n);
         return std::string{buf}; }
 
-    std::string to_upper(std::string const&_str) {
+    std::string stringToUpper(std::string const&_str) {
         std::string str{_str};
         for (auto &c : str)
             c = std::toupper(c);

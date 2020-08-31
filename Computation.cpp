@@ -22,7 +22,7 @@ namespace InstructionNameRepresentationHandler {
 
     std::optional<InstructionName> from_string(std::string const&repr) {
         for (auto const&[in, insr] : representation)
-            if (insr == Util::to_upper(repr))
+            if (insr == Util::stringToUpper(repr))
                 return std::optional<InstructionName>{in};
         return std::nullopt; }
 
@@ -62,41 +62,94 @@ class ComputationState {
     {
         updateFlags(); }
 
-    public: void enableVisualization() {
-        debug.doVisualizeSteps = true; }
+    public: void visualize() {
+        visualize(true); }
 
-    public: void enableStepping() {
-        enableVisualization();
-        debug.doWaitForUser = true; }
+    /* TODO :: fancify */
+    public: void visualize(bool blockAllowed) {
+        if (!debug.doVisualizeSteps)
+            return;
 
-    public: void enableFinalCycles() {
-        debug.doShowFinalCycles = true; }
+        std::printf("\n\n\n");
 
-    public: void finalCycles() {
-        if (debug.doShowFinalCycles)
-            printExecutionCycles(); }
+        std::printf("\n=== MEMORY ===\n");
+        word_t pc = 0, rPC = registerPC;
+        std::size_t w = 16;
+        std::printf("       ");
+        for (std::size_t x = 0; x < w; x++)
+            std::printf("_%01X ", (int) x);
+        for (std::size_t y = 0; true; y++) {
+            std::printf("\n    %02X_", (int) y);
+            for (std::size_t x = 0; x < w; x++) {
+                word_t m = y *w+ x;
+                if (registerSC <= pc+4 && pc+4 < registerSC + 4)
+                    std::cout << Util::ANSI_COLORS::STACK_FAINT;
+                if (registerSC <= pc && pc < registerSC + 4)
+                    std::cout << Util::ANSI_COLORS::STACK;
+                if (rPC <= pc && pc < rPC + 5)
+                    std::cout << (pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
+                else if (m <= debug.highestUsedMemoryLocation)
+                    std::cout << Util::ANSI_COLORS::MEMORY_LOCATION_USED;
+                std::printf(" %02X", memory[y *w+ x]);
+                std::cout << Util::ANSI_COLORS::CLEAR;
+                pc++;
+            }
 
-    public: void initializeStack(word_t const stackBeginning, word_t const stackEnd) {
-        debug.stackBoundaries = std::make_tuple(stackBeginning, stackEnd);
-        registerSC = stackBeginning; }
+            if ((y+1)*w >= 0x100 && debug.highestUsedMemoryLocation+1 < (y+1)*w)
+                break;
+        }
+        std::printf("\n");
 
-    private: std::optional<Instruction> nextInstruction() {
-        byte_t opCode{loadMemory(static_cast<word_t>(registerPC++))};
-        word_t arg{loadMemory4(static_cast<word_t>((registerPC += 4) - 4))};
-
+        std::printf("=== CURRENT INSTRUCTION ===\n");
+        byte_t opCode = loadMemory(static_cast<word_t>(registerPC));
+        std::string opCodeName = "(err. NOP)";
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
-        if (!oInstructionName.has_value())
-            return std::nullopt;
+        if (oInstructionName.has_value())
+            opCodeName = InstructionNameRepresentationHandler
+                         ::to_string(oInstructionName.value());
+        word_t argument{loadMemory4(static_cast<word_t>(registerPC) + 1)};
+        std::cout << "    " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) << " " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) << "\n";
 
-        InstructionName name = oInstructionName.value();
-        word_t argument = arg;
+        std::printf("=== REGISTERS ===\n");
+        std::printf("    A:  0x%08x,    B:  0x%08x,\n    PC: 0x%08x,"
+                    "    SC: 0x%08x\n"
+                   , registerA, registerB, registerPC, registerSC);
 
-        return std::make_optional(Instruction{name, argument}); }
+        std::printf("=== FLAGS ===\n");
+        std::printf("    flagAZero: %d,    flagANegative: %d,\n    "
+                    "flagAEven: %d\n", flagAZero, flagANegative
+                   , flagAEven);
 
-    private: bool err(std::string const&msg) {
-        std::cerr << "ComputationState: " << msg << std::endl;
-        return !(erroneous = true); }
+        std::cout << "\n";
+        printExecutionCycles();
+
+        if (blockAllowed) {
+            if (debug.doWaitForUser)
+                UTF8IO::getRune();
+            else if (debug.doVisualizeSteps)
+                Util::IO::wait();
+        }
+    }
+
+    public: void memoryDump() {
+        mock = true;
+
+        std::string dump{""};
+        dump += "A: " + Util::UInt32AsPaddedHex(registerA);
+        dump += ", B: " + Util::UInt32AsPaddedHex(registerB);
+        dump += ", PC: " + Util::UInt32AsPaddedHex(registerPC);
+        dump += ", SC: " + Util::UInt32AsPaddedHex(registerSC);
+        dump += "; memory (" + std::to_string(memory.size()) + "B):";
+        word_t mx = memory.size();
+        while (--mx != 0 && memory[mx] == 0)
+            ;
+        mx++;
+        for (word_t m = 0; m < mx; m++)
+            dump += " " + Util::UInt8AsPaddedHex(memory[m]);
+
+        std::cout << dump << "\n";
+    }
 
     public: bool step() {
         std::optional<Instruction> oInstruction = nextInstruction();
@@ -190,11 +243,11 @@ class ComputationState {
                 break;
             case InstructionName::SHL:
                 registerA = static_cast<uint32_t>(registerA)
-                          << static_cast<uint8_t>(instruction.argument);
+                          << instruction.argument;
                 break;
             case InstructionName::SHR:
                 registerA = static_cast<uint32_t>(registerA)
-                          >> static_cast<uint8_t>(instruction.argument);
+                          >> instruction.argument;
                 break;
             case InstructionName::INC:
                 registerA = static_cast<word_t>(static_cast<int32_t>(registerA)
@@ -283,105 +336,66 @@ class ComputationState {
         return true;
     }
 
-    public: void visualize() {
-        visualize(true); }
-    public: void visualize(bool blockAllowed) {
-        if (!debug.doVisualizeSteps)
-            return;
+    public: void finalCycles() const {
+        if (debug.doShowFinalCycles)
+            printExecutionCycles(); }
 
-        std::printf("\n\n\n");
+    public: void enableVisualization() {
+        debug.doVisualizeSteps = true; }
 
-        std::printf("\n=== MEMORY ===\n");
-        word_t pc = 0, rPC = registerPC;
-        std::size_t w = 16;
-        std::printf("       ");
-        for (std::size_t x = 0; x < w; x++)
-            std::printf("_%01X ", (int) x);
-        for (std::size_t y = 0; true; y++) {
-            std::printf("\n    %02X_", (int) y);
-            for (std::size_t x = 0; x < w; x++) {
-                word_t m = y *w+ x;
-                if (registerSC <= pc+4 && pc+4 < registerSC + 4)
-                    std::cout << Util::ANSI_COLORS::STACK_FAINT;
-                if (registerSC <= pc && pc < registerSC + 4)
-                    std::cout << Util::ANSI_COLORS::STACK;
-                if (rPC <= pc && pc < rPC + 5)
-                    std::cout << (pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
-                else if (m <= debug.highestUsedMemoryLocation)
-                    std::cout << Util::ANSI_COLORS::MEMORY_LOCATION_USED;
-                std::printf(" %02X", memory[y *w+ x]);
-                std::cout << Util::ANSI_COLORS::CLEAR;
-                pc++;
-            }
+    public: void enableStepping() {
+        enableVisualization();
+        debug.doWaitForUser = true; }
 
-            if ((y+1)*w >= 0x100 && debug.highestUsedMemoryLocation+1 < (y+1)*w)
-                break;
-        }
-        std::printf("\n");
+    public: void enableFinalCycles() {
+        debug.doShowFinalCycles = true; }
 
-        std::printf("=== CURRENT INSTRUCTION ===\n");
-        byte_t opCode = loadMemory(static_cast<word_t>(registerPC));
-        std::string opCodeName = "(err. NOP)";
+    public: void initializeStack(
+            word_t const stackBeginning, word_t const stackEnd
+    ) {
+        debug.stackBoundaries = std::make_tuple(stackBeginning, stackEnd);
+        registerSC = stackBeginning; }
+
+    public: word_t storeInstruction(
+            word_t const m, Instruction const instruction
+    ) {
+        storeMemory(m, InstructionNameRepresentationHandler
+                       ::toByteCode(instruction.name));
+        storeMemory4(1+m, instruction.argument);
+        debug.highestUsedMemoryLocation = 0;
+        return 5;
+    }
+
+    public: word_t storeData(word_t const m, word_t const data) {
+        storeMemory4(m, data);
+        debug.highestUsedMemoryLocation = 0;
+        return 4;
+    }
+
+    private: std::optional<Instruction> nextInstruction() {
+        byte_t opCode{loadMemory(registerPC++)};
+        word_t arg{loadMemory4((registerPC += 4) - 4)};
+
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
-        if (oInstructionName.has_value())
-            opCodeName = InstructionNameRepresentationHandler
-                         ::to_string(oInstructionName.value());
-        word_t argument{loadMemory4(static_cast<word_t>(registerPC) + 1)};
-        std::cout << "    " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) << " " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) << "\n";
+        if (!oInstructionName.has_value())
+            return std::nullopt;
 
-        std::printf("=== REGISTERS ===\n");
-        std::printf("    A:  0x%08x,    B:  0x%08x,\n    PC: 0x%08x,"
-                    "    SC: 0x%08x\n"
-                   , registerA, registerB, registerPC, registerSC);
+        InstructionName name = oInstructionName.value();
+        word_t argument = arg;
 
-        std::printf("=== FLAGS ===\n");
-        std::printf("    flagAZero: %d,    flagANegative: %d,\n    "
-                    "flagAEven: %d\n", flagAZero, flagANegative
-                   , flagAEven);
+        return std::make_optional(Instruction{name, argument}); }
 
-        std::cout << "\n";
-        printExecutionCycles();
-
-        if (blockAllowed) {
-            if (debug.doWaitForUser)
-                UTF8IO::getRune();
-            else if (debug.doVisualizeSteps)
-                Util::IO::wait();
-        }
-    }
-
-    private: void printExecutionCycles() {
+    private: void printExecutionCycles() const {
         std::cout << "Execution cycles: " << debug.executionCycles << "\n"; }
 
-    public: void memoryDump() {
-        mock = true;
-
-        std::string dump{""};
-        dump += "A: " + Util::UInt32AsPaddedHex(registerA);
-        dump += ", B: " + Util::UInt32AsPaddedHex(registerB);
-        dump += ", PC: " + Util::UInt32AsPaddedHex(registerPC);
-        dump += ", SC: " + Util::UInt32AsPaddedHex(registerSC);
-        dump += "; memory (" + std::to_string(memory.size()) + "B):";
-        word_t mx = memory.size();
-        while (--mx != 0 && memory[mx] == 0)
-            ;
-        mx++;
-        for (word_t m = 0; m < mx; m++)
-            dump += " " + Util::UInt8AsPaddedHex(memory[m]);
-
-        std::cout << dump << "\n";
-    }
-
-    private:
-
-    void updateFlags() {
+    private: void updateFlags() {
         flagAZero = registerA == 0;
         flagANegative = static_cast<int32_t>(registerA) < 0;
         flagAEven = registerA % 2 == 0;
     }
 
-    byte_t loadMemory(word_t const m) {
+    private: byte_t loadMemory(word_t const m) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
         if (/*m < 0 || */m >= memory.size()) {
@@ -389,7 +403,7 @@ class ComputationState {
             return 0; }
         return memory[m]; }
 
-    void storeMemory(word_t const m, byte_t const b) {
+    private: void storeMemory(word_t const m, byte_t const b) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
         if (/*m < 0 || */m >= memory.size()) {
@@ -397,7 +411,7 @@ class ComputationState {
             return; }
         memory[m] = b; }
 
-    word_t loadMemory4(word_t const m) {
+    private: word_t loadMemory4(word_t const m) {
         byte_t b3, b2, b1, b0;
         switch (memoryMode) {
             case MemoryMode::LittleEndian:
@@ -416,7 +430,7 @@ class ComputationState {
         return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
     }
 
-    void storeMemory4(word_t const m, word_t const w) {
+    private: void storeMemory4(word_t const m, word_t const w) {
         byte_t b3 = static_cast<byte_t>((w >> 24) & 0xff);
         byte_t b2 = static_cast<byte_t>((w >> 16) & 0xff);
         byte_t b1 = static_cast<byte_t>((w >>  8) & 0xff);
@@ -437,7 +451,7 @@ class ComputationState {
         }
     }
 
-    word_t loadMemory4Stack(word_t const m) {
+    private: word_t loadMemory4Stack(word_t const m) {
         if (!debug.stackBoundaries.has_value()) {
             err("loadMemory4Stack: no stack boundaries defined");
             return 0; }
@@ -452,7 +466,7 @@ class ComputationState {
             return 0; }
         return loadMemory4(m); }
 
-    void storeMemory4Stack(word_t const m, word_t const w) {
+    private: void storeMemory4Stack(word_t const m, word_t const w) {
         if (!debug.stackBoundaries.has_value()) {
             err("storeMemory4Stack: no stack boundaries defined");
             return; }
@@ -467,21 +481,9 @@ class ComputationState {
             return; }
         storeMemory4(m, w); }
 
-    public: word_t storeInstruction(
-            word_t const m, Instruction const instruction
-    ) {
-        storeMemory(m, InstructionNameRepresentationHandler
-                       ::toByteCode(instruction.name));
-        storeMemory4(1+m, instruction.argument);
-        debug.highestUsedMemoryLocation = 0;
-        return 5;
-    }
-
-    public: word_t storeData(word_t const m, word_t const data) {
-        storeMemory4(m, data);
-        debug.highestUsedMemoryLocation = 0;
-        return 4;
-    }
+    private: bool err(std::string const&msg) {
+        std::cerr << "ComputationState: " << msg << std::endl;
+        return !(erroneous = true); }
 };
 
 #endif
