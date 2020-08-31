@@ -96,7 +96,7 @@ A stack is required when using any stack instruction. Stack underflow, overflow 
 # Instructions
 This is the full list of Joy Assembler instructions. Each instruction will be statically loaded into memory using exactly five bytes: a single byte for the instruction's op-code and four further bytes for its arguments, if the instruction allows one, else four zero bytes. When an optional argument is not specified, its default value is used. When an argument is required and not specified or specified and not allowed, an error is reported.
 
-An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `0b10001`), a character (`@`, `~`), a label (`@main`, `@routine`, `@stack`) or a defined constant.
+An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `0b10001`), a character (`'🐬'`, `'\U0001D6C7'`), a label (`@main`, `@routine`, `@stack`) or a defined constant.
 
 | instruction name          | argument               | mnemonic                            | description                                                                                                                                                         |
 |---------------------------|------------------------|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
