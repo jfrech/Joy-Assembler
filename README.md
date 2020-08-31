@@ -13,71 +13,39 @@ Joy Assembler provides a basic command-line interface:
 ````
 The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `cycles` prints the number of execution cycles that were performed. `memory-dump` mocks any I/O and outputs a step-by-step memory dump to `stdout` whilst executing.
 
-# Example Programs
-Example Joy Assembler programs can be found in the `test/programs` directory. All can be automatically tested using `make test`.
-
 # Architecture
-Joy Assembler mimics a 32-bit architecture. It has four 32-bit registers: two general-prupose registers `A` (**a**ccumulation) and `B` (o**b**erand) and two special-prupose registers `PC` (**p**rogram **c**ounter) and `SC` (**s**tack **c**ounter). Regarding memory, a single block of memory of a fixed size is provided, addressable as either numeric 4-byte values or individual bytes. Each Joy Assembler instruction consists of a _name_ paired with possibly four bytes representing an _argument_. All instructions' behavior is specified below.
+Joy Assembler mimics a 32-bit architecture. It has four 32-bit registers: two general-prupose registers `A` (**a**ccumulation) and `B` (o**b**erand) and two special-prupose registers `PC` (**p**rogram **c**ounter) and `SC` (**s**tack **c**ounter).
+
+Along with the above 32-bit registers, whose values will be called *word* henceforth, a single block of 8-bit *bytes* of memory of a fixed size is provided, addressable as either numeric 4-byte words or individual bytes. Each Joy Assembler instruction consists of a _name_ (represented as a singular op-code byte) paired with possibly four bytes representing an _argument_. All instructions' behavior is specified below.
 
 The simulated architecture can also be slightly modified using _pragmas_ (see below).
 
-# Instructions
-| instruction name          | argument                               | mnemonic                            | description                                                        |
-|---------------------------|----------------------------------------|-------------------------------------|--------------------------------------------------------------------|
-| **nop**                   |                                        |                                     |                                                                    |
-| `nop`                     | -                                      | "**n**o o**p**eration"              | No operation.                                                      |
-| **memory**                |                                        |                                     |                                                                    |
-| `lda`                     | memory location                        | "**l**oa**d** **a**"                | Load the value at the specified memory location into register `A`. |
-| `ldb`                     | memory location                        | "**l**oa**d** **b**"                | Load the value at the specified memory location into register `B`. |
-| `sta`                     | memory location                        | "**st**ore **a**"                   | Store the value in register `A` to the specified memory location.  |
-| `stb`                     | memory location                        | "**st**ore **b**"                   | Store the value in register `B` to the specified memory location.  |
-| `lia`                     | optional offset `o`                    | "**l**oad **i**ndirect **a**"       | Load the value at the memory location identified by register `B`, offset by `o`, into register `A`. If `o` is not specified, an offset of zero is assumed. |
-| `sia`                     | optional offset `o`                    | "**s**tore **i**ndirect **a**"      | Store the value in register `A` at the memory location identified by register `B`, offset by `o`. If `o` is not specified, an offset of zero is assumed.   |
-| `lpc`                     | -                                      | "**l**oad **p**rogram **c**ounter"  | Set the value of the program counter register `PC` to the value in register `A`. |
-| `spc`                     | -                                      | "**s**tore **p**rogram **c**ounter" | Store the value in the program counter register `PC` to register `A`.            |
-| `lya`                     | memory location                        | "**l**oad b**y**te **a**"           | Load the byte at the specified memory location into the least significant byte of register `A`, modifying it in-place and keeping the upper three bytes. |
-| `sya`                     | memory location                        | "**s**tore b**y**te **a**"          | Store the least significant byte of register `A` to the specified memory location.                                                                       |
-| **jumps**                 |                                        |                                     |                                                                    |
-| `jmp`                     | program position `@label`              | "**j**u**mp**"                      | Jump to program position `@label`.                                 |
-| `jz`                      | program position `@label`              | "**j**ump **z**ero"                 | Jump to program position `@label` if register `A` holds a zero value, otherwise perform no operation.         |
-| `jnz`                     | program position `@label`              | "**j**ump **n**on-**z**ero"         | Jump to program position `@label` if register `A` holds a non-zero value, otherwise perform no operation.     |
-| `jn`                      | program position `@label`              | "**j**ump **n**egative"             | Jump to program position `@label` if register `A` holds a negative value, otherwise perform no operation.     |
-| `jnn`                     | program position `@label`              | "**j**ump **n**on-**n**egative"     | Jump to program position `@label` if register `A` holds a non-negative value, otherwise perform no operation. |
-| `je`                      | program position `@label`              | "**j**ump **e**ven"                 | Jump to program position `@label` if register `A` holds an even value.                                        |
-| `jne`                     | program position `@label`              | "**j**ump **n**on-**e**ven"         | Jump to program position `@label` if register `A` holds an odd value.                                         |
-| **stack**                 |                                        |                                     |                                                                    |
-| `cal`                     | program position `@label`              | "**cal**l routine"                  | Push the current program counter onto the stack, increase the stack counter and jump to program position `@label`.            |
-| `ret`                     | -                                      | "**ret**urn"                        | Decrease the stack counter and jump to the program position identified by the stack value.                                    |
-| `psh`                     | -                                      | "**p**u**sh** stack"                | Push the value of register `A` onto the stack and increase the stack counter.                                                 |
-| `pop`                     | -                                      | "**pop** stack"                     | Decrease the stack counter and pop the stack value into register `A`.                                                         |
-| `lsa`                     | optional offset `o`                    | "**l**oad **s**tack into **a**"     | Peek in the stack with offset `o` and load the value into register `A`. If no offset is specified, an offset of zero is used. |
-| `ssa`                     | optional offset `o`                    | "**s**tore **s**tack from **a**"    | Poke in the stack with offset `o` and store the value of register `A`. If no offset is specified, an offset of zero is used.  |
-| `lsc`                     | -                                      | "**l**oad **s**tack **c**ounter"    | Load the value in register `A` into the current stack counter.                                                                |
-| `ssc`                     | -                                      | "**s**tore **s**tack **c**ounter"   | Store the current stack counter into register `A`.                                                                            |
-| **register `A`**          |                                        |                                     |                                                                    |
-| `mov`                     | value `v`                              | "**mov**e immediate"                | Move the immediate value `v` into register `A`.                    |
-| `not`                     | -                                      | "bitwise **not**"                   | Invert all bits in register `A`, modifying it in-place.            |
-| `shl`                     | optional number of places to shift `n` | "**sh**ift **l**eft"                | Shift the bits in register `A` by `n` places to the left, modifying it in-place. If `n` is not specified, a shift by one place is performed.  |
-| `shr`                     | optional number of places to shift `n` | "**sh**ift **r**ight"               | Shift the bits in register `A` by `n` places to the right, modifying it in-place. If `n` is not specified, a shift by one place is performed. |
-| `inc`                     | optional increment value `v`           | "**inc**rement"                     | Increment the value in register `A` by `v`, modifying it in-place. If `v` is not specified, an increment of one is performed.                 |
-| `dec`                     | optional increment value `v`           | "**dec**rement"                     | Decrement the value in register `A` by `v`, modifying it in-place. If `v` is not specified, a decrement of one is performed.                  |
-| `neg`                     | -                                      | "numeric **neg**ate"                | Numerically negate the value in register `A`, modifying it in-place. |
-| **registers `A` and `B`** |                                        |                                     |                                                                    |
-| `swp`                     | -                                      | "**sw**a**p** register values"      | Swap the value of register `A` with the value of register `B`.     |
-| `and`                     | -                                      | "bitwise **and**"                   | Perform a bit-wise `and` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place. |
-| `or`                      | -                                      | "bitwise **or**"                    | Perform a bit-wise `or` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place.  |
-| `xor`                     | -                                      | "bitwise **xor**"                   | Perform a bit-wise `xor` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place. |
-| `add`                     | -                                      | "numeric **add**"                   | Add the value of register `B` to the value of register `A`, modifying register `A` in-place.        |
-| `sub`                     | -                                      | "numeric **sub**tract"              | Subtract the value of register `B` from the value of register `A`, modifying register `A` in-place. |
-| **input and output**      |                                        |                                     |                                                                    |
-| `get`                     | -                                      | "**get** number"                    | Input a numerical value from `stdin` to register `A`.                                            |
-| `gtc`                     | -                                      | "**g**e**t** **c**haracter"         | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`. |
-| `ptu`                     | -                                      | "**p**u**t** **u**nsigned"          | Output the unsigned numerical value of register `A` to `stdout`.   |
-| `pts`                     | -                                      | "**p**u**t** **s**igned"            | Output the signed numerical value of register `A` to `stdout`.     |
-| `ptb`                     | -                                      | "**p**u**t** **b**its"              | Output the bits of register `A` to `stdout`.                       |
-| `ptc`                     | -                                      | "**p**u**t** **u**nsigned"          | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`.                   |
-| **hlt**                   |                                        |                                     |                                                                    |
-| `hlt`                     | -                                      | "**h**a**lt**"                      | Halt the machine.                                                  |
+# Comments
+A comment is defined as any characters from a semicolon (`;`) to the end of the line. One quirk of implementation is that string or character literals cannot contain an unescaped semicolon, as this would be interpreted as a comment.
+````
+; takes one stack argument and returns one stack argument
+routine:
+    ; load argument
+    lsa -8
+    ; ...
+    ; store argument
+    ssa -8
+    ret
+````
+
+# Definitions
+To define a constant value, one can use the _definition operator_ `:=`:
+````
+n := 5
+x := 0b00100000
+````
+
+# Pragmas
+Pragmas are used to alter the simulated machine's fundamental behavior or capability.
+| pragma               | options                         | description                                         | default                               |
+|----------------------|---------------------------------|-----------------------------------------------------|---------------------------------------|
+| `pragma_memory-mode` | `little-endian` or `big-endian` | Set the endianness for all 4-byte memory operations | `pragma_memory-mode := little-endian` |
+| `pragma_memory-size` | an unsigned 32-bit value        | Define the size of the available memory block.      | `pragma_memory-mode := 0x10000`       |
 
 # Labels
 One can either hard-code program positions to jump to or use an abstraction; _program labels_. A label is defined by an identifier succeeded by a colon (`:`) and accessed by the same identifier preceded by an at sign (`@`). A label definition has to be unique, yet can be used arbitrarily often:
@@ -99,7 +67,7 @@ stack:
 ````
 
 # Data Blocks
-A static _data block_ can be defined using `data [optional-size]optional-value, [optional-size]optional-value, ...`:
+A static _data block_ can be defined using `data ..., [optional-size]optional-literal-value, ...` or `data ..., "string-literal", ...`. It defines a statically initialized block of memory. Any numeric literal or string character occupies a word (four bytes), string characters being Unicode-capable:
 ````
 primes:
     data 2, 3, 5, 7, 11, 13, 17 ; ... (finite memory)
@@ -109,22 +77,83 @@ global-y:
     data [1]0
 buf:
     data [0xff]0xffffffff
+msg:
+    data "The end is nigh. \u2620\0"
+msg2:
+    data "I'll say \"goodbye", 0x22, ".", 0b00000000
 stack:
     data [0xfff]
 ````
 
-# Definitions
-To define a constant value, one can use the _definition operator_ ` := `:
+# Stack
+To easily facilitate recursion, Joy Assembler provides native support for a *stack*, that is, a special-purpose region of memory which is usually accessed from the *stack's top* and can grow and shrink. When a stack is desired, its static size has to be specified:
 ````
-n := 5
-````
+stack:
+    data [0xfff]
+```
+A stack is required when using any stack instruction. Stack underflow, overflow and misalignment are strictly enforced. `SC` is initialized with `@stack` when present.
 
-# Comments
-A comment is defined as any characters from a semicolon (`;`) to the end of the line. One quirk of implementation is that string or character literals cannot contain an unescaped semicolon, as this would be interpreted as a comment.
+# Instructions
+This is the full list of Joy Assembler instructions. Each instruction will be statically loaded into memory using exactly five bytes: a single byte for the instruction's op-code and four further bytes for its arguments, if the instruction allows one, else four zero bytes. When an optional argument is not specified, its default value is used. When an argument is required and not specified or specified and not allowed, an error is reported.
 
-# Pragmas
-Pragmas are used to alter the simulated machine's fundamental behavior or capability.
-| pragma               | options                         | description                                                       | default                               |
-|----------------------|---------------------------------|-------------------------------------------------------------------|---------------------------------------|
-| `pragma_memory-mode` | `little-endian` or `big-endian` | Set the endianness for the operations `lda`, `ldb`, `sta`, `stb`. | `pragma_memory-mode := little-endian` |
-| `pragma_memory-size` | a `uint32_t` value              | Define the size of the available memory block.                    | `pragma_memory-mode := 0x10000`       |
+An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `0b10001`), a character (`@`, `~`), a label (`@main`, `@routine`, `@stack`) or a defined constant.
+
+| instruction name          | argument               | mnemonic                            | description                                                                                                                                                         |
+|---------------------------|------------------------|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **nop**                   |                        |                                     |                                                                                                                                                                     |
+| `nop`                     | optional, default: `0` | "**n**o o**p**eration"              | No operation. Shows up in memory view, displaying the given value.                                                                                                  |
+| **memory**                |                        |                                     |                                                                                                                                                                     |
+| `lda`                     | required               | "**l**oa**d** **a**"                | Load the value at the specified memory location into register `A`.                                                                                                  |
+| `ldb`                     | required               | "**l**oa**d** **b**"                | Load the value at the specified memory location into register `B`.                                                                                                  |
+| `sta`                     | required               | "**st**ore **a**"                   | Store the value in register `A` to the specified memory location.                                                                                                   |
+| `stb`                     | required               | "**st**ore **b**"                   | Store the value in register `B` to the specified memory location.                                                                                                   |
+| `lia`                     | optional, default: `0` | "**l**oad **i**ndirect **a**"       | Load the value at the memory location identified by register `B`, possibly offset by the specified number of bytes, into register `A`.                              |
+| `sia`                     | optional, default: `0` | "**s**tore **i**ndirect **a**"      | Store the value in register `A` at the memory location identified by register `B`, possibly offset by the specified number of bytes.                                |
+| `lpc`                     | none                   | "**l**oad **p**rogram **c**ounter"  | Set the value of the program counter register `PC` to the value in register `A`.                                                                                    |
+| `spc`                     | none                   | "**s**tore **p**rogram **c**ounter" | Store the value in the program counter register `PC` to register `A`.                                                                                               |
+| `lya`                     | required               | "**l**oad b**y**te **a**"           | Load the byte at the specified memory location into the least significant byte of register `A`, modifying it in-place and keeping the three most significant bytes. |
+| `sya`                     | required               | "**s**tore b**y**te **a**"          | Store the least significant byte of register `A` to the specified memory location.                                                                                  |
+| **jumps**                 |                        |                                     |                                                                                                                                                                     |
+| `jmp`                     | required               | "**j**u**mp**"                      | Jump to the specified program position, regardless of the machine's state.                                                                                          |
+| `jz`                      | required               | "**j**ump **z**ero"                 | Jump to the specified program position if register `A` holds a zero value, otherwise perform no operation.                                                          |
+| `jnz`                     | required               | "**j**ump **n**on-**z**ero"         | Jump to the specified program position if register `A` holds a non-zero value, otherwise perform no operation.                                                      |
+| `jn`                      | required               | "**j**ump **n**egative"             | Jump to the specified program position if register `A` holds a negative value, otherwise perform no operation.                                                      |
+| `jnn`                     | required               | "**j**ump **n**on-**n**egative"     | Jump to the specified program position if register `A` holds a non-negative value, otherwise perform no operation.                                                  |
+| `je`                      | required               | "**j**ump **e**ven"                 | Jump to the specified program position if register `A` holds an even value, otherwise perform no operation.                                                         |
+| `jne`                     | required               | "**j**ump **n**on-**e**ven"         | Jump to the specified program position if register `A` holds an odd value, otherwise perform no operation.                                                          |
+| **stack**                 |                        |                                     |                                                                                                                                                                     |
+| `cal`                     | required               | "**cal**l routine"                  | Push the current program counter onto the stack, increase the stack counter and jump to the specified program position.                                             |
+| `ret`                     | none                   | "**ret**urn"                        | Decrease the stack counter and jump to the program position identified by the stack value.                                                                          |
+| `psh`                     | none                   | "**p**u**sh** stack"                | Push the value of register `A` onto the stack and increase the stack counter.                                                                                       |
+| `pop`                     | none                   | "**pop** stack"                     | Decrease the stack counter and pop the stack value into register `A`.                                                                                               |
+| `lsa`                     | optional, default: `0` | "**l**oad **s**tack into **a**"     | Peek in the stack, possibly offset by the specified number of bytes, and load the value into register `A`.                                                          |
+| `ssa`                     | optional, default: `0` | "**s**tore **s**tack from **a**"    | Poke in the stack, possibly offset by the specified number of bytes, and store the value of register `A`.                                                           |
+| `lsc`                     | none                   | "**l**oad **s**tack **c**ounter"    | Load the value in register `A` into the current stack counter.                                                                                                      |
+| `ssc`                     | none                   | "**s**tore **s**tack **c**ounter"   | Store the current stack counter into register `A`.                                                                                                                  |
+| **register `A`**          |                        |                                     |                                                                                                                                                                     |
+| `mov`                     | required               | "**mov**e immediately"              | Move the specified immediate value into register `A`.                                                                                                               |
+| `not`                     | none                   | "bitwise **not**"                   | Invert all bits in register `A`, modifying it in-place.                                                                                                             |
+| `shl`                     | optional, default: `1` | "**sh**ift **l**eft"                | Shift the bits in register `A` by the specified number of places to the left, modifying it in-place. Vacant bit positions are filled with zeros.                    |
+| `shr`                     | optional, default: `1` | "**sh**ift **r**ight"               | Shift the bits in register `A` by the specified number of players to the right, modifying it in-place. Vacant bit positions are filled with zeros.                  |
+| `inc`                     | optional, default: `1` | "**inc**rement"                     | Increment the value in register `A` by the specified value, modifying it in-place.                                                                                  |
+| `dec`                     | optional, default: `1` | "**dec**rement"                     | Decrement the value in register `A` by the specified value, modifying it in-place.                                                                                  |
+| `neg`                     | none                   | "numeric **neg**ate"                | Numerically negate the value in register `A`, modifying it in-place.                                                                                                |
+| **registers `A` and `B`** |                        |                                     |                                                                                                                                                                     |
+| `swp`                     | none                   | "**sw**a**p** register values"      | Swap the value of register `A` with the value of register `B`.                                                                                                      |
+| `and`                     | none                   | "bitwise **and**"                   | Perform a bit-wise `and` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place.                           |
+| `or`                      | none                   | "bitwise **or**"                    | Perform a bit-wise `or` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place.                            |
+| `xor`                     | none                   | "bitwise **xor**"                   | Perform a bit-wise `xor` operation on the value register `A`, using the value of register `B` as a mask, modifying register `A` in-place.                           |
+| `add`                     | none                   | "numeric **add**"                   | Add the value of register `B` to the value of register `A`, modifying register `A` in-place.                                                                        |
+| `sub`                     | none                   | "numeric **sub**tract"              | Subtract the value of register `B` from the value of register `A`, modifying register `A` in-place.                                                                 |
+| **input and output**      |                        |                                     |                                                                                                                                                                     |
+| `get`                     | none                   | "**get** number"                    | Input a numerical value from `stdin` to register `A`.                                                                                                               |
+| `gtc`                     | none                   | "**g**e**t** **c**haracter"         | Input a `utf-8` encoded character from `stdin` and store the Unicode code point to register `A`.                                                                    |
+| `ptu`                     | none                   | "**p**u**t** **u**nsigned"          | Output the unsigned numerical value of register `A` to `stdout`.                                                                                                    |
+| `pts`                     | none                   | "**p**u**t** **s**igned"            | Output the signed numerical value of register `A` to `stdout`.                                                                                                      |
+| `ptb`                     | none                   | "**p**u**t** **b**its"              | Output the bits of register `A` to `stdout`.                                                                                                                        |
+| `ptc`                     | none                   | "**p**u**t** **u**nsigned"          | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`.                                                                                      |
+| **hlt**                   |                        |                                     |                                                                                                                                                                     |
+| `hlt`                     | none                   | "**h**a**lt**"                      | Halt the machine.                                                                                                                                                   |
+
+# Example Programs
+Example Joy Assembler programs can be found in the `asm-stdlib` directory. Automatic tests can be performed by using `make test`, testing programs in `test/programs`.
