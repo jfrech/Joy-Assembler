@@ -15,6 +15,7 @@ typedef uint32_t word_t;
 
 enum class MemoryMode { LittleEndian, BigEndian };
 
+/* TODO :: finalize op-codes */
 #define NO_ARG std::tuple{false, std::nullopt}
 #define REQ_ARG std::tuple{true, std::nullopt}
 #define OPT_ARG(ARG) std::tuple{true, std::optional<word_t>{ARG}}
@@ -43,9 +44,9 @@ enum class MemoryMode { LittleEndian, BigEndian };
     M(HLT, NO_ARG),
 
 enum class InstructionName {
-    #define ID(ACT, _) ACT
-    MAP_ON_INSTRUCTION_NAMES(ID)
-    #undef ID
+    #define PROJECTION(ACT, _) ACT
+    MAP_ON_INSTRUCTION_NAMES(PROJECTION)
+    #undef PROJECTION
 };
 
 struct Instruction { InstructionName name; word_t argument; };
@@ -57,9 +58,9 @@ namespace InstructionNameRepresentationHandler {
         #undef REPR
     };
     std::array<std::optional<InstructionName>, 256> instructions = {
-        #define NAMESPACE_ID(ACT, _) InstructionName::ACT
-        MAP_ON_INSTRUCTION_NAMES(NAMESPACE_ID)
-        #undef NAMESPACE_ID
+        #define NAMESPACE_PROJECTION(ACT, _) InstructionName::ACT
+        MAP_ON_INSTRUCTION_NAMES(NAMESPACE_PROJECTION)
+        #undef NAMESPACE_PROJECTION
     };
 
     std::map<InstructionName, std::tuple<bool, std::optional<word_t>>>
