@@ -13,7 +13,7 @@ multiply:
     lsa -8
     sta @multiply-y
     lsa -12
-    sta @multiply-x
+    sta @multipl-x
 
     ; initialize the result to zero
     mov 0x00000000

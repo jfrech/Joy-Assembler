@@ -227,12 +227,17 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
                     std::string label{oArg.value()};
                     label.erase(label.begin());
 
-                    /* TODO :: Possibly sort by Levenshtein distance? */
-                    std::string definedLabels{"\n    ~ defined labels ~"};
-                    for (auto const&[label, _] : ps.definitions)
-                        definedLabels += "\n        " + label;
-                    return ps.error(lineNumber, "label @" + label
-                        + " was not defined" + definedLabels);
+                    std::vector<std::string> labels{};
+                    for (auto const&[lbl, _] : ps.definitions)
+                        labels.push_back(lbl);
+                    labels = Util::sortByLevenshteinDistanceTo(labels, label);
+                    std::string msg{"label @" + label + " was not defined; "
+                        + "did you possibly mean one of the following defined "
+                        + "labels?"};
+                    for (std::size_t j = 0; j < 3 && j < labels.size(); j++)
+                        msg += "\n    " + std::to_string(j+1) + ") "
+                            + labels[j];
+                    return ps.error(lineNumber, msg);
                 }
 
 

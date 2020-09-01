@@ -67,12 +67,6 @@ namespace Util {
     };
 
     std::optional<std::vector<UTF8::rune_t>> parseString(std::string const&s) {
-        UTF8::Decoder decoder{};
-        for (byte_t b : s)
-            decoder.decode(b);
-        if (!decoder.finish())
-            return std::nullopt;
-
         std::map<UTF8::rune_t, UTF8::rune_t> const&oneRuneEscapes = {
             {static_cast<UTF8::rune_t>('0'),  static_cast<UTF8::rune_t>('\0')},
             {static_cast<UTF8::rune_t>('a'),  static_cast<UTF8::rune_t>('\a')},
@@ -86,7 +80,7 @@ namespace Util {
             {static_cast<UTF8::rune_t>('\"'), static_cast<UTF8::rune_t>('\"')},
             {static_cast<UTF8::rune_t>('\''), static_cast<UTF8::rune_t>('\'')},
         };
-        std::map<UTF8::rune_t, uint8_t> const&nibbleEscapes{[](){
+        std::map<UTF8::rune_t, uint8_t> const&nibbleEscapes{[]() {
             std::map<UTF8::rune_t, uint8_t> nibbleEscapes{};
             for (uint8_t j = 0; j < 10; j++)
                 nibbleEscapes.insert({static_cast<UTF8::rune_t>('0'+j), j});
@@ -97,8 +91,15 @@ namespace Util {
             return nibbleEscapes;
         }()};
 
+        UTF8::Decoder decoder{};
+        for (byte_t b : s)
+            decoder.decode(b);
+        auto [runes, ok] = decoder.finish();
+        if (!ok)
+            return std::nullopt;
+        Stream<UTF8::rune_t> stream{runes, UTF8::ERROR_RUNE};
+
         std::vector<UTF8::rune_t> unescaped{};
-        Stream<UTF8::rune_t> stream{decoder.runes, UTF8::ERROR_RUNE};
         while (!stream.exhausted()) {
             UTF8::rune_t rune{stream.read()};
             if (rune != static_cast<UTF8::rune_t>('\\')) {
@@ -228,6 +229,39 @@ namespace Util {
 
         return path;
     }
+
+    uint64_t LevenshteinDistance(std::string const&s, std::string const&t) {
+        /* see "https://people.cs.pitt.edu/~kirk/cs1501/Pruhs/Fall2006/
+            Assignments/editdistance/Levenshtein%20Distance.htm" */
+        uint64_t n{s.size()}, m{t.size()};
+        if (n <= 0 || m <= 0)
+            return std::min(n, m);
+
+        std::vector<std::vector<uint64_t>> d(m+1,
+            std::vector<uint64_t>(n+1, 0U));
+        for (uint64_t r = 0; r <= n; r++)
+            d[0][r] = r;
+        for (uint64_t c = 0; c <= m; c++)
+            d[c][0] = c;
+
+        for (uint64_t j = 1; j <= m; j++)
+            for (uint64_t i = 1; i <= n; i++) {
+                uint64_t cost = s[i-1] == t[j-1] ? 0 : 1;
+                d[j][i] = std::min(std::min(
+                    d[j][i-1] + 1,
+                    d[j-1][i] + 1),
+                    d[j-1][i-1] + cost
+                ); }
+
+        return d[m][n]; }
+
+    std::vector<std::string> sortByLevenshteinDistanceTo(
+        std::vector<std::string> const&v, std::string const&r
+    ) {
+        std::vector<std::string> w{v};
+        std::sort(w.begin(), w.end(), [r](auto s, auto t) {
+            return LevenshteinDistance(r, s) <= LevenshteinDistance(r, t); });
+        return w; }
 }
 
 #define LOCALLY_CHANGE(VAR, LOCAL, LOCAL_EXPR) \

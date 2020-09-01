@@ -5,6 +5,7 @@
 #define UTF8_CPP
 
 #include <iostream>
+#include <tuple>
 #include <vector>
 
 namespace UTF8 {
@@ -15,14 +16,13 @@ namespace UTF8 {
     rune_t constexpr ERROR_RUNE = static_cast<rune_t>(0x0000fffd);
 
     class Encoder {
-        public:
-            std::vector<byte_t> bytes;
         private:
-            bool erroneous;
+            std::vector<byte_t> bytes;
+            bool ok;
 
         public: Encoder() :
             bytes{},
-            erroneous{false}
+            ok{true}
         { ; }
 
         public: bool encode(rune_t const rune) {
@@ -54,24 +54,27 @@ namespace UTF8 {
                 bytes.push_back(static_cast<byte_t>(
                     0b10'000000 | ( rune        & 0b00'111111)));
                 return true; }
-            return erroneous = false;
+            return ok = false;
         }
 
-        public: bool finish() const {
-            return !erroneous; }
+        public: std::tuple<std::vector<byte_t>, bool> finish() {
+            std::tuple<std::vector<byte_t>, bool> bytesOk{std::make_tuple(
+                bytes, ok)};
+            bytes.clear();
+            ok = true;
+            return bytesOk; }
     };
 
     class Decoder {
-        public:
-            std::vector<rune_t> runes;
         private:
+            std::vector<rune_t> runes;
             std::vector<byte_t> buf;
-            bool erroneous;
+            bool ok;
 
         public: Decoder() :
             runes{},
             buf{},
-            erroneous{false}
+            ok{true}
         {
             buf.reserve(4);
         }
@@ -145,17 +148,21 @@ namespace UTF8 {
             return err();
         }
 
-        public: bool finish() {
-            if (buf.empty())
-                return !erroneous;
-            err();
-            return false; }
+        public: std::tuple<std::vector<rune_t>, bool> finish() {
+            if (!buf.empty())
+                err();
+
+            std::tuple<std::vector<rune_t>, bool> runesOk{std::make_tuple(
+                runes, ok)};
+            runes.clear();
+            buf.clear();
+            ok = true;
+            return runesOk; }
 
         private: bool err() {
-            erroneous = true;
             runes.push_back(ERROR_RUNE);
             buf.clear();
-            return false; }
+            return ok = false; }
     };
 
     std::optional<std::string> runeVectorToOptionalString(
@@ -183,20 +190,20 @@ namespace UTF8IO {
     void putRune(UTF8::rune_t const rune) {
         UTF8::Encoder encoder{};
         encoder.encode(rune);
-        if (!encoder.finish())
+        auto [bytes, ok] = encoder.finish();
+        if (!ok)
             return;
-        for (UTF8::byte_t b : encoder.bytes)
+        for (UTF8::byte_t b : bytes)
             putByte(b); }
 
     UTF8::rune_t getRune() {
         UTF8::Decoder decoder{};
         while (decoder.decode(getByte()))
             ;
-        if (!decoder.finish())
+        auto [runes, ok] = decoder.finish();
+        if (!ok || runes.size() != 1)
             return UTF8::ERROR_RUNE;
-        if (decoder.runes.size() != 1)
-            return UTF8::ERROR_RUNE;
-        return decoder.runes.front(); }
+        return runes.front(); }
 }
 
 #endif
