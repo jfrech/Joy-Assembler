@@ -237,6 +237,8 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
                     for (std::size_t j = 0; j < 3 && j < labels.size(); j++)
                         msg += "\n    " + std::to_string(j+1) + ") "
                             + labels[j];
+                    if (labels.size() <= 0)
+                        msg += "\n    (no labels have been defined)";
                     return ps.error(lineNumber, msg);
                 }
 
