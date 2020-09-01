@@ -57,6 +57,8 @@ class Parser {
 
 
     private: bool parse1(ParsingState &ps) {
+        if (!is_regular_file(ps.filepath))
+            return ps.error(0, "not a regular file");
         if (Util::std20::contains(ps.parsedFilepaths, ps.filepath))
             return ps.error(0, "recursive file inclusion; not parsing file twice");
         ps.parsedFilepaths.insert(ps.filepath);
