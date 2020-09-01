@@ -241,7 +241,7 @@ class Parser {
         bool haltInstructionWasUsed{false};
 
         word_t memPtr{0};
-        for (auto [filepath, lineNumber, p] : ps.parsing) {
+        for (auto const&[filepath, lineNumber, p] : ps.parsing) {
             if (std::holds_alternative<ParsingState::parsingData>(p)) {
                 word_t data{std::get<ParsingState::parsingData>(p)};
                 log("data value " + Util::UInt32AsPaddedHex(data));

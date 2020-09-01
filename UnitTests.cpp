@@ -30,7 +30,7 @@ bool unitTest_LevenshteinDistance() {
         {"a", "b", 1},
         /* TODO */
     };
-    for (auto [s, t, d] : cases)
+    for (auto const&[s, t, d] : cases)
         if (!test(s, t, d))
             return false;
 
@@ -43,7 +43,7 @@ int main() {
         unitTest_LevenshteinDistance,
     }};
 
-    for (auto unitTest : unitTests)
+    for (auto const&unitTest : unitTests)
         if (!unitTest()) {
             std::cerr << "\33[38;5;124m[ERR]\33[0m "
                       << "at least one unit test failed" << std::endl;

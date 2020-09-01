@@ -101,14 +101,14 @@ class ComputationState {
         std::printf("\n");
 
         std::printf("=== CURRENT INSTRUCTION ===\n");
-        byte_t opCode = loadMemory(static_cast<word_t>(registerPC));
+        byte_t opCode = loadMemory(registerPC);
         std::string opCodeName = "(err. NOP)";
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
         if (oInstructionName.has_value())
             opCodeName = InstructionNameRepresentationHandler
                          ::to_string(oInstructionName.value());
-        word_t argument{loadMemory4(static_cast<word_t>(registerPC) + 1)};
+        word_t argument{loadMemory4(registerPC+1)};
         std::cout << "    " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) << " " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) << "\n";
 
         std::printf("=== REGISTERS ===\n");
@@ -157,9 +157,9 @@ class ComputationState {
             return err("step: failed to fetch next instruction");
         Instruction instruction = oInstruction.value();
 
-        auto jmp = [&](bool cnd) {
+        auto jmp = [&](bool const cnd) {
             if (cnd)
-                registerPC = static_cast<word_t>(instruction.argument); };
+                registerPC = instruction.argument; };
 
         switch (instruction.name) {
             case InstructionName::NOP:
@@ -242,24 +242,19 @@ class ComputationState {
                 registerA = ~registerA;
                 break;
             case InstructionName::SHL:
-                registerA = static_cast<uint32_t>(registerA)
-                          << instruction.argument;
+                registerA <<= instruction.argument;
                 break;
             case InstructionName::SHR:
-                registerA = static_cast<uint32_t>(registerA)
-                          >> instruction.argument;
+                registerA >>= instruction.argument;
                 break;
             case InstructionName::INC:
-                registerA = static_cast<word_t>(static_cast<int32_t>(registerA)
-                    + static_cast<int32_t>(instruction.argument));
+                registerA += instruction.argument;
                 break;
             case InstructionName::DEC:
-                registerA = static_cast<word_t>(static_cast<int32_t>(registerA)
-                    - static_cast<int32_t>(instruction.argument));
+                registerA -= instruction.argument;
                 break;
             case InstructionName::NEG:
-                registerA = static_cast<word_t>(
-                    -static_cast<int32_t>(registerA));
+                registerA = -registerA;
                 break;
 
             case InstructionName::SWP:
@@ -275,14 +270,10 @@ class ComputationState {
                 registerA ^= registerB;
                 break;
             case InstructionName::ADD:
-                registerA = static_cast<word_t>(
-                    static_cast<int32_t>(registerA)
-                    + static_cast<int32_t>(registerB));
+                registerA += registerB;
                 break;
             case InstructionName::SUB:
-                registerA = static_cast<word_t>(
-                    static_cast<int32_t>(registerA)
-                    - static_cast<int32_t>(registerB));
+                registerA -= registerB;
                 break;
 
             case InstructionName::PTU:
