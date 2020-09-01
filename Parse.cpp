@@ -15,7 +15,7 @@ bool parse1(Parsing::ParsingState &ps) {
         return ps.error(0, "unable to read file");
 
     std::string const&regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
-    std::string const&regexValue{"[@.$'_[:alnum:]-][.$'_[:alnum:]\\\\-]*"};
+    std::string const&regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
     std::string const&regexString{"\"([^\"]|\\\")*?\""};
 
     for (
