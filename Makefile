@@ -1,4 +1,4 @@
-JoyAssembler: JoyAssembler.cpp Types.hh Util.cpp UTF8.cpp Parse.cpp Computation.cpp Log.cpp UnitTests.cpp
+JoyAssembler: JoyAssembler.cpp Types.hh Util.cpp UTF8.cpp Parser.cpp Computation.cpp Log.cpp UnitTests.cpp
 	make UnitTests
 	
 	./set-build-status.sh failing

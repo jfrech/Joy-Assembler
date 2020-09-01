@@ -6,14 +6,14 @@
 
 #include "Util.cpp"
 #include "Computation.cpp"
-#include "Parse.cpp"
+#include "Parser.cpp"
 
 int main(int const argc, char const*argv[]) {
     if (argc < 2) {
-        std::cerr << "please provide an input joy assembly file\n";
+        std::cerr << "please provide an input joy assembly file" << std::endl;
         return EXIT_FAILURE; }
 
-    ComputationState cs{0x10000};
+    /*ComputationState cs{0x10000};
 
     if (argc > 2 && std::string{argv[2]} == "visualize")
         cs.enableVisualization();
@@ -21,13 +21,21 @@ int main(int const argc, char const*argv[]) {
         cs.enableStepping();
     if (argc > 2 && std::string{argv[2]} == "cycles")
         cs.enableFinalCycles();
+    */
 
-    ParsingState ps{
+    Parser parser{
         std::filesystem::current_path() / std::filesystem::path(argv[1])};
-    if (!parse1(ps))
-        return ps.error(0, "parsing failed at stage 1"), EXIT_FAILURE;
-    if (!parse2(ps, cs))
-        return ps.error(0, "parsing failed at stage 2"), EXIT_FAILURE;
+
+    if (argc > 2 && std::string{argv[2]} != "memory-dump")
+        if (!parser.commandlineArg(std::string{argv[2]})) {
+            std::cerr << "unknown commandline argument" << std::endl;
+            return EXIT_FAILURE; }
+
+    parser.parse();
+    auto [cs, ok] = parser.finish();
+    if (!ok) {
+        std::cerr << "parsing failed" << std::endl;
+        return EXIT_FAILURE; }
 
     if (argc > 2 && std::string{argv[2]} == "memory-dump") {
         do cs.memoryDump(); while (cs.step()); cs.memoryDump();
