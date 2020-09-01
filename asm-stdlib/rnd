@@ -1,0 +1,16 @@
+main:
+    mov @random-data
+    swp
+    lia 0
+    ptu
+    lia 4
+    ptu
+    lia 8
+    ptu
+    lia 12
+    ptu
+    hlt
+
+random-data:
+    data [0xf]unif 8
+

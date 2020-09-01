@@ -1,17 +1,26 @@
 #ifndef JOY_ASSEMBLER__PARSE_CPP
 #define JOY_ASSEMBLER__PARSE_CPP
 
+#include <random>
+
 #include "Types.hh"
 
 class Parser {
     private:
         std::vector<std::filesystem::path> filepaths;
         bool ok;
+
+        std::random_device randomDevice;
+        std::optional<uint32_t> oRandomSeed;
+
         ComputationState cs;
 
     public: Parser(std::filesystem::path filepath) :
         filepaths{},
         ok{true},
+
+        randomDevice{},
+        oRandomSeed{std::nullopt},
 
         cs{0x10000}
     {
@@ -122,7 +131,7 @@ class Parser {
                     return true; }))
 
             ON_MATCH("^data ?(.+)$", (
-                [pushData, lineNumber, regexValue, regexString, &ps](std::smatch const&smatch) {
+                [this, pushData, lineNumber, regexValue, regexString, &ps](std::smatch const&smatch) {
                     log("parsing `data` ...");
                     std::string commaSeparated{std::string{smatch[1]} + ","};
                     for (uint64_t elementNumber{1}; commaSeparated != ""; ++elementNumber) {
@@ -130,7 +139,7 @@ class Parser {
                             return ps.error(lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
 
                         std::smatch smatch{};
-                        if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
+                        if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + "|" + "unif " + regexValue + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
 
                             log("smatch of size " + std::to_string(smatch.size()));
                             for (auto j = 0u; j < smatch.size(); ++j)
@@ -154,7 +163,7 @@ class Parser {
                                 continue;
                             }
 
-                            log("parsing uint: " + unparsedElement);
+                            log("parsing non-string: " + unparsedElement);
 
                             if (unparsedSize == "")
                                 unparsedSize = std::string{"1"};
@@ -162,6 +171,27 @@ class Parser {
                             if (!oSize.has_value())
                                 return error("invalid data uint element size", unparsedSize);
                             log("    ~> size: " + std::to_string(oSize.value()));
+
+                            /* TODO */
+                            {
+                                std::smatch smatch{};
+                                if (std::regex_match(unparsedValue, smatch, std::regex{"^unif (" + regexValue + ")$"})) {
+                                    unparsedValue = std::string{smatch[1]};
+                                    std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
+                                    if (!oValue.has_value())
+                                        return error("invalid data unif range value", unparsedValue);
+
+                                    if (!oRandomSeed.has_value())
+                                        oRandomSeed = std::make_optional(randomDevice());
+                                    std::mt19937 rng{oRandomSeed.value()};
+                                    std::uniform_int_distribution<uint32_t> unif{0, oValue.value()};
+                                    for (word_t j = 0; j < oSize.value(); ++j)
+                                        pushData(unif(rng));
+                                    continue;
+                                }
+                            }
+
+                            log("parsing uint: " + unparsedElement);
 
                             if (unparsedValue == "")
                                 unparsedValue = std::string{"0"};
