@@ -1,5 +1,5 @@
 /* Jonathan Frech, August 2020 */
-/* A C++ UTF-8 decoding and encoding implementation. */
+/* A C++17 UTF-8 decoding and encoding implementation. */
 
 #ifndef UTF8_CPP
 #define UTF8_CPP
@@ -82,7 +82,7 @@ namespace UTF8 {
         /* return value signals if another byte is required */
         public: bool decode(byte_t const b) {
             bool invalid = false;
-            for (size_t j = 1; j < 4; j++) {
+            for (size_t j = 1; j < 4; ++j) {
                 if (j >= buf.size())
                     break;
                 invalid |= ((0b11'000000 & buf[j]) != 0b10'000000); }

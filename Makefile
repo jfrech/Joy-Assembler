@@ -17,4 +17,4 @@ test:
 UnitTests: UnitTests.cpp
 	g++ -std=c++17 -Wall -Wpedantic -Wextra -Werror UnitTests.cpp -o UnitTests
 	./UnitTests
-	rm UnitTests
+	#rm UnitTests

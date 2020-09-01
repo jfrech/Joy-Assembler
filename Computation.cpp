@@ -8,7 +8,7 @@ namespace InstructionNameRepresentationHandler {
         return instructions[opCode]; }
 
     byte_t toByteCode(InstructionName const name) {
-        for (uint16_t opCode = 0; opCode < 0x100; opCode++) {
+        for (uint16_t opCode = 0; opCode < 0x100; ++opCode) {
             if (!instructions[opCode].has_value())
                 continue;
             if (instructions[opCode].value() == name)
@@ -76,11 +76,11 @@ class ComputationState {
         word_t pc = 0, rPC = registerPC;
         std::size_t w = 16;
         std::printf("       ");
-        for (std::size_t x = 0; x < w; x++)
+        for (std::size_t x = 0; x < w; ++x)
             std::printf("_%01X ", (int) x);
-        for (std::size_t y = 0; true; y++) {
+        for (std::size_t y = 0; true; ++y) {
             std::printf("\n    %02X_", (int) y);
-            for (std::size_t x = 0; x < w; x++) {
+            for (std::size_t x = 0; x < w; ++x) {
                 word_t m = y *w+ x;
                 if (registerSC <= pc+4 && pc+4 < registerSC + 4)
                     std::cout << Util::ANSI_COLORS::STACK_FAINT;
@@ -92,7 +92,7 @@ class ComputationState {
                     std::cout << Util::ANSI_COLORS::MEMORY_LOCATION_USED;
                 std::printf(" %02X", memory[y *w+ x]);
                 std::cout << Util::ANSI_COLORS::CLEAR;
-                pc++;
+                ++pc;
             }
 
             if ((y+1)*w >= 0x100 && debug.highestUsedMemoryLocation+1 < (y+1)*w)
@@ -144,8 +144,8 @@ class ComputationState {
         word_t mx = memory.size();
         while (--mx != 0 && memory[mx] == 0)
             ;
-        mx++;
-        for (word_t m = 0; m < mx; m++)
+        ++mx;
+        for (word_t m = 0; m < mx; ++m)
             dump += " " + Util::UInt8AsPaddedHex(memory[m]);
 
         std::cout << dump << "\n";
@@ -328,7 +328,7 @@ class ComputationState {
 
         updateFlags();
         std::flush(std::cout);
-        debug.executionCycles++;
+        ++debug.executionCycles;
 
         if (erroneous)
             return err("step: erroneous machine state");

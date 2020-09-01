@@ -5,7 +5,7 @@
 
 /* TODO refactor into a `Parsing` class */
 
-bool parse1(Parsing::ParsingState &ps) {
+bool parse1(ParsingState &ps) {
     if (Util::std20::contains(ps.parsedFilepaths, ps.filepath))
         return ps.error(0, "recursive file inclusion; not parsing file twice");
     ps.parsedFilepaths.insert(ps.filepath);
@@ -20,22 +20,22 @@ bool parse1(Parsing::ParsingState &ps) {
 
     for (
         auto [lineNumber, ln]
-            = std::make_tuple<Parsing::line_number_t, std::string>(1, "");
+            = std::make_tuple<ParsingState::line_number_t, std::string>(1, "");
         std::getline(is, ln);
-        lineNumber++
+        ++lineNumber
     ) {
 
         auto pushData = [&](uint32_t const data) {
             log("pushing data: " + Util::UInt32AsPaddedHex(data));
             ps.parsing.push_back(std::make_tuple(ps.filepath, lineNumber,
-                Parsing::parsingData{data}));
+                ParsingState::parsingData{data}));
             ps.memPtr += 4;
         };
 
         auto pushInstruction = [&](InstructionName const&name, std::optional<std::string> const&oArg) {
             log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or(" (no arg.)"));
             ps.parsing.push_back(std::make_tuple(ps.filepath, lineNumber,
-                Parsing::parsingInstruction{std::make_tuple(name, oArg)}));
+                ParsingState::parsingInstruction{std::make_tuple(name, oArg)}));
             ps.memPtr += 5;
         };
 
@@ -83,7 +83,7 @@ bool parse1(Parsing::ParsingState &ps) {
             [pushData, lineNumber, regexValue, regexString, &ps](std::smatch const&smatch) {
                 log("parsing `data` ...");
                 std::string commaSeparated{std::string{smatch[1]} + ","};
-                for (uint64_t elementNumber{1}; commaSeparated != ""; elementNumber++) {
+                for (uint64_t elementNumber{1}; commaSeparated != ""; ++elementNumber) {
                     auto error = [lineNumber, elementNumber, &ps](std::string const&msg, std::string const&detail) {
                         return ps.error(lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
 
@@ -91,7 +91,7 @@ bool parse1(Parsing::ParsingState &ps) {
                     if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
 
                         log("smatch of size " + std::to_string(smatch.size()));
-                        for (auto j = 0u; j < smatch.size(); j++)
+                        for (auto j = 0u; j < smatch.size(); ++j)
                             log("smatch[" + std::to_string(j) + "]: @@@" + std::string{smatch[j]} + "@@@");
 
                         std::string unparsedElement{smatch[1]};
@@ -128,7 +128,7 @@ bool parse1(Parsing::ParsingState &ps) {
                             return error("invalid data uint element value", unparsedValue);
                         log("    ~> value: " + std::to_string(oValue.value()));
 
-                        for (word_t j = 0; j < oSize.value(); j++)
+                        for (word_t j = 0; j < oSize.value(); ++j)
                             pushData(oValue.value());
                         continue;
                     }
@@ -192,7 +192,7 @@ bool parse1(Parsing::ParsingState &ps) {
     return true;
 }
 
-bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
+bool parse2(ParsingState &ps, ComputationState &cs) {
     log("@@@ parse2 @@@");
 
     bool memPtrGTStackBeginningAndNonDataOccurred{false};
@@ -200,20 +200,20 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
 
     word_t memPtr{0};
     for (auto [filepath, lineNumber, p] : ps.parsing) {
-        if (std::holds_alternative<Parsing::parsingData>(p)) {
-            word_t data{std::get<Parsing::parsingData>(p)};
+        if (std::holds_alternative<ParsingState::parsingData>(p)) {
+            word_t data{std::get<ParsingState::parsingData>(p)};
             log("data value " + Util::UInt32AsPaddedHex(data));
             memPtr += cs.storeData(memPtr, data);
 
             if (!memPtrGTStackBeginningAndNonDataOccurred)
                 ps.stackEnd = std::make_optional(memPtr);
         }
-        else if (std::holds_alternative<Parsing::parsingInstruction>(p)) {
+        else if (std::holds_alternative<ParsingState::parsingInstruction>(p)) {
             if (memPtr > ps.stackBeginning)
                 memPtrGTStackBeginningAndNonDataOccurred = true;
 
-            Parsing::parsingInstruction instruction{
-                std::get<Parsing::parsingInstruction>(p)};
+            ParsingState::parsingInstruction instruction{
+                std::get<ParsingState::parsingInstruction>(p)};
             InstructionName name = std::get<0>(instruction);
             auto oArg = std::get<1>(instruction);
             std::optional<word_t> oValue{std::nullopt};
@@ -234,7 +234,7 @@ bool parse2(Parsing::ParsingState &ps, ComputationState &cs) {
                     std::string msg{"label @" + label + " was not defined; "
                         + "did you possibly mean one of the following defined "
                         + "labels?"};
-                    for (std::size_t j = 0; j < 3 && j < labels.size(); j++)
+                    for (std::size_t j = 0; j < 3 && j < labels.size(); ++j)
                         msg += "\n    " + std::to_string(j+1) + ") "
                             + labels[j];
                     if (labels.size() <= 0)

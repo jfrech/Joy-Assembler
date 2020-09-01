@@ -82,11 +82,11 @@ namespace Util {
         };
         std::map<UTF8::rune_t, uint8_t> const&nibbleEscapes{[]() {
             std::map<UTF8::rune_t, uint8_t> nibbleEscapes{};
-            for (uint8_t j = 0; j < 10; j++)
+            for (uint8_t j = 0; j < 10; ++j)
                 nibbleEscapes.insert({static_cast<UTF8::rune_t>('0'+j), j});
-            for (uint8_t j = 0; j < 6; j++)
+            for (uint8_t j = 0; j < 6; ++j)
                 nibbleEscapes.insert({static_cast<UTF8::rune_t>('a'+j), 10+j});
-            for (uint8_t j = 0; j < 6; j++)
+            for (uint8_t j = 0; j < 6; ++j)
                 nibbleEscapes.insert({static_cast<UTF8::rune_t>('A'+j), 10+j});
             return nibbleEscapes;
         }()};
@@ -118,7 +118,7 @@ namespace Util {
             if (emprisonedRune == shortU || emprisonedRune == longU) {
                 uint8_t const escapeLength = emprisonedRune == shortU ? 4 : 8;
                 UTF8::rune_t escapedRune = UTF8::NULL_RUNE;
-                for (uint8_t j = 0; j < escapeLength; j++) {
+                for (uint8_t j = 0; j < escapeLength; ++j) {
                     if (stream.exhausted())
                         return std::nullopt;
                     UTF8::rune_t const emprisonedNibble{stream.read()};
@@ -214,7 +214,7 @@ namespace Util {
         extendSplit(parts, startStr);
         extendSplit(parts, furtherStr);
 
-        for (std::size_t j = 0; j < parts.size(); j++) {
+        for (std::size_t j = 0; j < parts.size(); ++j) {
             if (parts[j] == "..") {
                 if (j < 1)
                     return std::nullopt;
@@ -239,13 +239,13 @@ namespace Util {
 
         std::vector<std::vector<uint64_t>> d(m+1,
             std::vector<uint64_t>(n+1, 0U));
-        for (uint64_t r = 0; r <= n; r++)
+        for (uint64_t r = 0; r <= n; ++r)
             d[0][r] = r;
-        for (uint64_t c = 0; c <= m; c++)
+        for (uint64_t c = 0; c <= m; ++c)
             d[c][0] = c;
 
-        for (uint64_t j = 1; j <= m; j++)
-            for (uint64_t i = 1; i <= n; i++) {
+        for (uint64_t j = 1; j <= m; ++j)
+            for (uint64_t i = 1; i <= n; ++i) {
                 uint64_t cost = s[i-1] == t[j-1] ? 0 : 1;
                 d[j][i] = std::min(std::min(
                     d[j][i-1] + 1,

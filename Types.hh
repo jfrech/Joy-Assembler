@@ -92,45 +92,42 @@ struct ComputationStateDebug {
     { ; }
 };
 
-namespace Parsing {
+struct ParsingState {
     typedef uint64_t line_number_t;
-
     typedef std::tuple<InstructionName, std::optional<std::string>>
         parsingInstruction;
     typedef word_t parsingData;
 
-    struct ParsingState {
-        public:
-            std::filesystem::path filepath;
-            std::set<std::filesystem::path> parsedFilepaths;
-            std::vector<std::tuple<std::filesystem::path, line_number_t,
-                std::variant<parsingInstruction, parsingData>>> parsing;
-            std::map<std::string, std::string> definitions;
+    public:
+        std::filesystem::path filepath;
+        std::set<std::filesystem::path> parsedFilepaths;
+        std::vector<std::tuple<std::filesystem::path, line_number_t,
+            std::variant<parsingInstruction, parsingData>>> parsing;
+        std::map<std::string, std::string> definitions;
 
-            bool stackInstructionWasUsed;
-            std::optional<word_t> stackBeginning;
-            std::optional<word_t> stackEnd;
+        bool stackInstructionWasUsed;
+        std::optional<word_t> stackBeginning;
+        std::optional<word_t> stackEnd;
 
-            word_t memPtr;
+        word_t memPtr;
 
-        public: ParsingState(std::filesystem::path const&filepath) :
-            filepath{filepath},
-            parsedFilepaths{},
-            parsing{},
-            definitions{},
+    public: ParsingState(std::filesystem::path const&filepath) :
+        filepath{filepath},
+        parsedFilepaths{},
+        parsing{},
+        definitions{},
 
-            stackInstructionWasUsed{false},
-            stackBeginning{std::nullopt},
-            stackEnd{std::nullopt},
+        stackInstructionWasUsed{false},
+        stackBeginning{std::nullopt},
+        stackEnd{std::nullopt},
 
-            memPtr{0}
-        { ; }
+        memPtr{0}
+    { ; }
 
-        public: bool error(line_number_t const lineNumber, std::string const&msg) {
-            std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
-                      << msg << std::endl;
-            return false; }
-    };
-}
+    public: bool error(line_number_t const lineNumber, std::string const&msg) {
+        std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
+                  << msg << std::endl;
+        return false; }
+};
 
 #endif

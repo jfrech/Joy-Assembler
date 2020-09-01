@@ -22,7 +22,7 @@ int main(int const argc, char const*argv[]) {
     if (argc > 2 && std::string{argv[2]} == "cycles")
         cs.enableFinalCycles();
 
-    Parsing::ParsingState ps{
+    ParsingState ps{
         std::filesystem::current_path() / std::filesystem::path(argv[1])};
     if (!parse1(ps))
         return ps.error(0, "parsing failed at stage 1"), EXIT_FAILURE;
