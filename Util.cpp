@@ -235,7 +235,7 @@ namespace Util {
             Assignments/editdistance/Levenshtein%20Distance.htm" */
         uint64_t n{s.size()}, m{t.size()};
         if (n <= 0 || m <= 0)
-            return std::min(n, m);
+            return std::max(n, m);
 
         std::vector<std::vector<uint64_t>> d(m+1,
             std::vector<uint64_t>(n+1, 0U));
