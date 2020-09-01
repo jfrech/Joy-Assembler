@@ -1,8 +1,6 @@
 #ifndef JOY_ASSEMBLER__PARSE_CPP
 #define JOY_ASSEMBLER__PARSE_CPP
 
-#include <random>
-
 #include "Types.hh"
 
 class Parser {
@@ -10,8 +8,8 @@ class Parser {
         std::vector<std::filesystem::path> filepaths;
         bool ok;
 
-        std::random_device randomDevice;
-        std::optional<uint32_t> oRandomSeed;
+        Util::rng_t rng;
+        std::optional<uint32_t> oSeed;
 
         ComputationState cs;
 
@@ -19,8 +17,8 @@ class Parser {
         filepaths{},
         ok{true},
 
-        randomDevice{},
-        oRandomSeed{std::nullopt},
+        rng{},
+        oSeed{std::nullopt},
 
         cs{0x10000}
     {
@@ -183,12 +181,10 @@ class Parser {
                                     if (!oValue.has_value())
                                         return error("invalid data unif range value", unparsedValue);
 
-                                    if (!oRandomSeed.has_value())
-                                        oRandomSeed = std::make_optional(randomDevice());
-                                    std::mt19937 rng{oRandomSeed.value()};
-                                    std::uniform_int_distribution<uint32_t> unif{0, oValue.value()};
-                                    for (word_t j = 0; j < oSize.value(); ++j)
-                                        pushData(unif(rng));
+                                    if (!rng.hasBeenSeeded())
+                                        rng.seed(oSeed);
+                                    for (word_t r : rng.unif(oSize.value(), oValue.value()))
+                                        pushData(r);
                                     continue;
                                 }
                             }

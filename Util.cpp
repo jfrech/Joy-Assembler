@@ -2,6 +2,7 @@
 #define JOY_ASSEMBLER__UTIL_CPP
 
 #include <chrono>
+#include <random>
 #include <thread>
 
 #include "Types.hh"
@@ -262,6 +263,71 @@ namespace Util {
         std::sort(w.begin(), w.end(), [r](auto s, auto t) {
             return LevenshteinDistance(r, s) <= LevenshteinDistance(r, t); });
         return w; }
+
+    class rng_t {
+        private:
+            std::random_device randomDevice;
+            std::mt19937 rng;
+            bool flagHasBeenSeeded;
+        public: rng_t() :
+            randomDevice{}, rng{randomDevice()}, flagHasBeenSeeded{false}
+        { ; }
+
+        public: void seed(std::optional<uint32_t> const&oSeed) {
+            if (oSeed.has_value())
+                rng.seed(oSeed.value());
+            else
+                rng.seed(randomDevice());
+            flagHasBeenSeeded = true; }
+
+        public: bool hasBeenSeeded() const {
+            return flagHasBeenSeeded; }
+
+        public: uint32_t randomUInt32(uint32_t const n) {
+            std::uniform_int_distribution<uint32_t> unif{0, n-1};
+            return unif(rng); }
+
+        template<typename push_back_t>
+        void fillRandomUInt32(
+            uint32_t const size, uint32_t const n, push_back_t const pushBack
+        ) {
+            std::uniform_int_distribution<uint32_t> unif{0, n-1};
+            for (uint32_t j = 0; j < size; ++j)
+                pushBack(unif(rng)); }
+
+        template<typename push_back_t>
+        void fillRandomUInt32NoReplace(
+            uint32_t const size, uint32_t const n, push_back_t const pushBack
+        ) {
+            if (size > n)
+                return;  /* TODO :: Caution! */
+
+            std::uniform_int_distribution<uint32_t> unif{0, n-1};
+            std::vector<word_t> v{std::vector<uint32_t>(n)};
+            std::iota(v.begin(), v.end(), 0);
+            for (uint32_t j = 0; j < size; ++j) {
+                uint32_t k{j + randomUInt32(n-j)};
+                std::swap(v[j], v[k]);
+                pushBack(v[j]); }
+        }
+
+        std::vector<word_t> unif(word_t const n, word_t const m) {
+            std::uniform_int_distribution<word_t> unif{0, m};
+            std::vector<word_t> v{std::vector<word_t>(n)};
+            for (word_t j = 0; j < n; ++j)
+                v[j] = unif(rng);
+            return v; }
+
+        /* TODO assure validity */
+        std::vector<word_t> perm(word_t const n) {
+            std::uniform_int_distribution<uint32_t> unif{0, n};
+            std::vector<uint32_t> v{n};
+            std::iota(v.begin(), v.end(), 0);
+            for (word_t j = 0; j < n; ++j)
+                std::swap(v[j], v[j + randomUInt32(n - j)]);
+            return v;
+        }
+    };
 }
 
 #define LOCALLY_CHANGE(VAR, LOCAL, LOCAL_EXPR) \
