@@ -13,6 +13,6 @@ find "$root/programs" -mindepth 1 -maxdepth 1 -type f | sort | \
 while read prg; do
     pristineMemoryDumpHash="$pristineHashes/$(realpath "$prg" --relative-to="$programs").dmp.hsh"
     printf 'running: %s ...\n' "$prg"
-    "$root/../joy-assembler" "$prg" memory-dump | sha512sum \
+    "$root/../JoyAssembler" "$prg" memory-dump | sha512sum \
         > "$pristineMemoryDumpHash"
 done

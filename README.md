@@ -4,12 +4,12 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-01T13:52:20Z)
+**Build: 🟩 passing** (2020-09-01T17:02:57Z)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
 ````
-./joy-assembler <input-file.asm> [visualize | step | cycles | memory-dump]
+./JoyAssembler <input-file.asm> [visualize | step | cycles | memory-dump]
 ````
 The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `cycles` prints the number of execution cycles that were performed. `memory-dump` mocks any I/O and outputs a step-by-step memory dump to `stdout` whilst executing.
 
@@ -19,6 +19,9 @@ Joy Assembler mimics a 32-bit architecture. It has four 32-bit registers: two ge
 Along with the above 32-bit registers, whose values will be called *word* henceforth, a single block of 8-bit *bytes* of memory of a fixed size is provided, addressable as either numeric 4-byte words or individual bytes. Each Joy Assembler instruction consists of a _name_ (represented as a singular op-code byte) paired with possibly four bytes representing an _argument_. All instructions' behavior is specified below.
 
 The simulated architecture can also be slightly modified using _pragmas_ (see below).
+
+# Joy Assembler files
+Joy Assembler files usually end in a `.asm` file extension and contain all instructions, static data, and other file inclusions that will be executed by the simulated machine. Except for comments, each line contains either an instruction -- to the simulated machine or assembler -- or a piece of data or is left blank. What follows is the documentation of the previously mentioned features.
 
 # Comments
 A comment is defined as any characters from a semicolon (`;`) to the end of the line. One quirk of implementation is that string or character literals cannot contain an unescaped semicolon, as this would be interpreted as a comment.

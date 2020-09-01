@@ -19,7 +19,7 @@ while read prg; do
         && printf '    \33[38;5;124m[ERR]\33[0m could not find pristine ' \
         && printf 'memory dump hash\n' && exit 1
     printf '    executing: %s ...\n' "$prg"
-    "$root/../joy-assembler" "$prg" memory-dump | sha512sum > "$tmp"
+    "$root/../JoyAssembler" "$prg" memory-dump | sha512sum > "$tmp"
     printf '    comparing to pristine memory dump hash\n'
     ! cmp 2>/dev/null "$pristineMemoryDumpHash" "$tmp" \
         && printf '        \33[38;5;124m[ERR]\33[0m memory dump hash ' \
