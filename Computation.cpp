@@ -45,6 +45,7 @@ class ComputationState {
         MemoryMode memoryMode;
         word_t registerA, registerB, registerPC, registerSC;
         bool flagAZero, flagANegative, flagAEven;
+        Util::rng_t rng;
         bool mock;
         bool erroneous;
     public:
@@ -55,8 +56,10 @@ class ComputationState {
         memoryMode{MemoryMode::LittleEndian},
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
         flagAZero{true}, flagANegative{false}, flagAEven{true},
-        mock{false},
-        erroneous{false},
+
+        rng{}, // TODO seeding
+
+        mock{false}, erroneous{false},
 
         debug{}
     {
@@ -312,6 +315,10 @@ class ComputationState {
             case InstructionName::GTC:
                 std::cout << "enter a character: ";
                 registerA = static_cast<word_t>(UTF8IO::getRune());
+                break;
+
+            case InstructionName::RND:
+                registerA = rng.unif(registerA);
                 break;
 
             case InstructionName::HLT: return false;

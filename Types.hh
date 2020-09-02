@@ -41,6 +41,8 @@ enum class MemoryMode { LittleEndian, BigEndian };
     M(GET, NO_ARG), M(GTC, NO_ARG), \
     M(PTU, NO_ARG), M(PTS, NO_ARG), M(PTB, NO_ARG), M(PTC, NO_ARG), \
     \
+    M(RND, NO_ARG), \
+    \
     M(HLT, NO_ARG),
 
 enum class InstructionName {

@@ -19,8 +19,6 @@ class Parser {
 
         Util::rng_t rng;
 
-        ComputationState cs;
-
     public: Parser(std::filesystem::path filepath) :
         filepaths{},
         parsedFilepaths{},
@@ -33,9 +31,7 @@ class Parser {
 
         ok{true},
 
-        rng{},
-
-        cs{0x10000}
+        rng{}
     {
         filepaths.push_back(filepath);
     }
@@ -48,7 +44,9 @@ class Parser {
                       << ": " << msg << std::endl;
         return false; }
 
-    public: bool commandlineArg(std::string const&arg) {
+    public: bool commandlineArg(
+        ComputationState &cs, std::string const&arg
+    ) {
         if (arg == "visualize")
             cs.enableVisualization();
         else if (arg == "step")
@@ -56,23 +54,21 @@ class Parser {
         else if (arg == "cycles")
             cs.enableFinalCycles();
         else
-            return err("unkown commandline argument: " + arg);
+            return err("unknown commandline argument: " + arg);
         return true; }
 
-    public: bool parse() {
-        if (!parse1())
-            return err("parsing failed at stage one");
-        if (!parse2(cs))
-            return err("parsing failed at stage two");
-        return true; }
-
-    public: std::tuple<ComputationState, bool> finish() {
-        return std::make_tuple(cs, ok); }
+    public: std::optional<bool> parse(ComputationState &cs) {
+        if (!parse1()) {
+            err("parsing failed at stage one");
+            return std::nullopt; }
+        if (!parse2(cs)) {
+            err("parsing failed at stage two");
+            return std::nullopt; }
+        return std::make_optional(true); }
 
     private: bool err(std::string const&msg) {
         std::cerr << "Parser: " << msg << std::endl;
         return ok = false; }
-
 
     private: bool parse1() {
         if (filepaths.size() <= 0)
