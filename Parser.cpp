@@ -13,7 +13,7 @@ class Parser {
 
         ComputationState cs;
 
-        __WILLBEREMOVED__ParsingState ps; /* TODO remove */
+        WILLBEREMOVED ps; /* TODO remove */
 
     public: Parser(std::filesystem::path filepath) :
         filepaths{},
@@ -43,7 +43,7 @@ class Parser {
     public: bool parse() {
         if (filepaths.size() <= 0)
             return err("no filepath to parse");
-        ps = __WILLBEREMOVED__ParsingState{filepaths.back()};
+        ps = WILLBEREMOVED{filepaths.back()};
         if (!parse1())
             return err("parsing failed at stage one");
         if (!parse2(cs))
@@ -75,7 +75,7 @@ class Parser {
 
         for (
             auto [lineNumber, ln]
-                = std::make_tuple<ParsingState::line_number_t, std::string>(1, "");
+                = std::make_tuple<ParsingTypes::line_number_t, std::string>(1, "");
             std::getline(is, ln);
             ++lineNumber
         ) {
@@ -83,14 +83,14 @@ class Parser {
             auto pushData = [&](uint32_t const data) {
                 log("pushing data: " + Util::UInt32AsPaddedHex(data));
                 ps.parsing.push_back(std::make_tuple(ps.filepath, lineNumber,
-                    ParsingState::parsingData{data}));
+                    ParsingTypes::parsingData{data}));
                 ps.memPtr += 4;
             };
 
             auto pushInstruction = [&](InstructionName const&name, std::optional<std::string> const&oArg) {
                 log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or(" (no arg.)"));
                 ps.parsing.push_back(std::make_tuple(ps.filepath, lineNumber,
-                    ParsingState::parsingInstruction{std::make_tuple(name, oArg)}));
+                    ParsingTypes::parsingInstruction{std::make_tuple(name, oArg)}));
                 ps.memPtr += 5;
             };
 
@@ -273,20 +273,20 @@ class Parser {
 
         word_t memPtr{0};
         for (auto const&[filepath, lineNumber, p] : ps.parsing) {
-            if (std::holds_alternative<ParsingState::parsingData>(p)) {
-                word_t data{std::get<ParsingState::parsingData>(p)};
+            if (std::holds_alternative<ParsingTypes::parsingData>(p)) {
+                word_t data{std::get<ParsingTypes::parsingData>(p)};
                 log("data value " + Util::UInt32AsPaddedHex(data));
                 memPtr += cs.storeData(memPtr, data);
 
                 if (!memPtrGTStackBeginningAndNonDataOccurred)
                     ps.stackEnd = std::make_optional(memPtr);
             }
-            else if (std::holds_alternative<ParsingState::parsingInstruction>(p)) {
+            else if (std::holds_alternative<ParsingTypes::parsingInstruction>(p)) {
                 if (memPtr > ps.stackBeginning)
                     memPtrGTStackBeginningAndNonDataOccurred = true;
 
-                ParsingState::parsingInstruction instruction{
-                    std::get<ParsingState::parsingInstruction>(p)};
+                ParsingTypes::parsingInstruction instruction{
+                    std::get<ParsingTypes::parsingInstruction>(p)};
                 InstructionName name = std::get<0>(instruction);
                 auto oArg = std::get<1>(instruction);
                 std::optional<word_t> oValue{std::nullopt};
