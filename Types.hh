@@ -92,17 +92,19 @@ struct ComputationStateDebug {
     { ; }
 };
 
-struct ParsingState {
+namespace ParsingState {
     typedef uint64_t line_number_t;
     typedef std::tuple<InstructionName, std::optional<std::string>>
         parsingInstruction;
     typedef word_t parsingData;
+}
 
+struct __WILLBEREMOVED__ParsingState {
     public:
         std::filesystem::path filepath;
         std::set<std::filesystem::path> parsedFilepaths;
-        std::vector<std::tuple<std::filesystem::path, line_number_t,
-            std::variant<parsingInstruction, parsingData>>> parsing;
+        std::vector<std::tuple<std::filesystem::path, ParsingState::line_number_t,
+            std::variant<ParsingState::parsingInstruction, ParsingState::parsingData>>> parsing;
         std::map<std::string, std::string> definitions;
 
         bool stackInstructionWasUsed;
@@ -111,7 +113,7 @@ struct ParsingState {
 
         word_t memPtr;
 
-    public: ParsingState(std::filesystem::path const&filepath) :
+    public: __WILLBEREMOVED__ParsingState(std::filesystem::path const&filepath) :
         filepath{filepath},
         parsedFilepaths{},
         parsing{},
@@ -124,7 +126,7 @@ struct ParsingState {
         memPtr{0}
     { ; }
 
-    public: bool error(line_number_t const lineNumber, std::string const&msg) {
+    public: bool error(ParsingState::line_number_t const lineNumber, std::string const&msg) {
         std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
                   << msg << std::endl;
         return false; }

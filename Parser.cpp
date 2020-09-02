@@ -13,7 +13,7 @@ class Parser {
 
         ComputationState cs;
 
-        ParsingState ps; /* TODO remove */
+        __WILLBEREMOVED__ParsingState ps; /* TODO remove */
 
     public: Parser(std::filesystem::path filepath) :
         filepaths{},
@@ -43,7 +43,7 @@ class Parser {
     public: bool parse() {
         if (filepaths.size() <= 0)
             return err("no filepath to parse");
-        ps = ParsingState{filepaths.back()};
+        ps = __WILLBEREMOVED__ParsingState{filepaths.back()};
         if (!parse1())
             return err("parsing failed at stage one");
         if (!parse2(cs))
