@@ -6,6 +6,15 @@
 class Parser {
     private:
         std::vector<std::filesystem::path> filepaths;
+        std::set<std::filesystem::path> parsedFilepaths;
+        std::vector<std::tuple<std::filesystem::path, ParsingTypes::line_number_t,
+            std::variant<ParsingTypes::parsingInstruction, ParsingTypes::parsingData>>> parsing;
+        std::map<std::string, std::string> definitions;
+        bool stackInstructionWasUsed;
+        std::optional<word_t> stackBeginning;
+        std::optional<word_t> stackEnd;
+        word_t memPtr;
+
         bool ok;
 
         Util::rng_t rng;
@@ -13,21 +22,33 @@ class Parser {
 
         ComputationState cs;
 
-        WILLBEREMOVED ps; /* TODO remove */
-
     public: Parser(std::filesystem::path filepath) :
         filepaths{},
+        parsedFilepaths{},
+        parsing{},
+        definitions{},
+        stackInstructionWasUsed{false},
+        stackBeginning{std::nullopt},
+        stackEnd{std::nullopt},
+        memPtr{0},
+
         ok{true},
 
         rng{},
         oSeed{std::nullopt},
 
-        cs{0x10000},
-
-        ps{""}//TODO
+        cs{0x10000}
     {
         filepaths.push_back(filepath);
     }
+
+    public: bool error(ParsingTypes::line_number_t const lineNumber, std::string const&msg) {
+        if (filepaths.size() <= 0)
+            std::cerr << msg << std::endl;
+        else
+            std::cerr << "file " << filepaths[0] << ", ln " << lineNumber
+                      << ": " << msg << std::endl;
+        return false; }
 
     public: bool commandlineArg(std::string const&arg) {
         if (arg == "visualize")
@@ -41,9 +62,6 @@ class Parser {
         return true; }
 
     public: bool parse() {
-        if (filepaths.size() <= 0)
-            return err("no filepath to parse");
-        ps = WILLBEREMOVED{filepaths.back()};
         if (!parse1())
             return err("parsing failed at stage one");
         if (!parse2(cs))
@@ -59,15 +77,21 @@ class Parser {
 
 
     private: bool parse1() {
-        if (!is_regular_file(ps.filepath))
-            return ps.error(0, "not a regular file");
-        if (Util::std20::contains(ps.parsedFilepaths, ps.filepath))
-            return ps.error(0, "recursive file inclusion; not parsing file twice");
-        ps.parsedFilepaths.insert(ps.filepath);
+        if (filepaths.size() <= 0)
+            return err("parse1: no filepath to parse");
 
-        std::ifstream is{ps.filepath};
+        std::filesystem::path filepath{filepaths[0]};
+        filepaths.pop_back();
+
+        if (!is_regular_file(filepath))
+            return error(0, "not a regular file");
+        if (Util::std20::contains(parsedFilepaths, filepath))
+            return error(0, "recursive file inclusion; not parsing file twice");
+        parsedFilepaths.insert(filepath);
+
+        std::ifstream is{filepath};
         if (!is.is_open())
-            return ps.error(0, "unable to read file");
+            return error(0, "unable to read file");
 
         std::string const&regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
         std::string const&regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
@@ -82,16 +106,16 @@ class Parser {
 
             auto pushData = [&](uint32_t const data) {
                 log("pushing data: " + Util::UInt32AsPaddedHex(data));
-                ps.parsing.push_back(std::make_tuple(ps.filepath, lineNumber,
+                parsing.push_back(std::make_tuple(filepath, lineNumber,
                     ParsingTypes::parsingData{data}));
-                ps.memPtr += 4;
+                memPtr += 4;
             };
 
             auto pushInstruction = [&](InstructionName const&name, std::optional<std::string> const&oArg) {
                 log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or(" (no arg.)"));
-                ps.parsing.push_back(std::make_tuple(ps.filepath, lineNumber,
+                parsing.push_back(std::make_tuple(filepath, lineNumber,
                     ParsingTypes::parsingInstruction{std::make_tuple(name, oArg)}));
-                ps.memPtr += 5;
+                memPtr += 5;
             };
 
             ln = std::regex_replace(ln, std::regex{";.*$"}, "");
@@ -107,9 +131,9 @@ class Parser {
             auto define = [&](std::string k, std::string v)
             {
                 log("defining " + k + " to be " + v);
-                if (Util::std20::contains(ps.definitions, k))
-                    return ps.error(lineNumber, "duplicate definition: " + k);
-                ps.definitions[k] = v;
+                if (Util::std20::contains(definitions, k))
+                    return error(lineNumber, "duplicate definition: " + k);
+                definitions[k] = v;
                 return true;
             };
 
@@ -127,10 +151,10 @@ class Parser {
             ON_MATCH("^(" + regexIdentifier + "):$", (
                 [&](std::smatch const&smatch) {
                     std::string label{smatch[1]};
-                    if (!define("@" + label, std::to_string(ps.memPtr)))
+                    if (!define("@" + label, std::to_string(memPtr)))
                         return false;
-                    if (label == "stack" && !ps.stackBeginning.has_value())
-                        ps.stackBeginning = std::make_optional(ps.memPtr);
+                    if (label == "stack" && !stackBeginning.has_value())
+                        stackBeginning = std::make_optional(memPtr);
                     return true; }))
 
             ON_MATCH("^data ?(.+)$", (
@@ -138,8 +162,8 @@ class Parser {
                     log("parsing `data` ...");
                     std::string commaSeparated{std::string{smatch[1]} + ","};
                     for (uint64_t elementNumber{1}; commaSeparated != ""; ++elementNumber) {
-                        auto error = [&](std::string const&msg, std::string const&detail) {
-                            return ps.error(lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
+                        auto dataError = [&](std::string const&msg, std::string const&detail) {
+                            return error(lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
 
                         std::smatch smatch{};
                         if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + "|" + "unif " + regexValue + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
@@ -154,13 +178,13 @@ class Parser {
                             commaSeparated = std::string{smatch[6]};
 
                             if (unparsedElement == "")
-                                return error("invalid data element", "empty element");
+                                return dataError("invalid data element", "empty element");
 
                             if (unparsedElement.front() == '\"') {
                                 log("parsing string: " + unparsedElement);
                                 std::optional<std::vector<UTF8::rune_t>> oRunes = Util::parseString(unparsedElement);
                                 if (!oRunes.has_value())
-                                    return error("invalid data string element", unparsedElement);
+                                    return dataError("invalid data string element", unparsedElement);
                                 for (UTF8::rune_t rune : oRunes.value())
                                     pushData(static_cast<word_t>(rune));
                                 continue;
@@ -172,7 +196,7 @@ class Parser {
                                 unparsedSize = std::string{"1"};
                             std::optional<word_t> oSize{Util::stringToUInt32(unparsedSize)};
                             if (!oSize.has_value())
-                                return error("invalid data uint element size", unparsedSize);
+                                return dataError("invalid data uint element size", unparsedSize);
                             log("    ~> size: " + std::to_string(oSize.value()));
 
                             /* TODO */
@@ -182,7 +206,7 @@ class Parser {
                                     unparsedValue = std::string{smatch[1]};
                                     std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
                                     if (!oValue.has_value())
-                                        return error("invalid data unif range value", unparsedValue);
+                                        return dataError("invalid data unif range value", unparsedValue);
 
                                     if (!rng.hasBeenSeeded())
                                         rng.seed(oSeed);
@@ -198,14 +222,14 @@ class Parser {
                                 unparsedValue = std::string{"0"};
                             std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
                             if (!oValue.has_value())
-                                return error("invalid data uint element value", unparsedValue);
+                                return dataError("invalid data uint element value", unparsedValue);
                             log("    ~> value: " + std::to_string(oValue.value()));
 
                             for (word_t j = 0; j < oSize.value(); ++j)
                                 pushData(oValue.value());
                             continue;
                         }
-                        return error("incomprehensible data element trunk", commaSeparated);
+                        return dataError("incomprehensible data element trunk", commaSeparated);
                     }
                     return true; }))
 
@@ -220,28 +244,28 @@ class Parser {
                     if (oIncludeFilepath.has_value())
                         oIncludeFilepath = Util::
                             startingFilepathFilepathToOptionalResolvedFilepath(
-                                ps.filepath.parent_path(),
+                                filepath.parent_path(),
                                 oIncludeFilepath.value());
                     if (!oIncludeFilepath.has_value())
-                        return ps.error(lineNumber, "malformed include string");
+                        return error(lineNumber, "malformed include string");
 
                     std::filesystem::path includeFilepath{oIncludeFilepath.value()};
                     bool success{};
 
-                    log("including with memPtr = " + std::to_string(ps.memPtr));
-                    /* TODO remove */ LOCALLY_CHANGE(ps.filepath, includeFilepath, (
-                        success = parse1()))
-                    log("included with memPtr = " + std::to_string(ps.memPtr));
+                    log("including with memPtr = " + std::to_string(memPtr));
+                    filepaths.push_back(includeFilepath);
+                    success = parse1();
+                    log("included with memPtr = " + std::to_string(memPtr));
 
                     if (!success)
-                        return ps.error(lineNumber, "could not include file: "
+                        return error(lineNumber, "could not include file: "
                             + std::string{includeFilepath});
                     return true; }))
 
             ON_MATCH("^include.*$", (
                 [&](std::smatch const&_) {
                     (void) _;
-                    return ps.error(lineNumber,
+                    return error(lineNumber,
                         "improper include: either empty or missing quotes"); }))
 
             ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
@@ -249,7 +273,7 @@ class Parser {
                     auto oName = InstructionNameRepresentationHandler
                         ::from_string(smatch[1]);
                     if (!oName.has_value())
-                        return ps.error(lineNumber, "invalid instruction name: "
+                        return error(lineNumber, "invalid instruction name: "
                             + std::string{smatch[1]});
                     std::optional<std::string> oArg{std::nullopt};
                     if (smatch[3] != "")
@@ -259,7 +283,7 @@ class Parser {
 
             #undef ON_MATCH
 
-            return ps.error(lineNumber, "incomprehensible");
+            return error(lineNumber, "incomprehensible");
         }
 
         return true;
@@ -272,17 +296,17 @@ class Parser {
         bool haltInstructionWasUsed{false};
 
         word_t memPtr{0};
-        for (auto const&[filepath, lineNumber, p] : ps.parsing) {
+        for (auto const&[filepath, lineNumber, p] : parsing) {
             if (std::holds_alternative<ParsingTypes::parsingData>(p)) {
                 word_t data{std::get<ParsingTypes::parsingData>(p)};
                 log("data value " + Util::UInt32AsPaddedHex(data));
                 memPtr += cs.storeData(memPtr, data);
 
                 if (!memPtrGTStackBeginningAndNonDataOccurred)
-                    ps.stackEnd = std::make_optional(memPtr);
+                    stackEnd = std::make_optional(memPtr);
             }
             else if (std::holds_alternative<ParsingTypes::parsingInstruction>(p)) {
-                if (memPtr > ps.stackBeginning)
+                if (memPtr > stackBeginning)
                     memPtrGTStackBeginningAndNonDataOccurred = true;
 
                 ParsingTypes::parsingInstruction instruction{
@@ -291,17 +315,17 @@ class Parser {
                 auto oArg = std::get<1>(instruction);
                 std::optional<word_t> oValue{std::nullopt};
                 if (oArg.has_value()) {
-                    if (Util::std20::contains(ps.definitions, oArg.value()))
-                        oArg = std::make_optional(ps.definitions.at(oArg.value()));
+                    if (Util::std20::contains(definitions, oArg.value()))
+                        oArg = std::make_optional(definitions.at(oArg.value()));
 
                     if (oArg.value() == "")
-                        return ps.error(lineNumber, "no instruction argument");
+                        return error(lineNumber, "no instruction argument");
                     if (oArg.value().front() == '@') {
                         std::string label{oArg.value()};
                         label.erase(label.begin());
 
                         std::vector<std::string> labels{};
-                        for (auto const&[lbl, _] : ps.definitions)
+                        for (auto const&[lbl, _] : definitions)
                             labels.push_back(lbl);
                         labels = Util::sortByLevenshteinDistanceTo(labels, label);
                         std::string msg{"label @" + label + " was not defined; "
@@ -312,26 +336,26 @@ class Parser {
                                 + labels[j];
                         if (labels.size() <= 0)
                             msg += "\n    (no labels have been defined)";
-                        return ps.error(lineNumber, msg);
+                        return error(lineNumber, msg);
                     }
 
 
                     if (oArg.value().front() == '\'') {
                         if (oArg.value().size() < 2 || oArg.value().back() != '\'')
-                            return ps.error(lineNumber, "invalid character literal");
+                            return error(lineNumber, "invalid character literal");
                         std::string s{oArg.value()};
                         s.front() = s.back() = '"';
                         std::optional<std::vector<UTF8::rune_t>> oRunes{Util::parseString(s)};
                         if (oRunes.has_value() && oRunes.value().size() != 1)
                             oRunes = std::nullopt;
                         if (!oRunes.has_value())
-                            return ps.error(lineNumber, "invalid character literal");
+                            return error(lineNumber, "invalid character literal");
                         oValue = static_cast<std::optional<word_t>>(std::make_optional(oRunes.value().at(0)));
                     } else {
                         oValue = static_cast<std::optional<word_t>>(
                             Util::stringToUInt32(oArg.value()));
                         if (!oValue.has_value())
-                            return ps.error(lineNumber, "invalid argument value: "
+                            return error(lineNumber, "invalid argument value: "
                                 + oArg.value());
                     }
                 }
@@ -339,12 +363,12 @@ class Parser {
                 auto [hasArgument, optionalValue] =
                     InstructionNameRepresentationHandler::argumentType[name];
                 if (!hasArgument && oValue.has_value())
-                    return ps.error(lineNumber, "superfluous argument: "
+                    return error(lineNumber, "superfluous argument: "
                         + InstructionNameRepresentationHandler::to_string(name)
                         + " " + std::to_string(oValue.value()));
                 if (hasArgument) {
                     if (!optionalValue.has_value() && !oValue.has_value())
-                        return ps.error(lineNumber, "requiring argument: "
+                        return error(lineNumber, "requiring argument: "
                             + InstructionNameRepresentationHandler
                               ::to_string(name));
                     if (!oValue.has_value())
@@ -363,28 +387,28 @@ class Parser {
                         name, 0x00000000}); }
 
                 haltInstructionWasUsed |= InstructionName::HLT == name;
-                ps.stackInstructionWasUsed |=
+                stackInstructionWasUsed |=
                     InstructionNameRepresentationHandler::isStackInstruction(name);
             }
         }
 
         if (!haltInstructionWasUsed)
-            return ps.error(0, "no halt instruction was used");
+            return error(0, "no halt instruction was used");
 
-        if (ps.stackInstructionWasUsed)
-            if (!Util::std20::contains(ps.definitions, std::string{"@stack"}))
-                return ps.error(0, std::string{"stack instructions are used "}
+        if (stackInstructionWasUsed)
+            if (!Util::std20::contains(definitions, std::string{"@stack"}))
+                return error(0, std::string{"stack instructions are used "}
                     + "yet no stack was defined");
 
-        if (ps.stackBeginning.has_value() != ps.stackEnd.has_value())
-            return ps.error(0, "inconsistent stack boundaries");
+        if (stackBeginning.has_value() != stackEnd.has_value())
+            return error(0, "inconsistent stack boundaries");
 
-        if (ps.stackBeginning.has_value() && ps.stackEnd.has_value()) {
+        if (stackBeginning.has_value() && stackEnd.has_value()) {
             log("got as stack boundaries: "
-                + std::to_string(ps.stackBeginning.value()) + " and "
-                + std::to_string(ps.stackEnd.value()));
+                + std::to_string(stackBeginning.value()) + " and "
+                + std::to_string(stackEnd.value()));
 
-            cs.initializeStack(ps.stackBeginning.value(), ps.stackEnd.value());
+            cs.initializeStack(stackBeginning.value(), stackEnd.value());
         } else
             log("no stack was defined");
 

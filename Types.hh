@@ -99,37 +99,4 @@ namespace ParsingTypes {
     typedef word_t parsingData;
 }
 
-struct WILLBEREMOVED {
-    public:
-        std::filesystem::path filepath;
-        std::set<std::filesystem::path> parsedFilepaths;
-        std::vector<std::tuple<std::filesystem::path, ParsingTypes::line_number_t,
-            std::variant<ParsingTypes::parsingInstruction, ParsingTypes::parsingData>>> parsing;
-        std::map<std::string, std::string> definitions;
-
-        bool stackInstructionWasUsed;
-        std::optional<word_t> stackBeginning;
-        std::optional<word_t> stackEnd;
-
-        word_t memPtr;
-
-    public: WILLBEREMOVED(std::filesystem::path const&filepath) :
-        filepath{filepath},
-        parsedFilepaths{},
-        parsing{},
-        definitions{},
-
-        stackInstructionWasUsed{false},
-        stackBeginning{std::nullopt},
-        stackEnd{std::nullopt},
-
-        memPtr{0}
-    { ; }
-
-    public: bool error(ParsingTypes::line_number_t const lineNumber, std::string const&msg) {
-        std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
-                  << msg << std::endl;
-        return false; }
-};
-
 #endif
