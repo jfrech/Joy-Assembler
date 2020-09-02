@@ -18,7 +18,6 @@ class Parser {
         bool ok;
 
         Util::rng_t rng;
-        std::optional<uint32_t> oSeed;
 
         ComputationState cs;
 
@@ -35,7 +34,6 @@ class Parser {
         ok{true},
 
         rng{},
-        oSeed{std::nullopt},
 
         cs{0x10000}
     {
@@ -166,7 +164,7 @@ class Parser {
                             return error(lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
 
                         std::smatch smatch{};
-                        if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + "|" + "unif " + regexValue + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
+                        if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + "|" + "runif " + regexValue + "|" + "rperm" + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
 
                             log("smatch of size " + std::to_string(smatch.size()));
                             for (auto j = 0u; j < smatch.size(); ++j)
@@ -199,18 +197,20 @@ class Parser {
                                 return dataError("invalid data uint element size", unparsedSize);
                             log("    ~> size: " + std::to_string(oSize.value()));
 
-                            /* TODO */
                             {
                                 std::smatch smatch{};
-                                if (std::regex_match(unparsedValue, smatch, std::regex{"^unif (" + regexValue + ")$"})) {
+                                if (std::regex_match(unparsedValue, smatch, std::regex{"^runif (" + regexValue + ")$"})) {
                                     unparsedValue = std::string{smatch[1]};
                                     std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
                                     if (!oValue.has_value())
                                         return dataError("invalid data unif range value", unparsedValue);
 
-                                    if (!rng.hasBeenSeeded())
-                                        rng.seed(oSeed);
                                     for (word_t r : rng.unif(oSize.value(), oValue.value()))
+                                        pushData(r);
+                                    continue;
+                                }
+                                if (std::regex_match(unparsedValue, smatch, std::regex{"^rperm$"})) {
+                                    for (word_t r : rng.perm(oSize.value()))
                                         pushData(r);
                                     continue;
                                 }
@@ -294,6 +294,13 @@ class Parser {
 
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
         bool haltInstructionWasUsed{false};
+
+        // TODO: test
+        if (Util::std20::contains(definitions, std::string{"rngSeed"})) {
+            std::optional<word_t> oValue{Util::stringToUInt32(definitions[std::string{"rngSeed"}])};
+            if (!oValue.has_value())
+                return error(0 /* TODO */, "invalid rng seed: " + definitions[std::string{"rngSeed"}]);
+            rng.seed(oValue.value()); }
 
         word_t memPtr{0};
         for (auto const&[filepath, lineNumber, p] : parsing) {
