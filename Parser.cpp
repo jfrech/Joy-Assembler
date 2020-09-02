@@ -13,6 +13,8 @@ class Parser {
 
         ComputationState cs;
 
+        ParsingState ps; /* TODO remove */
+
     public: Parser(std::filesystem::path filepath) :
         filepaths{},
         ok{true},
@@ -20,7 +22,9 @@ class Parser {
         rng{},
         oSeed{std::nullopt},
 
-        cs{0x10000}
+        cs{0x10000},
+
+        ps{""}//TODO
     {
         filepaths.push_back(filepath);
     }
@@ -39,10 +43,10 @@ class Parser {
     public: bool parse() {
         if (filepaths.size() <= 0)
             return err("no filepath to parse");
-        ParsingState ps{filepaths.back()};
-        if (!parse1(ps))
+        ps = ParsingState{filepaths.back()};
+        if (!parse1())
             return err("parsing failed at stage one");
-        if (!parse2(ps, cs))
+        if (!parse2(cs))
             return err("parsing failed at stage two");
         return true; }
 
@@ -54,7 +58,7 @@ class Parser {
         return ok = false; }
 
 
-    private: bool parse1(ParsingState &ps) {
+    private: bool parse1() {
         if (!is_regular_file(ps.filepath))
             return ps.error(0, "not a regular file");
         if (Util::std20::contains(ps.parsedFilepaths, ps.filepath))
@@ -100,8 +104,7 @@ class Parser {
 
             log("ln " + std::to_string(lineNumber) + ": " + ln);
 
-            auto define = [&ps, lineNumber]
-                (std::string k, std::string v)
+            auto define = [&](std::string k, std::string v)
             {
                 log("defining " + k + " to be " + v);
                 if (Util::std20::contains(ps.definitions, k))
@@ -122,7 +125,7 @@ class Parser {
                     return define(std::string{smatch[1]}, std::string{smatch[2]}); }))
 
             ON_MATCH("^(" + regexIdentifier + "):$", (
-                [define, &ps](std::smatch const&smatch) {
+                [&](std::smatch const&smatch) {
                     std::string label{smatch[1]};
                     if (!define("@" + label, std::to_string(ps.memPtr)))
                         return false;
@@ -131,11 +134,11 @@ class Parser {
                     return true; }))
 
             ON_MATCH("^data ?(.+)$", (
-                [this, pushData, lineNumber, regexValue, regexString, &ps](std::smatch const&smatch) {
+                [&](std::smatch const&smatch) {
                     log("parsing `data` ...");
                     std::string commaSeparated{std::string{smatch[1]} + ","};
                     for (uint64_t elementNumber{1}; commaSeparated != ""; ++elementNumber) {
-                        auto error = [lineNumber, elementNumber, &ps](std::string const&msg, std::string const&detail) {
+                        auto error = [&](std::string const&msg, std::string const&detail) {
                             return ps.error(lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
 
                         std::smatch smatch{};
@@ -207,7 +210,7 @@ class Parser {
                     return true; }))
 
             ON_MATCH("^include ?(" + regexString + ")$", (
-                [this, lineNumber, &ps](std::smatch const&smatch) {
+                [&](std::smatch const&smatch) {
                     std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes
                         = Util::parseString(std::string{smatch[1]});
                     std::optional<std::string> oIncludeFilepath{std::nullopt};
@@ -227,7 +230,7 @@ class Parser {
 
                     log("including with memPtr = " + std::to_string(ps.memPtr));
                     /* TODO remove */ LOCALLY_CHANGE(ps.filepath, includeFilepath, (
-                        success = parse1(ps)))
+                        success = parse1()))
                     log("included with memPtr = " + std::to_string(ps.memPtr));
 
                     if (!success)
@@ -236,13 +239,13 @@ class Parser {
                     return true; }))
 
             ON_MATCH("^include.*$", (
-                [lineNumber, &ps](std::smatch const&_) {
+                [&](std::smatch const&_) {
                     (void) _;
                     return ps.error(lineNumber,
                         "improper include: either empty or missing quotes"); }))
 
             ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
-                [pushInstruction, lineNumber, &ps](std::smatch const&smatch) {
+                [&](std::smatch const&smatch) {
                     auto oName = InstructionNameRepresentationHandler
                         ::from_string(smatch[1]);
                     if (!oName.has_value())
@@ -262,7 +265,7 @@ class Parser {
         return true;
     }
 
-    private: bool parse2(ParsingState &ps, ComputationState &cs) {
+    private: bool parse2(ComputationState &cs) {
         log("@@@ parse2 @@@");
 
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
