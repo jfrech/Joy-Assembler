@@ -51,13 +51,13 @@ class ComputationState {
     public:
         ComputationStateDebug debug;
 
-    public: ComputationState(word_t const memorySize) :
-        memory{std::vector<byte_t>(memorySize, 0x00)},
-        memoryMode{MemoryMode::LittleEndian},
+    public: ComputationState(word_t const memorySize, MemoryMode const memoryMode, Util::rng_t const&rng) :
+        memory{std::vector<byte_t>(memorySize, 0x00000000)},
+        memoryMode{memoryMode},
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
         flagAZero{true}, flagANegative{false}, flagAEven{true},
 
-        rng{}, // TODO seeding
+        rng{rng},
 
         mock{false}, erroneous{false},
 

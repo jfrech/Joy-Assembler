@@ -266,29 +266,29 @@ namespace Util {
 
     class rng_t {
         private:
-            std::random_device randomDevice;
             std::mt19937 rng;
         public: rng_t() :
-            randomDevice{}, rng{randomDevice()}
+            rng{std::random_device{}()}
         { ; }
 
         public: void seed(std::optional<word_t> const&oSeed) {
             if (oSeed.has_value())
                 rng.seed(oSeed.value());
             else
-                rng.seed(randomDevice()); }
+                rng.seed(std::random_device{}()); }
 
         public: word_t unif(word_t const n) {
             std::uniform_int_distribution<word_t> unif{0, n};
             return unif(rng); }
 
         std::vector<word_t> unif(word_t const size, word_t const n) {
+            std::uniform_int_distribution<word_t> unif{0, n};
             std::vector<word_t> v{std::vector<word_t>(size)};
-            std::generate(v.begin(), v.end(), [&]() { return unif(n); });
+            std::generate(v.begin(), v.end(), [&]() { return unif(rng); });
             return v; }
 
         std::vector<word_t> perm(word_t const size) {
-            std::vector<uint32_t> v{std::vector<word_t>(size)};
+            std::vector<word_t> v{std::vector<word_t>(size)};
             std::iota(v.begin(), v.end(), 0);
             std::shuffle(v.begin(), v.end(), rng);
             return v; }

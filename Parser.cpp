@@ -15,6 +15,10 @@ class Parser {
         std::optional<word_t> stackEnd;
         word_t memPtr;
 
+        word_t pragmaMemorySize;
+        MemoryMode pragmaMemoryMode;
+        std::optional<word_t> pragmaRNGSeed;
+
         bool ok;
 
         Util::rng_t rng;
@@ -28,6 +32,10 @@ class Parser {
         stackBeginning{std::nullopt},
         stackEnd{std::nullopt},
         memPtr{0},
+
+        pragmaMemorySize{0x10000},
+        pragmaMemoryMode{MemoryMode::LittleEndian},
+        pragmaRNGSeed{std::nullopt},
 
         ok{true},
 
@@ -57,14 +65,19 @@ class Parser {
             return err("unknown commandline argument: " + arg);
         return true; }
 
-    public: std::optional<bool> parse(ComputationState &cs) {
+    public: std::optional<ComputationState> parse() {
         if (!parse1()) {
             err("parsing failed at stage one");
             return std::nullopt; }
+
+        if (pragmaRNGSeed.has_value())
+            rng.seed(pragmaRNGSeed.value());
+        ComputationState cs{pragmaMemorySize, pragmaMemoryMode, rng};
+
         if (!parse2(cs)) {
             err("parsing failed at stage two");
             return std::nullopt; }
-        return std::make_optional(true); }
+        return std::make_optional(cs); }
 
     private: bool err(std::string const&msg) {
         std::cerr << "Parser: " << msg << std::endl;
@@ -280,6 +293,39 @@ class Parser {
             #undef ON_MATCH
 
             return error(lineNumber, "incomprehensible");
+        }
+
+
+        {
+            #define PRAGMA_ACTION(PRAGMA, ACTION) \
+                if (Util::std20::contains(definitions, std::string{(PRAGMA)})) \
+                    if (!(ACTION)(definitions[std::string{(PRAGMA)}])) \
+                        return false;
+
+            PRAGMA_ACTION("pragma_memory-mode", ([&](std::string const&mm) {
+                if (mm == "little-endian") {
+                    pragmaMemoryMode = MemoryMode::LittleEndian;
+                    return true; }
+                if (mm == "big-endian") {
+                    pragmaMemoryMode = MemoryMode::BigEndian;
+                    return true; }
+                return error(0/*TODO*/, "invalid pragma_memory-mode: " + mm); }));
+
+            PRAGMA_ACTION("pragma_memory-size", ([&](std::string const&ms) {
+                std::optional<word_t> oMemorySize{Util::stringToUInt32(ms)};
+                if (!oMemorySize.has_value())
+                    return error(0/*TODO*/, "invalid pragma_memory-size: " + ms);
+                pragmaMemorySize = oMemorySize.value();
+                return true; }));
+
+            PRAGMA_ACTION("pragma_rng-seed", ([&](std::string const&rs) {
+                std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
+                if (!oRNGSeed.has_value())
+                    return error(0/*TODO*/, "invalid pragma_rng-seed: " + rs);
+                pragmaRNGSeed = std::make_optional(oRNGSeed.value());
+                return true; }));
+
+            #undef PRAGMA_ACTION
         }
 
         return true;

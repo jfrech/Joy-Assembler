@@ -15,11 +15,12 @@ int main(int const argc, char const*argv[]) {
 
     Parser parser{
         std::filesystem::current_path() / std::filesystem::path(argv[1])};
+    std::optional<ComputationState> oCS{parser.parse()};
 
-    ComputationState cs{0x10000};
-    if (!parser.parse(cs).has_value()) {
+    if (!oCS.has_value()) {
         std::cerr << "parsing failed" << std::endl;
         return EXIT_FAILURE; }
+    ComputationState cs{oCS.value()};
 
     if (argc > 2 && std::string{argv[2]} != "memory-dump")
         if (!parser.commandlineArg(cs, std::string{argv[2]})) {
