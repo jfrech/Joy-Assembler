@@ -9,7 +9,7 @@ class Parser {
         std::set<std::filesystem::path> parsedFilepaths;
         std::vector<std::tuple<std::filesystem::path, ParsingTypes::line_number_t,
             std::variant<ParsingTypes::parsingInstruction, ParsingTypes::parsingData>>> parsing;
-        std::map<std::string, std::string> definitions;
+        std::map<std::string, std::tuple<ParsingTypes::line_number_t, std::string>> definitions;
         bool stackInstructionWasUsed;
         std::optional<word_t> stackBeginning;
         std::optional<word_t> stackEnd;
@@ -140,7 +140,7 @@ class Parser {
                 log("defining " + k + " to be " + v);
                 if (Util::std20::contains(definitions, k))
                     return error(lineNumber, "duplicate definition: " + k);
-                definitions[k] = v;
+                definitions[k] = std::make_tuple(lineNumber, v);
                 return true;
             };
 
@@ -298,30 +298,31 @@ class Parser {
 
         {
             #define PRAGMA_ACTION(PRAGMA, ACTION) \
-                if (Util::std20::contains(definitions, std::string{(PRAGMA)})) \
-                    if (!(ACTION)(definitions[std::string{(PRAGMA)}])) \
-                        return false;
+                if (Util::std20::contains(definitions, std::string{(PRAGMA)})) { \
+                    auto [lineNumber, definition] = definitions[std::string{(PRAGMA)}]; \
+                    if (!(ACTION)(lineNumber, definition)) \
+                        return false; }
 
-            PRAGMA_ACTION("pragma_memory-mode", ([&](std::string const&mm) {
+            PRAGMA_ACTION("pragma_memory-mode", ([&](ParsingTypes::line_number_t lineNumber, std::string const&mm) {
                 if (mm == "little-endian") {
                     pragmaMemoryMode = MemoryMode::LittleEndian;
                     return true; }
                 if (mm == "big-endian") {
                     pragmaMemoryMode = MemoryMode::BigEndian;
                     return true; }
-                return error(0/*TODO*/, "invalid pragma_memory-mode: " + mm); }));
+                return error(lineNumber, "invalid pragma_memory-mode: " + mm); }));
 
-            PRAGMA_ACTION("pragma_memory-size", ([&](std::string const&ms) {
+            PRAGMA_ACTION("pragma_memory-size", ([&](ParsingTypes::line_number_t lineNumber, std::string const&ms) {
                 std::optional<word_t> oMemorySize{Util::stringToUInt32(ms)};
                 if (!oMemorySize.has_value())
-                    return error(0/*TODO*/, "invalid pragma_memory-size: " + ms);
+                    return error(lineNumber, "invalid pragma_memory-size: " + ms);
                 pragmaMemorySize = oMemorySize.value();
                 return true; }));
 
-            PRAGMA_ACTION("pragma_rng-seed", ([&](std::string const&rs) {
+            PRAGMA_ACTION("pragma_rng-seed", ([&](ParsingTypes::line_number_t lineNumber, std::string const&rs) {
                 std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
                 if (!oRNGSeed.has_value())
-                    return error(0/*TODO*/, "invalid pragma_rng-seed: " + rs);
+                    return error(lineNumber, "invalid pragma_rng-seed: " + rs);
                 pragmaRNGSeed = std::make_optional(oRNGSeed.value());
                 return true; }));
 
@@ -336,13 +337,6 @@ class Parser {
 
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
         bool haltInstructionWasUsed{false};
-
-        // TODO: test
-        if (Util::std20::contains(definitions, std::string{"rngSeed"})) {
-            std::optional<word_t> oValue{Util::stringToUInt32(definitions[std::string{"rngSeed"}])};
-            if (!oValue.has_value())
-                return error(0 /* TODO */, "invalid rng seed: " + definitions[std::string{"rngSeed"}]);
-            rng.seed(oValue.value()); }
 
         word_t memPtr{0};
         for (auto const&[filepath, lineNumber, p] : parsing) {
@@ -364,8 +358,9 @@ class Parser {
                 auto oArg = std::get<1>(instruction);
                 std::optional<word_t> oValue{std::nullopt};
                 if (oArg.has_value()) {
-                    if (Util::std20::contains(definitions, oArg.value()))
-                        oArg = std::make_optional(definitions.at(oArg.value()));
+                    if (Util::std20::contains(definitions, oArg.value())) {
+                        auto [_, definition] = definitions[oArg.value()];
+                        oArg = std::make_optional(definition); }
 
                     if (oArg.value() == "")
                         return error(lineNumber, "no instruction argument");
