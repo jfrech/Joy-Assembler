@@ -295,7 +295,10 @@ class Parser {
             return error(lineNumber, "incomprehensible");
         }
 
+        return true;
+    }
 
+    private: bool parse2(ComputationState &cs) {
         {
             #define PRAGMA_ACTION(PRAGMA, ACTION) \
                 if (Util::std20::contains(definitions, std::string{(PRAGMA)})) { \
@@ -329,10 +332,6 @@ class Parser {
             #undef PRAGMA_ACTION
         }
 
-        return true;
-    }
-
-    private: bool parse2(ComputationState &cs) {
         log("@@@ parse2 @@@");
 
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
