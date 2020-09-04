@@ -66,26 +66,26 @@ class Parser {
         return true; }
 
     public: std::optional<ComputationState> parse() {
-        if (!parse1()) {
-            err("parsing failed at stage one");
-            return std::nullopt; }
+        if (!parseFiles())
+            return std::nullopt;
 
-        if (pragmaRNGSeed.has_value())
-            rng.seed(pragmaRNGSeed.value());
+        if (!pragmas())
+            return std::nullopt;
+
         ComputationState cs{pragmaMemorySize, pragmaMemoryMode, rng};
 
-        if (!parse2(cs)) {
-            err("parsing failed at stage two");
-            return std::nullopt; }
+        if (!parseAssemble(cs))
+            return std::nullopt;
+
         return std::make_optional(cs); }
 
     private: bool err(std::string const&msg) {
         std::cerr << "Parser: " << msg << std::endl;
         return ok = false; }
 
-    private: bool parse1() {
+    private: bool parseFiles() {
         if (filepaths.size() <= 0)
-            return err("parse1: no filepath to parse");
+            return err("parseFiles: no filepath to parse");
 
         std::filesystem::path filepath{filepaths[0]};
         filepaths.pop_back();
@@ -263,7 +263,7 @@ class Parser {
 
                     log("including with memPtr = " + std::to_string(memPtr));
                     filepaths.push_back(includeFilepath);
-                    success = parse1();
+                    success = parseFiles();
                     log("included with memPtr = " + std::to_string(memPtr));
 
                     if (!success)
@@ -298,41 +298,46 @@ class Parser {
         return true;
     }
 
-    private: bool parse2(ComputationState &cs) {
-        {
-            #define PRAGMA_ACTION(PRAGMA, ACTION) \
-                if (Util::std20::contains(definitions, std::string{(PRAGMA)})) { \
-                    auto [lineNumber, definition] = definitions[std::string{(PRAGMA)}]; \
-                    if (!(ACTION)(lineNumber, definition)) \
-                        return false; }
+    private: bool pragmas() {
+        #define PRAGMA_ACTION(PRAGMA, ACTION) \
+            if (Util::std20::contains(definitions, std::string{(PRAGMA)})) { \
+                auto [lineNumber, definition] = definitions[std::string{(PRAGMA)}]; \
+                if (!(ACTION)(lineNumber, definition)) \
+                    return false; }
 
-            PRAGMA_ACTION("pragma_memory-mode", ([&](ParsingTypes::line_number_t lineNumber, std::string const&mm) {
-                if (mm == "little-endian") {
-                    pragmaMemoryMode = MemoryMode::LittleEndian;
-                    return true; }
-                if (mm == "big-endian") {
-                    pragmaMemoryMode = MemoryMode::BigEndian;
-                    return true; }
-                return error(lineNumber, "invalid pragma_memory-mode: " + mm); }));
+        PRAGMA_ACTION("pragma_memory-mode", ([&](ParsingTypes::line_number_t lineNumber, std::string const&mm) {
+            if (mm == "little-endian") {
+                pragmaMemoryMode = MemoryMode::LittleEndian;
+                return true; }
+            if (mm == "big-endian") {
+                pragmaMemoryMode = MemoryMode::BigEndian;
+                return true; }
+            return error(lineNumber, "invalid pragma_memory-mode: " + mm); }));
 
-            PRAGMA_ACTION("pragma_memory-size", ([&](ParsingTypes::line_number_t lineNumber, std::string const&ms) {
-                std::optional<word_t> oMemorySize{Util::stringToUInt32(ms)};
-                if (!oMemorySize.has_value())
-                    return error(lineNumber, "invalid pragma_memory-size: " + ms);
-                pragmaMemorySize = oMemorySize.value();
-                return true; }));
+        PRAGMA_ACTION("pragma_memory-size", ([&](ParsingTypes::line_number_t lineNumber, std::string const&ms) {
+            std::optional<word_t> oMemorySize{Util::stringToUInt32(ms)};
+            if (!oMemorySize.has_value())
+                return error(lineNumber, "invalid pragma_memory-size: " + ms);
+            pragmaMemorySize = oMemorySize.value();
+            return true; }));
 
-            PRAGMA_ACTION("pragma_rng-seed", ([&](ParsingTypes::line_number_t lineNumber, std::string const&rs) {
-                std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
-                if (!oRNGSeed.has_value())
-                    return error(lineNumber, "invalid pragma_rng-seed: " + rs);
-                pragmaRNGSeed = std::make_optional(oRNGSeed.value());
-                return true; }));
+        PRAGMA_ACTION("pragma_rng-seed", ([&](ParsingTypes::line_number_t lineNumber, std::string const&rs) {
+            std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
+            if (!oRNGSeed.has_value())
+                return error(lineNumber, "invalid pragma_rng-seed: " + rs);
+            pragmaRNGSeed = std::make_optional(oRNGSeed.value());
+            return true; }));
 
-            #undef PRAGMA_ACTION
-        }
+        #undef PRAGMA_ACTION
 
-        log("@@@ parse2 @@@");
+        if (pragmaRNGSeed.has_value())
+            rng.seed(pragmaRNGSeed.value());
+
+        return true;
+    }
+
+    private: bool parseAssemble(ComputationState &cs) {
+        log("@@@ parseAssemble @@@");
 
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
         bool haltInstructionWasUsed{false};
