@@ -4,7 +4,7 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-04T08:11:12Z)
+**Build: 🟩 passing** (2020-09-05T18:40:57Z)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
@@ -157,9 +157,9 @@ An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `
 | `ptb`             | none                   | "**p**u**t** **b**its"              | Output the bits of register `A` to `stdout`.                                                                                                                        |
 | `ptc`             | none                   | "**p**u**t** **u**nsigned"          | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`.                                                                                      |
 | **rnd**           |                        |                                     |                                                                                                                                                                     |
-| `rnd`             | none                   | "pseudo-**r**a**nd**om number"      | Call the value in register `A` `r`. Replace the value in register `A` with a uniformly distributed peudo-random number in the range `[0..r]` (both ends inclusive). |
+| `rnd`             | none                   | "pseudo-**r**a**nd**om number"      | Call the value in register `A` `r`. Set `A` to a discretely uniformly distributed pseudo-random number in the range `[0..r]` (inclusive on both ends).              |
 | **hlt**           |                        |                                     |                                                                                                                                                                     |
 | `hlt`             | none                   | "**h**a**lt**"                      | Halt the machine.                                                                                                                                                   |
 
 # Example Programs
-Example Joy Assembler programs can be found in the `asm-stdlib` directory. Automatic tests can be performed by using `make test`, testing programs in `test/programs`.
+Automatic tests can be performed by using `make test`, which tests programs in `test/programs`.

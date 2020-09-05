@@ -88,7 +88,6 @@ class Parser {
             return err("parseFiles: no filepath to parse");
 
         std::filesystem::path filepath{filepaths[0]};
-        filepaths.pop_back();
 
         if (!is_regular_file(filepath))
             return error(0, "not a regular file");
@@ -295,6 +294,7 @@ class Parser {
             return error(lineNumber, "incomprehensible");
         }
 
+        filepaths.pop_back();
         return true;
     }
 

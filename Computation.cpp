@@ -412,17 +412,18 @@ class ComputationState {
     private: word_t loadMemory4(word_t const m) {
         byte_t b3, b2, b1, b0;
         switch (memoryMode) {
-            case MemoryMode::LittleEndian:
-                b3 = loadMemory(m+3);
-                b2 = loadMemory(m+2);
-                b1 = loadMemory(m+1);
-                b0 = loadMemory(m+0);
-                break;
             case MemoryMode::BigEndian:
                 b3 = loadMemory(m+0);
                 b2 = loadMemory(m+1);
                 b1 = loadMemory(m+2);
                 b0 = loadMemory(m+3);
+                break;
+
+            default: case MemoryMode::LittleEndian:
+                b3 = loadMemory(m+3);
+                b2 = loadMemory(m+2);
+                b1 = loadMemory(m+1);
+                b0 = loadMemory(m+0);
                 break;
         }
         return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;

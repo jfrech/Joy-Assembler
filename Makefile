@@ -1,8 +1,11 @@
+CPPC = g++
+CPPFLAGS = -std=c++17 -Wall -Wpedantic -Wextra -Werror -O3
+
 JoyAssembler: JoyAssembler.cpp Types.hh Util.cpp UTF8.cpp Parser.cpp Computation.cpp Log.cpp UnitTests.cpp
 	make unit-tests
 	
 	./set-build-status.sh failing
-	g++ -std=c++17 -Wall -Wpedantic -Wextra -Werror JoyAssembler.cpp -o JoyAssembler
+	$(CPPC) $(CPPFLAGS) JoyAssembler.cpp -o JoyAssembler
 	./set-build-status.sh passing
 
 
