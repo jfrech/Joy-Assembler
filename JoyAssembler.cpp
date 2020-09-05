@@ -20,7 +20,7 @@ int main(int const argc, char const*argv[]) {
     if (!oCS.has_value()) {
         std::cerr << "parsing failed" << std::endl;
         return EXIT_FAILURE; }
-    ComputationState cs{oCS.value()};
+    ComputationState cs{std::move(oCS.value())};
 
     if (argc > 2 && std::string{argv[2]} != "memory-dump")
         if (!parser.commandlineArg(cs, std::string{argv[2]})) {

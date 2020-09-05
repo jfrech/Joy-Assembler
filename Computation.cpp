@@ -65,6 +65,16 @@ class ComputationState {
     {
         updateFlags(); }
 
+    private: ComputationState(ComputationState const&) = delete;
+
+    public: ComputationState(ComputationState &&cs) :
+        #define C(FIELD) FIELD{cs.FIELD}
+        C(memory), C(memoryMode), C(registerA), C(registerB), C(registerPC),
+        C(registerSC), C(flagAZero), C(flagANegative), C(flagAEven), C(rng),
+        C(mock), C(erroneous), C(debug)
+        #undef C
+    { ; }
+
     public: void visualize() {
         visualize(true); }
 

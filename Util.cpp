@@ -271,11 +271,8 @@ namespace Util {
             rng{std::random_device{}()}
         { ; }
 
-        public: void seed(std::optional<word_t> const&oSeed) {
-            if (oSeed.has_value())
-                rng.seed(oSeed.value());
-            else
-                rng.seed(std::random_device{}()); }
+        public: void seed(word_t const seed) {
+            rng.seed(seed); }
 
         public: word_t unif(word_t const n) {
             std::uniform_int_distribution<word_t> unif{0, n};

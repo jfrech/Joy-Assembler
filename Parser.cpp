@@ -72,12 +72,12 @@ class Parser {
         if (!pragmas())
             return std::nullopt;
 
-        ComputationState cs{pragmaMemorySize, pragmaMemoryMode, rng};
+        std::optional<ComputationState> oCS{std::in_place, pragmaMemorySize, pragmaMemoryMode, rng};
 
-        if (!parseAssemble(cs))
+        if (!parseAssemble(oCS.value()))
             return std::nullopt;
 
-        return std::make_optional(cs); }
+        return oCS; }
 
     private: bool err(std::string const&msg) {
         std::cerr << "Parser: " << msg << std::endl;
@@ -103,13 +103,9 @@ class Parser {
         std::string const&regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
         std::string const&regexString{"\"([^\"]|\\\")*?\""};
 
-        for (
-            auto [lineNumber, ln]
-                = std::make_tuple<ParsingTypes::line_number_t, std::string>(1, "");
-            std::getline(is, ln);
-            ++lineNumber
-        ) {
-
+        ParsingTypes::line_number_t lineNumber{1};
+        std::string ln{};
+        for (; std::getline(is, ln); ++lineNumber) {
             auto pushData = [&](uint32_t const data) {
                 log("pushing data: " + Util::UInt32AsPaddedHex(data));
                 parsing.push_back(std::make_tuple(filepath, lineNumber,
