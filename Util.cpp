@@ -176,8 +176,8 @@ namespace Util {
     }
 
     std::string UInt32AsPaddedHex(uint32_t const n) {
-        char buf[11];
-        std::snprintf(buf, 11, "0x%08x", n);
+        char buf[9];
+        std::snprintf(buf, 9, "%08x", n);
         return std::string{buf}; }
 
     std::string UInt8AsPaddedHex(uint8_t const n) {

@@ -36,7 +36,7 @@ namespace InstructionNameRepresentationHandler {
 namespace InstructionRepresentationHandler {
     std::string to_string(Instruction const instruction) {
         return InstructionNameRepresentationHandler::to_string(instruction.name)
-               + " " + Util::UInt32AsPaddedHex(instruction.argument); }
+               + " 0x" + Util::UInt32AsPaddedHex(instruction.argument); }
 }
 
 class ComputationState {
@@ -125,11 +125,11 @@ class ComputationState {
             opCodeName = InstructionNameRepresentationHandler
                          ::to_string(oInstructionName.value());
         word_t argument{loadMemory4(registerPC+1)};
-        std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) + "\n");
+        std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, "0x" + Util::UInt32AsPaddedHex(argument)) + "\n");
 
         //std::cout << "    Current instruction: ";
-        std::cout << ("    Registers:    " + std::string{"A:  "} + paintRegister(Util::UInt32AsPaddedHex(registerA)) + ", B:  " + paintRegister(Util::UInt32AsPaddedHex(registerB)) + "\n");
-        std::cout << ("                  " + std::string{"PC: "} + paintRegister(Util::UInt32AsPaddedHex(registerPC)) + ", SC: " + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
+        std::cout << ("    Registers:    " + std::string{"A:  0x"} + paintRegister(Util::UInt32AsPaddedHex(registerA)) + ", B:  0x" + paintRegister(Util::UInt32AsPaddedHex(registerB)) + "\n");
+        std::cout << ("                  " + std::string{"PC: 0x"} + paintRegister(Util::UInt32AsPaddedHex(registerPC)) + ", SC: 0x" + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
 
         std::printf("=== FLAGS ===\n");
         std::printf("    flagAZero: %d,    flagANegative: %d,\n    "
@@ -151,10 +151,10 @@ class ComputationState {
         mock = true;
 
         std::string dump{""};
-        dump += "A: " + Util::UInt32AsPaddedHex(registerA);
-        dump += ", B: " + Util::UInt32AsPaddedHex(registerB);
-        dump += ", PC: " + Util::UInt32AsPaddedHex(registerPC);
-        dump += ", SC: " + Util::UInt32AsPaddedHex(registerSC);
+        dump += "A: 0x" + Util::UInt32AsPaddedHex(registerA);
+        dump += ", B: 0x" + Util::UInt32AsPaddedHex(registerB);
+        dump += ", PC: 0x" + Util::UInt32AsPaddedHex(registerPC);
+        dump += ", SC: 0x" + Util::UInt32AsPaddedHex(registerSC);
         dump += "; memory (" + std::to_string(memory.size()) + "B):";
         word_t mx = memory.size();
         while (--mx != 0 && memory[mx] == 0)

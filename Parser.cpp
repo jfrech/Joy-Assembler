@@ -112,7 +112,7 @@ class Parser {
         std::string ln{};
         for (; std::getline(is, ln); ++lineNumber) {
             auto pushData = [&](uint32_t const data) {
-                log("pushing data: " + Util::UInt32AsPaddedHex(data));
+                log("pushing data: 0x" + Util::UInt32AsPaddedHex(data));
                 parsing.push_back(std::make_tuple(filepath, lineNumber,
                     parsingData{data}));
                 memPtr += 4;
@@ -347,7 +347,7 @@ class Parser {
         for (auto const&[filepath, lineNumber, p] : parsing) {
             if (std::holds_alternative<parsingData>(p)) {
                 word_t data{std::get<parsingData>(p)};
-                log("data value " + Util::UInt32AsPaddedHex(data));
+                log("data value 0x" + Util::UInt32AsPaddedHex(data));
                 memPtr += cs.storeData(memPtr, data);
 
                 if (!memPtrGTStackBeginningAndNonDataOccurred)
