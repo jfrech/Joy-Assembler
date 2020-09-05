@@ -85,14 +85,17 @@ class ComputationState {
 
         std::printf("\n\n\n");
 
-        std::printf("\n=== MEMORY ===\n");
+        auto paintFaint = Util::ANSI_COLORS::paintFactory(Util::ANSI_COLORS::FAINT);
+        auto paintRegister = Util::ANSI_COLORS::paintFactory(Util::ANSI_COLORS::REGISTER);
+
+        std::cout << "    ====================- MEMORY -=====================\n";
         word_t pc = 0, rPC = registerPC;
         std::size_t w = 16;
         std::printf("       ");
         for (std::size_t x = 0; x < w; ++x)
-            std::printf("_%01X ", (int) x);
+            std::cout << (paintFaint("_" + Util::UNibbleAsPaddedHex(x & 0xf) + " "));
         for (std::size_t y = 0; true; ++y) {
-            std::printf("\n    %02X_", (int) y);
+            std::cout << ("\n    " + paintFaint(Util::UInt8AsPaddedHex(y & 0xff) + "_"));
             for (std::size_t x = 0; x < w; ++x) {
                 word_t m = y *w+ x;
                 if (registerSC <= pc+4 && pc+4 < registerSC + 4)
@@ -112,8 +115,8 @@ class ComputationState {
                 break;
         }
         std::printf("\n");
+        std::cout << "    Current instruction: ";
 
-        std::printf("=== CURRENT INSTRUCTION ===\n");
         byte_t opCode = loadMemory(registerPC);
         std::string opCodeName = "(err. NOP)";
         auto oInstructionName = InstructionNameRepresentationHandler
@@ -122,12 +125,11 @@ class ComputationState {
             opCodeName = InstructionNameRepresentationHandler
                          ::to_string(oInstructionName.value());
         word_t argument{loadMemory4(registerPC+1)};
-        std::cout << "    " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) << " " << Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) << "\n";
+        std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, Util::UInt32AsPaddedHex(argument)) + "\n");
 
-        std::printf("=== REGISTERS ===\n");
-        std::printf("    A:  0x%08x,    B:  0x%08x,\n    PC: 0x%08x,"
-                    "    SC: 0x%08x\n"
-                   , registerA, registerB, registerPC, registerSC);
+        //std::cout << "    Current instruction: ";
+        std::cout << ("    Registers:    " + std::string{"A:  "} + paintRegister(Util::UInt32AsPaddedHex(registerA)) + ", B:  " + paintRegister(Util::UInt32AsPaddedHex(registerB)) + "\n");
+        std::cout << ("                  " + std::string{"PC: "} + paintRegister(Util::UInt32AsPaddedHex(registerPC)) + ", SC: " + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
 
         std::printf("=== FLAGS ===\n");
         std::printf("    flagAZero: %d,    flagANegative: %d,\n    "

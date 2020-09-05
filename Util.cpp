@@ -35,9 +35,14 @@ namespace Util {
         std::string const&STACK = "\33[38;5;127m";
         std::string const&STACK_FAINT = "\33[38;5;53m";
         std::string const&MEMORY_LOCATION_USED = "\33[1m";
+        std::string const&FAINT = "\33[2m";
+        std::string const&REGISTER = "\33[38;5;198m";
 
         std::string paint(std::string const&ansi, std::string const&text) {
             return ansi + text + CLEAR; }
+
+        auto paintFactory(std::string const&ansi) {
+            return [&ansi](std::string const&text) { return paint(ansi, text); }; }
     }
 
     namespace IO {
@@ -178,6 +183,11 @@ namespace Util {
     std::string UInt8AsPaddedHex(uint8_t const n) {
         char buf[3];
         std::snprintf(buf, 3, "%02X", n);
+        return std::string{buf}; }
+
+    std::string UNibbleAsPaddedHex(uint8_t const n) {
+        char buf[2];
+        std::snprintf(buf, 2, "%01X", n & 0xf);
         return std::string{buf}; }
 
     std::string stringToUpper(std::string const&_str) {
