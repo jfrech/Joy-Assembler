@@ -83,12 +83,10 @@ class ComputationState {
         if (!debug.doVisualizeSteps)
             return;
 
-        std::printf("\n\n\n");
-
         auto paintFaint = Util::ANSI_COLORS::paintFactory(Util::ANSI_COLORS::FAINT);
         auto paintRegister = Util::ANSI_COLORS::paintFactory(Util::ANSI_COLORS::REGISTER);
 
-        std::cout << "    ====================- MEMORY -=====================\n";
+        std::cout << "\n    ====================- MEMORY -=====================\n";
         word_t pc = 0, rPC = registerPC;
         std::size_t w = 16;
         std::printf("       ");
@@ -114,8 +112,7 @@ class ComputationState {
             if ((y+1)*w >= 0x100 && debug.highestUsedMemoryLocation+1 < (y+1)*w)
                 break;
         }
-        std::printf("\n");
-        std::cout << "    Current instruction: ";
+        std::cout << "\n    Current instruction: ";
 
         byte_t opCode = loadMemory(registerPC);
         std::string opCodeName = "(err. NOP)";
@@ -128,23 +125,17 @@ class ComputationState {
         std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, "0x" + Util::UInt32AsPaddedHex(argument)) + "\n");
 
         //std::cout << "    Current instruction: ";
-        std::cout << ("    Registers:    " + std::string{"A:  0x"} + paintRegister(Util::UInt32AsPaddedHex(registerA)) + ", B:  0x" + paintRegister(Util::UInt32AsPaddedHex(registerB)) + "\n");
-        std::cout << ("                  " + std::string{"PC: 0x"} + paintRegister(Util::UInt32AsPaddedHex(registerPC)) + ", SC: 0x" + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
+        std::cout << ("    Registers:    " + std::string{"A:  0x"} + paintRegister(Util::UInt32AsPaddedHex(registerA))  + ",     B:  0x" + paintRegister(Util::UInt32AsPaddedHex(registerB))  + "\n");
+        std::cout << ("                  " + std::string{"PC: 0x"} + paintRegister(Util::UInt32AsPaddedHex(registerPC)) + ",     SC: 0x" + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
+        std::cout << ("    Flags (A zero, A negative, A even): " + paintRegister(Util::UBitAsPaddedHex(flagAZero)) + paintRegister(Util::UBitAsPaddedHex(flagANegative)) + paintRegister(Util::UBitAsPaddedHex(flagAEven)) + "\n");
 
-        std::printf("=== FLAGS ===\n");
-        std::printf("    flagAZero: %d,    flagANegative: %d,\n    "
-                    "flagAEven: %d\n", flagAZero, flagANegative
-                   , flagAEven);
-
-        std::cout << "\n";
-        printExecutionCycles();
+        std::cout << ("    % ");
 
         if (blockAllowed) {
             if (debug.doWaitForUser)
                 UTF8IO::getRune();
             else if (debug.doVisualizeSteps)
-                Util::IO::wait();
-        }
+                Util::IO::wait(); }
     }
 
     public: void memoryDump() {
@@ -347,6 +338,7 @@ class ComputationState {
     }
 
     public: void finalCycles() const {
+        std::cout << "\n";
         if (debug.doShowFinalCycles)
             printExecutionCycles(); }
 
@@ -422,7 +414,7 @@ class ComputationState {
         memory[m] = b; }
 
     private: word_t loadMemory4(word_t const m) {
-        byte_t b3, b2, b1, b0;
+        byte_t b3{0}, b2{0}, b1{0}, b0{0};
         switch (memoryMode) {
             case MemoryMode::BigEndian:
                 b3 = loadMemory(m+0);
@@ -430,8 +422,7 @@ class ComputationState {
                 b1 = loadMemory(m+2);
                 b0 = loadMemory(m+3);
                 break;
-
-            default: case MemoryMode::LittleEndian:
+            case MemoryMode::LittleEndian:
                 b3 = loadMemory(m+3);
                 b2 = loadMemory(m+2);
                 b1 = loadMemory(m+1);

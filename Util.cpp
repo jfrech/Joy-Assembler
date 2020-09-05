@@ -190,6 +190,11 @@ namespace Util {
         std::snprintf(buf, 2, "%01X", n & 0xf);
         return std::string{buf}; }
 
+    std::string UBitAsPaddedHex(uint8_t const n) {
+        char buf[2];
+        std::snprintf(buf, 2, "%01X", n & 0x1);
+        return std::string{buf}; }
+
     std::string stringToUpper(std::string const&_str) {
         std::string str{_str};
         for (auto &c : str)
