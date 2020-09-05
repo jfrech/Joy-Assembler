@@ -94,11 +94,4 @@ struct ComputationStateDebug {
     { ; }
 };
 
-namespace ParsingTypes {
-    typedef uint64_t line_number_t;
-    typedef std::tuple<InstructionName, std::optional<std::string>>
-        parsingInstruction;
-    typedef word_t parsingData;
-}
-
 #endif

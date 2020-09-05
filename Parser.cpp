@@ -5,11 +5,16 @@
 
 class Parser {
     private:
+        typedef uint64_t line_number_t;
+        typedef std::tuple<InstructionName, std::optional<std::string>> parsingInstruction;
+        typedef word_t parsingData;
+
+    private:
         std::vector<std::filesystem::path> filepaths;
         std::set<std::filesystem::path> parsedFilepaths;
-        std::vector<std::tuple<std::filesystem::path, ParsingTypes::line_number_t,
-            std::variant<ParsingTypes::parsingInstruction, ParsingTypes::parsingData>>> parsing;
-        std::map<std::string, std::tuple<ParsingTypes::line_number_t, std::string>> definitions;
+        std::vector<std::tuple<std::filesystem::path, line_number_t,
+            std::variant<parsingInstruction, parsingData>>> parsing;
+        std::map<std::string, std::tuple<line_number_t, std::string>> definitions;
         bool stackInstructionWasUsed;
         std::optional<word_t> stackBeginning;
         std::optional<word_t> stackEnd;
@@ -44,7 +49,7 @@ class Parser {
         filepaths.push_back(filepath);
     }
 
-    public: bool error(ParsingTypes::line_number_t const lineNumber, std::string const&msg) {
+    public: bool error(line_number_t const lineNumber, std::string const&msg) {
         if (filepaths.size() <= 0)
             std::cerr << msg << std::endl;
         else
@@ -103,20 +108,20 @@ class Parser {
         std::string const&regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
         std::string const&regexString{"\"([^\"]|\\\")*?\""};
 
-        ParsingTypes::line_number_t lineNumber{1};
+        line_number_t lineNumber{1};
         std::string ln{};
         for (; std::getline(is, ln); ++lineNumber) {
             auto pushData = [&](uint32_t const data) {
                 log("pushing data: " + Util::UInt32AsPaddedHex(data));
                 parsing.push_back(std::make_tuple(filepath, lineNumber,
-                    ParsingTypes::parsingData{data}));
+                    parsingData{data}));
                 memPtr += 4;
             };
 
             auto pushInstruction = [&](InstructionName const&name, std::optional<std::string> const&oArg) {
                 log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or(" (no arg.)"));
                 parsing.push_back(std::make_tuple(filepath, lineNumber,
-                    ParsingTypes::parsingInstruction{std::make_tuple(name, oArg)}));
+                    parsingInstruction{std::make_tuple(name, oArg)}));
                 memPtr += 5;
             };
 
@@ -301,7 +306,7 @@ class Parser {
                 if (!(ACTION)(lineNumber, definition)) \
                     return false; }
 
-        PRAGMA_ACTION("pragma_memory-mode", ([&](ParsingTypes::line_number_t lineNumber, std::string const&mm) {
+        PRAGMA_ACTION("pragma_memory-mode", ([&](line_number_t lineNumber, std::string const&mm) {
             if (mm == "little-endian") {
                 pragmaMemoryMode = MemoryMode::LittleEndian;
                 return true; }
@@ -310,14 +315,14 @@ class Parser {
                 return true; }
             return error(lineNumber, "invalid pragma_memory-mode: " + mm); }));
 
-        PRAGMA_ACTION("pragma_memory-size", ([&](ParsingTypes::line_number_t lineNumber, std::string const&ms) {
+        PRAGMA_ACTION("pragma_memory-size", ([&](line_number_t lineNumber, std::string const&ms) {
             std::optional<word_t> oMemorySize{Util::stringToUInt32(ms)};
             if (!oMemorySize.has_value())
                 return error(lineNumber, "invalid pragma_memory-size: " + ms);
             pragmaMemorySize = oMemorySize.value();
             return true; }));
 
-        PRAGMA_ACTION("pragma_rng-seed", ([&](ParsingTypes::line_number_t lineNumber, std::string const&rs) {
+        PRAGMA_ACTION("pragma_rng-seed", ([&](line_number_t lineNumber, std::string const&rs) {
             std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
             if (!oRNGSeed.has_value())
                 return error(lineNumber, "invalid pragma_rng-seed: " + rs);
@@ -340,20 +345,20 @@ class Parser {
 
         word_t memPtr{0};
         for (auto const&[filepath, lineNumber, p] : parsing) {
-            if (std::holds_alternative<ParsingTypes::parsingData>(p)) {
-                word_t data{std::get<ParsingTypes::parsingData>(p)};
+            if (std::holds_alternative<parsingData>(p)) {
+                word_t data{std::get<parsingData>(p)};
                 log("data value " + Util::UInt32AsPaddedHex(data));
                 memPtr += cs.storeData(memPtr, data);
 
                 if (!memPtrGTStackBeginningAndNonDataOccurred)
                     stackEnd = std::make_optional(memPtr);
             }
-            else if (std::holds_alternative<ParsingTypes::parsingInstruction>(p)) {
+            else if (std::holds_alternative<parsingInstruction>(p)) {
                 if (memPtr > stackBeginning)
                     memPtrGTStackBeginningAndNonDataOccurred = true;
 
-                ParsingTypes::parsingInstruction instruction{
-                    std::get<ParsingTypes::parsingInstruction>(p)};
+                parsingInstruction instruction{
+                    std::get<parsingInstruction>(p)};
                 InstructionName name = std::get<0>(instruction);
                 auto oArg = std::get<1>(instruction);
                 std::optional<word_t> oValue{std::nullopt};
