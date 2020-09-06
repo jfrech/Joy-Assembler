@@ -5,6 +5,7 @@
 #define UTF8_CPP
 
 #include <iostream>
+#include <optional>
 #include <tuple>
 #include <vector>
 

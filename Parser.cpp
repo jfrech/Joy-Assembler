@@ -1,7 +1,7 @@
 #ifndef JOY_ASSEMBLER__PARSE_CPP
 #define JOY_ASSEMBLER__PARSE_CPP
 
-#include "Types.hh"
+#include "All.hh"
 
 class Parser {
     private:

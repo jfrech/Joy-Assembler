@@ -1,12 +1,7 @@
 /* Jonathan Frech, August 2020 */
 /* A minimalistic toy assembler written in C++17. */
 
-#include "Types.hh"
-#include "Log.cpp"
-
-#include "Util.cpp"
-#include "Computation.cpp"
-#include "Parser.cpp"
+#include "All.hh"
 
 int main(int const argc, char const*argv[]) {
     if (argc < 2) {

@@ -2,8 +2,7 @@
 #include <tuple>
 #include <vector>
 
-#include "Util.cpp"
-#include "UTF8.cpp"
+#include "All.hh"
 
 bool unitTest_LevenshteinDistance() {
     auto test = [](std::string s, std::string t, uint64_t d) {

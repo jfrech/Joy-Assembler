@@ -5,6 +5,11 @@
 #include <random>
 #include <thread>
 
+#include <iostream>
+#include <optional>
+#include <map>
+#include <set>
+
 #include "Types.hh"
 #include "UTF8.cpp"
 

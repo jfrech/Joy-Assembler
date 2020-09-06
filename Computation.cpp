@@ -1,7 +1,7 @@
 #ifndef JOY_ASSEMBLER__COMPUTATION_CPP
 #define JOY_ASSEMBLER__COMPUTATION_CPP
 
-#include "Types.hh"
+#include "All.hh"
 
 namespace InstructionNameRepresentationHandler {
     std::optional<InstructionName> fromByteCode(byte_t const opCode) {
