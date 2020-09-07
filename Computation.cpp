@@ -1,7 +1,7 @@
 #ifndef JOY_ASSEMBLER__COMPUTATION_CPP
 #define JOY_ASSEMBLER__COMPUTATION_CPP
 
-#include "All.hh"
+#include "Includes.hh"
 
 namespace InstructionNameRepresentationHandler {
     std::optional<InstructionName> fromByteCode(byte_t const opCode) {
@@ -65,15 +65,11 @@ class ComputationState {
     {
         updateFlags(); }
 
-    private: ComputationState(ComputationState const&) = delete;
-
-    public: ComputationState(ComputationState &&cs) :
-        #define C(FIELD) FIELD{cs.FIELD}
-        C(memory), C(memoryMode), C(registerA), C(registerB), C(registerPC),
-        C(registerSC), C(flagAZero), C(flagANegative), C(flagAEven), C(rng),
-        C(mock), C(erroneous), C(debug)
-        #undef C
-    { ; }
+    /* since ComputationState::memory may be rather large, all copy
+       constructors are deleted and the default move constructor is used */
+    public: ComputationState(ComputationState &)      = delete;
+    public: ComputationState(ComputationState const&) = delete;
+    public: ComputationState(ComputationState &&)     = default;
 
     public: void visualize() {
         visualize(true); }
