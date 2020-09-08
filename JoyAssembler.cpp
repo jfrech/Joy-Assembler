@@ -8,10 +8,10 @@ int main(int const argc, char const*argv[]) {
         std::cerr << "please provide an input joy assembly file" << std::endl;
         return EXIT_FAILURE; }
 
-    Parser parser{
-        std::filesystem::current_path() / std::string{argv[1]}};
+    Parser parser{};
 
-    std::optional<ComputationState> oCS{parser.parse()};
+    std::optional<ComputationState> oCS{parser.parse(
+        std::filesystem::current_path() / std::string{argv[1]})};
 
     if (!oCS.has_value()) {
         std::cerr << "parsing failed" << std::endl;
