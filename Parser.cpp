@@ -6,14 +6,16 @@
 class Parser {
     private:
         typedef uint64_t line_number_t;
-        typedef std::tuple<InstructionName, std::optional<std::string>> parsingInstruction;
+        typedef std::tuple<InstructionName, std::optional<std::string>>
+            parsingInstruction;
         typedef word_t parsingData;
 
     private:
         std::set<std::filesystem::path> parsedFilepaths;
         std::vector<std::tuple<std::filesystem::path, line_number_t,
             std::variant<parsingInstruction, parsingData>>> parsing;
-        std::map<std::string, std::tuple<line_number_t, std::string>> definitions;
+        std::map<std::string, std::tuple<line_number_t, std::string>>
+            definitions;
         bool stackInstructionWasUsed;
         std::optional<word_t> stackBeginning;
         std::optional<word_t> stackEnd;
@@ -57,9 +59,7 @@ class Parser {
         std::cerr << msg << std::endl;
         return false; }
 
-    public: bool commandlineArg(
-        ComputationState &cs, std::string const&arg
-    ) {
+    public: bool commandlineArg(ComputationState &cs, std::string const&arg) {
         if (arg == "visualize")
             cs.enableVisualization();
         else if (arg == "step")
@@ -79,7 +79,8 @@ class Parser {
         if (!pragmas(filepath))
             return std::nullopt;
 
-        std::optional<ComputationState> oCS{std::in_place, pragmaMemorySize, pragmaMemoryMode, rng};
+        std::optional<ComputationState> oCS{
+            std::in_place, pragmaMemorySize, pragmaMemoryMode, rng};
 
         if (!parseAssemble(oCS.value()))
             return std::nullopt;
@@ -115,8 +116,13 @@ class Parser {
                 memPtr += 4;
             };
 
-            auto pushInstruction = [&](InstructionName const&name, std::optional<std::string> const&oArg) {
-                log("pushing instruction: " + InstructionNameRepresentationHandler::to_string(name) + oArg.value_or(" (no arg.)"));
+            auto pushInstruction = [&](
+                InstructionName const&name,
+                std::optional<std::string> const&oArg
+            ) {
+                log("pushing instruction: "
+                    + InstructionNameRepresentationHandler::to_string(name)
+                    + oArg.value_or(" (no arg.)"));
                 parsing.push_back(std::make_tuple(filepath, lineNumber,
                     parsingInstruction{std::make_tuple(name, oArg)}));
                 memPtr += 5;
@@ -136,7 +142,8 @@ class Parser {
             {
                 log("defining " + k + " to be " + v);
                 if (Util::std20::contains(definitions, k))
-                    return error(filepath, lineNumber, "duplicate definition: " + k);
+                    return error(filepath, lineNumber,
+                        "duplicate definition: " + k);
                 definitions[k] = std::make_tuple(lineNumber, v);
                 return true;
             };
@@ -150,7 +157,8 @@ class Parser {
 
             ON_MATCH("^(" + regexIdentifier + ") ?:= ?(" + regexValue + ")$", (
                 [define](std::smatch const&smatch) {
-                    return define(std::string{smatch[1]}, std::string{smatch[2]}); }))
+                    return define(std::string{smatch[1]},
+                        std::string{smatch[2]}); }))
 
             ON_MATCH("^(" + regexIdentifier + "):$", (
                 [&](std::smatch const&smatch) {
@@ -161,6 +169,7 @@ class Parser {
                         stackBeginning = std::make_optional(memPtr);
                     return true; }))
 
+            /* TODO :: too wide */
             ON_MATCH("^data ?(.+)$", (
                 [&](std::smatch const&smatch) {
                     log("parsing `data` ...");
@@ -241,21 +250,19 @@ class Parser {
 
             ON_MATCH("^include ?(" + regexString + ")$", (
                 [&](std::smatch const&smatch) {
-                    std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes
-                        = Util::parseString(std::string{smatch[1]});
-                    std::optional<std::string> oIncludeFilepath{std::nullopt};
-                    if (oIncludeFilepathRunes.has_value())
-                        oIncludeFilepath = UTF8::runeVectorToOptionalString(
-                            oIncludeFilepathRunes.value());
-                    /* TODO refactor */
-                    if (oIncludeFilepath.has_value())
-                        oIncludeFilepath = std::make_optional(filepath.parent_path() / oIncludeFilepath.value());
+                    std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes{
+                        Util::parseString(std::string{smatch[1]})};
+                    if (!oIncludeFilepathRunes.has_value())
+                        return error(filepath, lineNumber, "malformed utf-8 include string: " + std::string{smatch[1]});
+
+                    std::optional<std::string> oIncludeFilepath{
+                        UTF8::runeVectorToOptionalString(oIncludeFilepathRunes.value())};
                     if (!oIncludeFilepath.has_value())
-                        return error(filepath, lineNumber, "malformed include string");
+                        return error(filepath, lineNumber, "malformed include string (contains non-7-bit ASCII): " + std::string{smatch[1]});
 
-                    std::filesystem::path includeFilepath{oIncludeFilepath.value()};
+                    std::filesystem::path includeFilepath{filepath.parent_path() / oIncludeFilepath.value()};
+
                     bool success{};
-
                     log("including with memPtr = " + std::to_string(memPtr));
                     success = parseFiles(includeFilepath);
                     log("included with memPtr = " + std::to_string(memPtr));
