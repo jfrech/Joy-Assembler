@@ -31,13 +31,15 @@ namespace UTF8 {
                 bytes.push_back(static_cast<byte_t>(
                     0b0'0000000 | ( rune        & 0b0'1111111)));
                 return true; }
-            if (rune <= 0x07ff) {
+
+            else if (rune <= 0x07ff) {
                 bytes.push_back(static_cast<byte_t>(
                     0b110'00000 | ((rune >>  6) & 0b000'11111)));
                 bytes.push_back(static_cast<byte_t>(
                     0b10'000000 | ( rune        & 0b00'111111)));
                 return true; }
-            if (rune <= 0xffff) {
+
+            else if (rune <= 0xffff) {
                 bytes.push_back(static_cast<byte_t>(
                     0b1110'0000 | ((rune >> 12) & 0b0000'1111)));
                 bytes.push_back(static_cast<byte_t>(
@@ -45,7 +47,8 @@ namespace UTF8 {
                 bytes.push_back(static_cast<byte_t>(
                     0b10'000000 | ( rune        & 0b00'111111)));
                 return true; }
-            if (rune <= 0x10ffff) {
+
+            else if (rune <= 0x10ffff) {
                 bytes.push_back(static_cast<byte_t>(
                     0b11110'000 | ((rune >> 18) & 0b00000'111)));
                 bytes.push_back(static_cast<byte_t>(
@@ -55,7 +58,9 @@ namespace UTF8 {
                 bytes.push_back(static_cast<byte_t>(
                     0b10'000000 | ( rune        & 0b00'111111)));
                 return true; }
-            return ok = false;
+
+            else
+                return err();
         }
 
         public: std::tuple<std::vector<byte_t>, bool> finish() {
@@ -64,6 +69,9 @@ namespace UTF8 {
             bytes.clear();
             ok = true;
             return bytesOk; }
+
+        private: bool err() {
+            return ok = false; }
     };
 
     class Decoder {
@@ -77,8 +85,7 @@ namespace UTF8 {
             buf{},
             ok{true}
         {
-            buf.reserve(4);
-        }
+            buf.reserve(4); }
 
         /* return value signals if another byte is required */
         public: bool decode(byte_t const b) {
@@ -97,56 +104,49 @@ namespace UTF8 {
                     return true;
                 if (buf.size() != 1)
                     return err();
-
                 runes.push_back(static_cast<rune_t>(
                        0b0'1111111 & buf[0]));
                 buf.clear();
-                return false;
-            }
+                return false; }
 
-            if ((buf[0] & 0b111'00000) == 0b110'00000) {
+            else if ((buf[0] & 0b111'00000) == 0b110'00000) {
                 if (buf.size() < 2)
                     return true;
                 if (buf.size() != 2 || invalid)
                     return err();
-
                 runes.push_back(static_cast<rune_t>(
                       (0b000'11111 & buf[0]) <<  6
                     | (0b00'111111 & buf[1])));
                 buf.clear();
-                return false;
-            }
+                return false; }
 
-            if ((buf[0] & 0b1111'0000) == 0b1110'0000) {
+            else if ((buf[0] & 0b1111'0000) == 0b1110'0000) {
                 if (buf.size() < 3)
                     return true;
                 if (buf.size() != 3 || invalid)
                     return err();
-
                 runes.push_back(static_cast<rune_t>(
                       (0b0000'1111 & buf[0]) << 12
                     | (0b00'111111 & buf[1]) <<  6
                     | (0b00'111111 & buf[2])));
                 buf.clear();
-                return false;
-            }
+                return false; }
 
-            if ((buf[0] & 0b11111'000) == 0b11110'000) {
+            else if ((buf[0] & 0b11111'000) == 0b11110'000) {
                 if (buf.size() < 4)
                     return true;
                 if (buf.size() != 4 || invalid)
                     return err();
-
                 runes.push_back(static_cast<rune_t>(
                       (0b00000'111 & buf[0]) << 18
                     | (0b00'111111 & buf[1]) << 12
                     | (0b00'111111 & buf[2]) <<  6
                     | (0b00'111111 & buf[3])));
                 buf.clear();
-                return false;
-            }
+                return false; }
 
-            return err();
+            else
+                return err();
         }
 
         public: std::tuple<std::vector<rune_t>, bool> finish() {
