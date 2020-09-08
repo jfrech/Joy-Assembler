@@ -9,7 +9,8 @@ int main(int const argc, char const*argv[]) {
         return EXIT_FAILURE; }
 
     Parser parser{
-        std::filesystem::current_path() / std::filesystem::path(argv[1])};
+        std::filesystem::current_path() / std::string{argv[1]}};
+
     std::optional<ComputationState> oCS{parser.parse()};
 
     if (!oCS.has_value()) {

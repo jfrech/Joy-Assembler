@@ -92,7 +92,7 @@ class Parser {
         if (filepaths.size() <= 0)
             return err("parseFiles: no filepath to parse");
 
-        std::filesystem::path filepath{filepaths[0]};
+        std::filesystem::path filepath{filepaths.back()};
 
         if (!is_regular_file(filepath))
             return error(0, "not a regular file");
@@ -250,11 +250,9 @@ class Parser {
                     if (oIncludeFilepathRunes.has_value())
                         oIncludeFilepath = UTF8::runeVectorToOptionalString(
                             oIncludeFilepathRunes.value());
+                    /* TODO refactor */
                     if (oIncludeFilepath.has_value())
-                        oIncludeFilepath = Util::
-                            startingFilepathFilepathToOptionalResolvedFilepath(
-                                filepath.parent_path(),
-                                oIncludeFilepath.value());
+                        oIncludeFilepath = std::make_optional(filepath.parent_path() / oIncludeFilepath.value());
                     if (!oIncludeFilepath.has_value())
                         return error(lineNumber, "malformed include string");
 
@@ -380,7 +378,7 @@ class Parser {
                         std::string msg{"label @" + label + " was not defined; "
                             + "did you possibly mean one of the following defined "
                             + "labels?"};
-                        for (std::size_t j = 0; j < 3 && j < labels.size(); ++j)
+                        for (std::size_t j = 0; j < labels.size() && j < 3; ++j)
                             msg += "\n    " + std::to_string(j+1) + ") "
                                 + labels[j];
                         if (labels.size() <= 0)

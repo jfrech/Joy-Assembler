@@ -90,7 +90,7 @@ namespace UTF8 {
         /* return value signals if another byte is required */
         public: bool decode(byte_t const b) {
             bool invalid = false;
-            for (size_t j = 1; j < 4; ++j) {
+            for (std::size_t j = 1; j < 4; ++j) {
                 if (j >= buf.size())
                     break;
                 invalid |= ((0b11'000000 & buf[j]) != 0b10'000000); }

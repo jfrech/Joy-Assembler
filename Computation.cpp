@@ -418,6 +418,7 @@ class ComputationState {
                 b1 = loadMemory(m+2);
                 b0 = loadMemory(m+3);
                 break;
+
             case MemoryMode::LittleEndian:
                 b3 = loadMemory(m+3);
                 b2 = loadMemory(m+2);
@@ -440,6 +441,7 @@ class ComputationState {
                 storeMemory(m+1, b1);
                 storeMemory(m+0, b0);
                 break;
+
             case MemoryMode::BigEndian:
                 storeMemory(m+0, b3);
                 storeMemory(m+1, b2);

@@ -206,51 +206,6 @@ namespace Util {
             c = std::toupper(c);
         return str; }
 
-    std::optional<std::filesystem::path>
-    startingFilepathFilepathToOptionalResolvedFilepath(
-        std::filesystem::path const&start, std::filesystem::path const&further
-    ) {
-        std::string startStr{start}, furtherStr{further};
-        if (furtherStr == "")
-            return std::nullopt;
-        if (furtherStr.front() == '/')
-            return std::make_optional(further);
-
-        auto extendSplit = [](
-            std::vector<std::string> &parts, std::string const&s
-        ) {
-            std::string buf{};
-            for (auto const&c : s) {
-                if (c == '/') {
-                    if (!buf.empty())
-                        parts.push_back(buf);
-                    buf = std::string{};
-                    continue; }
-                buf += std::string{c}; }
-            if (!buf.empty())
-                parts.push_back(buf);
-        };
-
-        std::vector<std::string> parts{};
-        extendSplit(parts, startStr);
-        extendSplit(parts, furtherStr);
-
-        for (std::size_t j = 0; j < parts.size(); ++j) {
-            if (parts[j] == "..") {
-                if (j < 1)
-                    return std::nullopt;
-                parts.erase(parts.begin() + j--);
-                parts.erase(parts.begin() + j--); }
-            else if (parts[j] == ".")
-                parts.erase(parts.begin() + j--);
-        }
-        std::filesystem::path path{"/"};
-        for (std::string const&part : parts)
-            path /= part;
-
-        return path;
-    }
-
     uint64_t LevenshteinDistance(std::string const&s, std::string const&t) {
         /* see "https://people.cs.pitt.edu/~kirk/cs1501/Pruhs/Fall2006/
             Assignments/editdistance/Levenshtein%20Distance.htm" */
