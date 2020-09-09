@@ -1,3 +1,5 @@
+pragma_embed-profiler-output := true
+
 mov 0
 mov 1
 profiler start, one instruction

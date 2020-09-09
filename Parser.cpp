@@ -26,6 +26,7 @@ class Parser {
         std::optional<word_t> pragmaRNGSeed;
 
         std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
+        bool embedProfilerOutput;
 
         bool ok;
 
@@ -43,6 +44,9 @@ class Parser {
         pragmaMemorySize{0x10000},
         pragmaMemoryMode{MemoryMode::LittleEndian},
         pragmaRNGSeed{std::nullopt},
+
+        profiler{},
+        embedProfilerOutput{false},
 
         ok{true},
 
@@ -81,8 +85,8 @@ class Parser {
         if (!pragmas(filepath))
             return std::nullopt;
 
-        std::optional<ComputationState> oCS{
-            std::in_place, pragmaMemorySize, pragmaMemoryMode, rng, profiler};
+        std::optional<ComputationState> oCS{std::in_place, pragmaMemorySize,
+            pragmaMemoryMode, rng, profiler, embedProfilerOutput};
 
         if (!parseAssemble(oCS.value()))
             return std::nullopt;
@@ -346,6 +350,12 @@ class Parser {
                 if (!oRNGSeed.has_value())
                     return error(filepath, lineNumber, "invalid pragma_rng-seed: " + rs);
                 pragmaRNGSeed = std::make_optional(oRNGSeed.value());
+                return true; }},
+
+            {"pragma_embed-profiler-output", [&](line_number_t lineNumber, std::string const&tf) {
+                if (tf != "false" && tf != "true")
+                    return error(filepath, lineNumber, "invalid boolean: " + tf);
+                embedProfilerOutput = tf == "true";
                 return true; }},
         };
 

@@ -51,13 +51,14 @@ class ComputationState {
             const profiler;
         uint64_t cycles;
         std::stack<uint64_t> profilerCycles;
+        bool embedProfilerOutput;
 
         bool mock;
         bool erroneous;
     public:
         ComputationStateDebug debug;
 
-    public: ComputationState(word_t const memorySize, MemoryMode const memoryMode, Util::rng_t const&rng, std::map<word_t, std::vector<std::tuple<bool, std::string>>> const&profiler) :
+    public: ComputationState(word_t const memorySize, MemoryMode const memoryMode, Util::rng_t const&rng, std::map<word_t, std::vector<std::tuple<bool, std::string>>> const&profiler, bool const embedProfilerOutput) :
         memory{std::vector<byte_t>(memorySize, 0x00000000)},
         memoryMode{memoryMode},
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
@@ -66,6 +67,7 @@ class ComputationState {
         rng{rng},
 
         profiler{profiler}, cycles{0}, profilerCycles{},
+        embedProfilerOutput{embedProfilerOutput},
 
         mock{false}, erroneous{false},
 
@@ -82,7 +84,6 @@ class ComputationState {
     public: void visualize() {
         visualize(true); }
 
-    /* TODO :: fancify */
     public: void visualize(bool blockAllowed) {
         if (!debug.doVisualizeSteps)
             return;
@@ -161,31 +162,44 @@ class ComputationState {
         std::cout << dump << "\n";
     }
 
-    public: bool step() {
+    private: void checkProfiler() {
+        if (!Util::std20::contains(profiler, registerPC))
+            return;
 
-        if (Util::std20::contains(profiler, registerPC)) {
-            for (auto [start, msg] : profiler.at(registerPC)) {
-                std::string const cyclesString{"[cycles: " + std::to_string(cycles) + "] "};
-                std::string const cyclesStringPadding{std::string(cyclesString.size(), ' ')};
-                if (start) {
+        for (auto [start, msg] : profiler.at(registerPC)) {
+            std::string const cyclesString{"[cycles: " + std::to_string(cycles)
+                + "] "};
+            std::string const cyclesStringPadding{
+                std::string(cyclesString.size(), ' ')};
+
+            if (start) {
+                if (!embedProfilerOutput)
                     std::clog << cyclesString << "starting profiler: " + msg << std::endl;
-                    profilerCycles.push(cycles);
-                }
-                else {
+                profilerCycles.push(cycles);
+            } else {
+                if (!embedProfilerOutput)
                     std::clog << cyclesString << "stopping profiler: " + msg << std::endl;
-                    if (profilerCycles.empty())
-                        std::clog << cyclesStringPadding << "profiler could not be stopped since it was not started" << std::endl;
+                if (profilerCycles.empty())
+                    std::clog << cyclesStringPadding << "profiler could not be stopped since it was not started" << std::endl;
+                else {
+                    uint64_t start{profilerCycles.top()}, stop{cycles};
+                    profilerCycles.pop();
+                    if (start > stop)
+                        std::clog << cyclesStringPadding << "profiler time travelled" << std::endl;
                     else {
-                        uint64_t start{profilerCycles.top()}, stop{cycles};
-                        profilerCycles.pop();
-                        if (start > stop)
-                            std::clog << cyclesStringPadding << "profiler time travelled" << std::endl;
+                        uint64_t elapsed{stop - start};
+                        if (!embedProfilerOutput)
+                            std::clog << cyclesStringPadding << "-> elapsed cycles: " + std::to_string(elapsed) << std::endl;
                         else
-                            std::clog << cyclesStringPadding << "-> elapsed cycles: " + std::to_string(stop - start) << std::endl;
+                            std::cout << std::to_string(elapsed) << "\n";
                     }
                 }
             }
         }
+    }
+
+    public: bool step() {
+        checkProfiler();
         ++cycles;
 
         std::optional<Instruction> oInstruction = nextInstruction();
