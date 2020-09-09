@@ -4,7 +4,7 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-09T16:41:12Z)
+**Build: 🟩 passing** (2020-09-09T16:42:20Z)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
@@ -123,7 +123,7 @@ An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `
 | `jnn`             | required               | "**j**ump **n**on-**n**egative"     | Jump to the specified program position if register `A` holds a non-negative value, otherwise perform no operation.                                                  |
 | `jz`              | required               | "**j**ump **z**ero"                 | Jump to the specified program position if register `A` holds a zero value, otherwise perform no operation.                                                          |
 | `jnz`             | required               | "**j**ump **n**on-**z**ero"         | Jump to the specified program position if register `A` holds a non-zero value, otherwise perform no operation.                                                      |
-| `jp`              | required               | "**j**ump **n**ositive"             | Jump to the specified program position if register `A` holds a positive value, otherwise perform no operation.                                                      |
+| `jp`              | required               | "**j**ump **p**ositive"             | Jump to the specified program position if register `A` holds a positive value, otherwise perform no operation.                                                      |
 | `jnp`             | required               | "**j**ump **n**on-**p**ositive"     | Jump to the specified program position if register `A` holds a non-positive value, otherwise perform no operation.                                                  |
 | `je`              | required               | "**j**ump **e**ven"                 | Jump to the specified program position if register `A` holds an even value, otherwise perform no operation.                                                         |
 | `jne`             | required               | "**j**ump **n**on-**e**ven"         | Jump to the specified program position if register `A` holds an odd value, otherwise perform no operation.                                                          |
