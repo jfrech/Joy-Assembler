@@ -21,7 +21,8 @@ class Parser {
         std::optional<word_t> stackEnd;
         word_t memPtr;
 
-        word_t pragmaMemorySize;
+        word_t memorySize;
+
         MemoryMode pragmaMemoryMode;
         std::optional<word_t> pragmaRNGSeed;
         bool pragmaStaticProgram;
@@ -44,7 +45,8 @@ class Parser {
         stackEnd{std::nullopt},
         memPtr{0},
 
-        pragmaMemorySize{0x10000},
+        memorySize{},
+
         pragmaMemoryMode{MemoryMode::LittleEndian},
         pragmaRNGSeed{std::nullopt},
         pragmaStaticProgram{true},
@@ -89,7 +91,7 @@ class Parser {
         if (!pragmas(filepath))
             return std::nullopt;
 
-        std::optional<ComputationState> oCS{std::in_place, pragmaMemorySize,
+        std::optional<ComputationState> oCS{std::in_place, memorySize,
             pragmaMemoryMode, rng, profiler, embedProfilerOutput};
 
         if (!parseAssemble(oCS.value()))
@@ -330,6 +332,8 @@ class Parser {
             return error(filepath, lineNumber, "incomprehensible");
         }
 
+        memorySize = memPtr;
+
         return true;
     }
 
@@ -345,13 +349,6 @@ class Parser {
                     pragmaMemoryMode = MemoryMode::BigEndian;
                     return true; }
                 return error(filepath, lineNumber, "invalid pragma_memory-mode: " + mm); }},
-
-            {"pragma_memory-size", [&](line_number_t lineNumber, std::string const&ms) {
-                std::optional<word_t> oMemorySize{Util::stringToUInt32(ms)};
-                if (!oMemorySize.has_value())
-                    return error(filepath, lineNumber, "invalid pragma_memory-size: " + ms);
-                pragmaMemorySize = oMemorySize.value();
-                return true; }},
 
             {"pragma_rng-seed", [&](line_number_t lineNumber, std::string const&rs) {
                 std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
