@@ -13,7 +13,7 @@ int main(int const argc, char const*argv[]) {
     Parser parser{};
 
     std::optional<ComputationState> oCS{parser.parse(
-        (std::filesystem::current_path() / std::string{argv[1]}).lexically_normal())};
+        std::filesystem::current_path() / std::string{argv[1]})};
 
     if (!oCS.has_value()) {
         std::cerr << "parsing failed" << std::endl;

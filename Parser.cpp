@@ -94,6 +94,9 @@ class Parser {
         return ok = false; }
 
     private: bool parseFiles(std::filesystem::path const&filepath) {
+        if (filepath != filepath.lexically_normal())
+            return parseFiles(filepath.lexically_normal());
+
         if (!is_regular_file(filepath))
             return error("not a regular file");
         if (Util::std20::contains(parsedFilepaths, filepath))
@@ -252,7 +255,8 @@ class Parser {
                     if (!oIncludeFilepath.has_value())
                         return error(filepath, lineNumber, "malformed include string (contains non-7-bit ASCII): " + std::string{smatch[1]});
 
-                    std::filesystem::path const includeFilepath{(filepath.parent_path() / oIncludeFilepath.value()).lexically_normal()};
+                    std::filesystem::path const includeFilepath{
+                        filepath.parent_path() / oIncludeFilepath.value()};
 
                     bool success{};
                     log("including with memPtr = " + std::to_string(memPtr));
