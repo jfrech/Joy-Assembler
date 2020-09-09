@@ -268,4 +268,7 @@ namespace Util {
     };
 }
 
+#define FMAP_OPTIONAL(F, OV) \
+    ((OV).has_value() ? std::make_optional((F)(OV.value())) : std::nullopt)
+
 #endif

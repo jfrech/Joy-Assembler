@@ -390,10 +390,6 @@ class ComputationState {
         return 4;
     }
 
-    // TODO: move to Util
-    #define FMAP_OPTIONAL(F, OV) \
-        ((OV).has_value() ? std::make_optional((F)(OV.value())) : std::nullopt)
-
     private: std::optional<Instruction> nextInstruction() {
         if (oStaticProgramAlignment.has_value() && !Util::std20::contains(oStaticProgramAlignment.value(), registerPC)) {
             err("nextInstruction: statically unknown program counter: " + std::to_string(registerPC));
