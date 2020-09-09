@@ -33,15 +33,15 @@ namespace Util {
     }
 
     namespace ANSI_COLORS {
-        std::string const&CLEAR = "\33[0m";
+        std::string const CLEAR = "\33[0m";
 
-        std::string const&INSTRUCTION_NAME = "\33[38;5;119m";
-        std::string const&INSTRUCTION_ARGUMENT = "\33[38;5;121m";
-        std::string const&STACK = "\33[38;5;127m";
-        std::string const&STACK_FAINT = "\33[38;5;53m";
-        std::string const&MEMORY_LOCATION_USED = "\33[1m";
-        std::string const&FAINT = "\33[2m";
-        std::string const&REGISTER = "\33[38;5;198m";
+        std::string const INSTRUCTION_NAME = "\33[38;5;119m";
+        std::string const INSTRUCTION_ARGUMENT = "\33[38;5;121m";
+        std::string const STACK = "\33[38;5;127m";
+        std::string const STACK_FAINT = "\33[38;5;53m";
+        std::string const MEMORY_LOCATION_USED = "\33[1m";
+        std::string const FAINT = "\33[2m";
+        std::string const REGISTER = "\33[38;5;198m";
 
         std::string paint(std::string const&ansi, std::string const&text) {
             return ansi + text + CLEAR; }

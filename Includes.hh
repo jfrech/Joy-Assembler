@@ -8,6 +8,7 @@
 #include <map>
 #include <regex>
 #include <set>
+#include <stack>
 #include <variant>
 #include <vector>
 

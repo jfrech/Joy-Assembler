@@ -1,6 +1,8 @@
 /* Jonathan Frech, August 2020 */
 /* A minimalistic toy assembler written in C++17. */
 
+/* TODO const& to const in const values */
+
 #include "Includes.hh"
 
 int main(int const argc, char const*argv[]) {
@@ -11,7 +13,7 @@ int main(int const argc, char const*argv[]) {
     Parser parser{};
 
     std::optional<ComputationState> oCS{parser.parse(
-        std::filesystem::current_path() / std::string{argv[1]})};
+        (std::filesystem::current_path() / std::string{argv[1]}).lexically_normal())};
 
     if (!oCS.has_value()) {
         std::cerr << "parsing failed" << std::endl;

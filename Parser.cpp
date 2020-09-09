@@ -9,11 +9,13 @@ class Parser {
         typedef std::tuple<InstructionName, std::optional<std::string>>
             parsingInstruction;
         typedef word_t parsingData;
+        typedef std::tuple<bool, std::string> parsingProfiler;
 
     private:
         std::set<std::filesystem::path> parsedFilepaths;
         std::vector<std::tuple<std::filesystem::path, line_number_t,
-            std::variant<parsingInstruction, parsingData>>> parsing;
+            std::variant<parsingInstruction, parsingData, parsingProfiler>>>
+            parsing;
         std::map<std::string, std::tuple<line_number_t, std::string>>
             definitions;
         bool stackInstructionWasUsed;
@@ -102,30 +104,20 @@ class Parser {
         if (!is.is_open())
             return error("unable to read file");
 
-        std::string const&regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
-        std::string const&regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
-        std::string const&regexString{"\"([^\"]|\\\")*?\""};
+        std::string const regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
+        std::string const regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
+        std::string const regexString{"\"([^\"]|\\\")*?\""};
 
         line_number_t lineNumber{1};
         std::string ln{};
         for (; std::getline(is, ln); ++lineNumber) {
             auto pushData = [&](uint32_t const data) {
                 log("pushing data: 0x" + Util::UInt32AsPaddedHex(data));
-                parsing.push_back(std::make_tuple(filepath, lineNumber,
-                    parsingData{data}));
-                memPtr += 4;
-            };
-
-            auto pushInstruction = [&](
-                InstructionName const&name,
-                std::optional<std::string> const&oArg
-            ) {
-                log("pushing instruction: "
-                    + InstructionNameRepresentationHandler::to_string(name)
-                    + oArg.value_or(" (no arg.)"));
-                parsing.push_back(std::make_tuple(filepath, lineNumber,
-                    parsingInstruction{std::make_tuple(name, oArg)}));
-                memPtr += 5;
+                {
+                    parsing.push_back(std::make_tuple(filepath, lineNumber,
+                        parsingData{data}));
+                    memPtr += 4;
+                }
             };
 
             ln = std::regex_replace(ln, std::regex{";.*$"}, "");
@@ -260,7 +252,7 @@ class Parser {
                     if (!oIncludeFilepath.has_value())
                         return error(filepath, lineNumber, "malformed include string (contains non-7-bit ASCII): " + std::string{smatch[1]});
 
-                    std::filesystem::path includeFilepath{filepath.parent_path() / oIncludeFilepath.value()};
+                    std::filesystem::path const includeFilepath{(filepath.parent_path() / oIncludeFilepath.value()).lexically_normal()};
 
                     bool success{};
                     log("including with memPtr = " + std::to_string(memPtr));
@@ -278,6 +270,24 @@ class Parser {
                     return error(filepath, lineNumber,
                         "improper include: either empty or missing quotes"); }))
 
+            ON_MATCH("^profiler ([^ ]*?)(, ?(.*))?$", (
+                [&](std::smatch const&smatch) {
+                    std::string const profilerStartStop{smatch[1]};
+                    if (profilerStartStop != "start" && profilerStartStop != "stop")
+                        return error(filepath, lineNumber, "invalid profiler "
+                            "directive (must be 'start' or 'stop'): "
+                            + profilerStartStop);
+
+                    std::string profilerMessage{smatch[3]};
+                    profilerMessage = "file " + std::string{filepath} + ", ln "
+                        + std::to_string(lineNumber)
+                        + std::string{profilerMessage == "" ? "" : ": "} + profilerMessage;
+
+                    parsing.push_back(std::make_tuple(filepath, lineNumber,
+                        parsingProfiler{std::make_tuple(profilerStartStop == std::string{"start"}, profilerMessage)}));
+
+                    return true; }))
+
             ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
                 [&](std::smatch const&smatch) {
                     auto oName = InstructionNameRepresentationHandler
@@ -288,7 +298,14 @@ class Parser {
                     std::optional<std::string> oArg{std::nullopt};
                     if (smatch[3] != "")
                         oArg = std::optional{smatch[3]};
-                    pushInstruction(oName.value(), oArg);
+                    log("pushing instruction: "
+                        + InstructionNameRepresentationHandler::to_string(oName.value())
+                        + " " + oArg.value_or("(no arg.)"));
+                    {
+                        parsing.push_back(std::make_tuple(filepath, lineNumber,
+                            parsingInstruction{std::make_tuple(oName.value(), oArg)}));
+                        memPtr += 5;
+                    }
                     return true; }))
 
             #undef ON_MATCH
@@ -300,36 +317,38 @@ class Parser {
     }
 
     private: bool pragmas(std::filesystem::path const&filepath) {
-        #define PRAGMA_ACTION(PRAGMA, ACTION) \
-            if (Util::std20::contains(definitions, std::string{(PRAGMA)})) { \
-                auto [lineNumber, definition] = definitions[std::string{(PRAGMA)}]; \
-                if (!(ACTION)(lineNumber, definition)) \
+        std::map<std::string, std::function<
+            bool(line_number_t, std::string const&)>> const&pragmaActions
+        {
+            {"pragma_memory-mode", [&](line_number_t lineNumber, std::string const&mm) {
+                if (mm == "little-endian") {
+                    pragmaMemoryMode = MemoryMode::LittleEndian;
+                    return true; }
+                if (mm == "big-endian") {
+                    pragmaMemoryMode = MemoryMode::BigEndian;
+                    return true; }
+                return error(filepath, lineNumber, "invalid pragma_memory-mode: " + mm); }},
+
+            {"pragma_memory-size", [&](line_number_t lineNumber, std::string const&ms) {
+                std::optional<word_t> oMemorySize{Util::stringToUInt32(ms)};
+                if (!oMemorySize.has_value())
+                    return error(filepath, lineNumber, "invalid pragma_memory-size: " + ms);
+                pragmaMemorySize = oMemorySize.value();
+                return true; }},
+
+            {"pragma_rng-seed", [&](line_number_t lineNumber, std::string const&rs) {
+                std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
+                if (!oRNGSeed.has_value())
+                    return error(filepath, lineNumber, "invalid pragma_rng-seed: " + rs);
+                pragmaRNGSeed = std::make_optional(oRNGSeed.value());
+                return true; }},
+        };
+
+        for (auto [pragma, action] : pragmaActions)
+            if (Util::std20::contains(definitions, pragma)) {
+                auto [lineNumber, definition] = definitions[pragma];
+                if (!action(lineNumber, definition))
                     return false; }
-
-        PRAGMA_ACTION("pragma_memory-mode", ([&](line_number_t lineNumber, std::string const&mm) {
-            if (mm == "little-endian") {
-                pragmaMemoryMode = MemoryMode::LittleEndian;
-                return true; }
-            if (mm == "big-endian") {
-                pragmaMemoryMode = MemoryMode::BigEndian;
-                return true; }
-            return error(filepath, lineNumber, "invalid pragma_memory-mode: " + mm); }));
-
-        PRAGMA_ACTION("pragma_memory-size", ([&](line_number_t lineNumber, std::string const&ms) {
-            std::optional<word_t> oMemorySize{Util::stringToUInt32(ms)};
-            if (!oMemorySize.has_value())
-                return error(filepath, lineNumber, "invalid pragma_memory-size: " + ms);
-            pragmaMemorySize = oMemorySize.value();
-            return true; }));
-
-        PRAGMA_ACTION("pragma_rng-seed", ([&](line_number_t lineNumber, std::string const&rs) {
-            std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
-            if (!oRNGSeed.has_value())
-                return error(filepath, lineNumber, "invalid pragma_rng-seed: " + rs);
-            pragmaRNGSeed = std::make_optional(oRNGSeed.value());
-            return true; }));
-
-        #undef PRAGMA_ACTION
 
         if (pragmaRNGSeed.has_value())
             rng.seed(pragmaRNGSeed.value());
@@ -338,6 +357,8 @@ class Parser {
     }
 
     private: bool parseAssemble(ComputationState &cs) {
+        std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
+
         log("@@@ parseAssemble @@@");
 
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
@@ -439,6 +460,13 @@ class Parser {
                 stackInstructionWasUsed |=
                     InstructionNameRepresentationHandler::isStackInstruction(name);
             }
+            else if (std::holds_alternative<parsingProfiler>(p)) {
+                if (!Util::std20::contains(profiler, memPtr))
+                    profiler[memPtr] = std::vector<std::tuple<bool, std::string>>{};
+                profiler[memPtr].push_back(std::get<std::tuple<bool, std::string>>(p));
+            }
+            else
+                return error("internal error: parsing piece holds invalid alternative");
         }
 
         if (!haltInstructionWasUsed)
@@ -461,9 +489,10 @@ class Parser {
         } else
             log("no stack was defined");
 
+        cs.setProfiler(profiler);
+
         return true;
     }
 };
-
 
 #endif

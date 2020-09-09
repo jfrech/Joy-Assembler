@@ -46,6 +46,11 @@ class ComputationState {
         word_t registerA, registerB, registerPC, registerSC;
         bool flagAZero, flagANegative, flagAEven;
         Util::rng_t rng;
+
+        std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
+        uint64_t cycles;
+        std::stack<uint64_t> profilerCycles;
+
         bool mock;
         bool erroneous;
     public:
@@ -59,6 +64,8 @@ class ComputationState {
 
         rng{rng},
 
+        profiler{}, cycles{0}, profilerCycles{},
+
         mock{false}, erroneous{false},
 
         debug{}
@@ -70,6 +77,9 @@ class ComputationState {
     public: ComputationState(ComputationState &)      = delete;
     public: ComputationState(ComputationState const&) = delete;
     public: ComputationState(ComputationState &&)     = default;
+
+    public: void setProfiler(std::map<word_t, std::vector<std::tuple<bool, std::string>>> &_profiler) {
+        profiler.merge(_profiler); }
 
     public: void visualize() {
         visualize(true); }
@@ -154,6 +164,32 @@ class ComputationState {
     }
 
     public: bool step() {
+
+        if (Util::std20::contains(profiler, registerPC)) {
+            for (auto [start, msg] : profiler.at(registerPC)) {
+                std::string const cyclesString{"[cycles: " + std::to_string(cycles) + "] "};
+                std::string const cyclesStringPadding{std::string(cyclesString.size(), ' ')};
+                if (start) {
+                    std::clog << cyclesString << "starting profiler: " + msg << std::endl;
+                    profilerCycles.push(cycles);
+                }
+                else {
+                    std::clog << cyclesString << "stopping profiler: " + msg << std::endl;
+                    if (profilerCycles.empty())
+                        std::clog << cyclesStringPadding << "profiler could not be stopped since it was not started" << std::endl;
+                    else {
+                        uint64_t start{profilerCycles.top()}, stop{cycles};
+                        profilerCycles.pop();
+                        if (start > stop)
+                            std::clog << cyclesStringPadding << "profiler time travelled" << std::endl;
+                        else
+                            std::clog << cyclesStringPadding << "-> elapsed cycles: " + std::to_string(stop - start) << std::endl;
+                    }
+                }
+            }
+        }
+        ++cycles;
+
         std::optional<Instruction> oInstruction = nextInstruction();
         if (!oInstruction.has_value())
             return err("step: failed to fetch next instruction");
