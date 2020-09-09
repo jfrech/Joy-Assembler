@@ -249,10 +249,12 @@ class ComputationState {
                 break;
 
             case InstructionName::JMP: jmp(true); break;
-            case InstructionName::JZ : jmp(flagAZero); break;
-            case InstructionName::JNZ: jmp(!flagAZero); break;
             case InstructionName::JN : jmp(flagANegative); break;
             case InstructionName::JNN: jmp(!flagANegative); break;
+            case InstructionName::JZ : jmp(flagAZero); break;
+            case InstructionName::JNZ: jmp(!flagAZero); break;
+            case InstructionName::JP : jmp(!flagANegative && !flagAZero); break;
+            case InstructionName::JNP: jmp(flagANegative || flagAZero); break;
             case InstructionName::JE : jmp(flagAEven); break;
             case InstructionName::JNE: jmp(!flagAEven); break;
 

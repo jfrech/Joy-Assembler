@@ -17,8 +17,9 @@ enum class MemoryMode { LittleEndian, BigEndian };
     M(LIA, OPT_ARG(0)), M(SIA, OPT_ARG(0)), M(LPC, NO_ARG), M(SPC, NO_ARG), \
     M(LYA, REQ_ARG), M(SYA, REQ_ARG), \
     \
-    M(JMP, REQ_ARG), M(JZ, REQ_ARG), M(JNZ, REQ_ARG), M(JN, REQ_ARG), \
-    M(JNN, REQ_ARG), M(JE, REQ_ARG), M(JNE, REQ_ARG), \
+    M(JMP, REQ_ARG), M(JN, REQ_ARG), M(JNN, REQ_ARG), M(JZ, REQ_ARG), \
+    M(JNZ, REQ_ARG), M(JP, REQ_ARG), M(JNP, REQ_ARG), \
+    M(JE, REQ_ARG), M(JNE, REQ_ARG), \
     \
     M(CAL, REQ_ARG), M(RET, NO_ARG), M(PSH, NO_ARG), M(POP, NO_ARG), \
     M(LSA, OPT_ARG(0)), M(SSA, OPT_ARG(0)), M(LSC, NO_ARG), M(SSC, NO_ARG), \
