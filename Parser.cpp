@@ -125,7 +125,8 @@ class Parser {
                 }
             };
 
-            ln = std::regex_replace(ln, std::regex{";.*$"}, "");
+            ln = std::regex_replace(ln, std::regex{"^;.*$"}, "");
+            ln = std::regex_replace(ln, std::regex{"([^\\\\]);.*$"}, "$1");
             ln = std::regex_replace(ln, std::regex{"\\s+"}, " ");
             ln = std::regex_replace(ln, std::regex{"^ +"}, "");
             ln = std::regex_replace(ln, std::regex{" +$"}, "");

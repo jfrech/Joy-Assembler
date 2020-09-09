@@ -4,7 +4,7 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-09T16:45:03Z)
+**Build: 🟩 passing** (2020-09-09T23:44:32Z)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
@@ -24,7 +24,9 @@ The simulated architecture can also be slightly modified using _pragmas_ (see be
 Joy Assembler files usually end in a `.asm` file extension and contain all instructions, static data, and other file inclusions that will be executed by the simulated machine. Except for comments, each line contains either an instruction -- to the simulated machine or assembler -- or a piece of data or is left blank. What follows is the documentation of the previously mentioned features.
 
 # Comments
-A comment is defined as any characters from a semicolon (`;`) to the end of the line. One quirk of implementation is that string or character literals cannot contain an unescaped semicolon, as this would be interpreted as a comment.
+A comment is defined as any characters from a semicolon (`;`) to the end of the line.
+
+One quirk of implementation is that string or character literals cannot contain an unescaped semicolon, as this would be interpreted as a comment. As such, if a semicolon is needed, please resort to either `\u003b`, `\U0000003b` or `\;` (the last one being specially treated whilst removing comments).
 ````
 ; takes one stack argument and returns one stack argument
 routine:

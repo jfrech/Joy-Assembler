@@ -4,7 +4,7 @@
 typedef uint8_t byte_t;
 typedef uint32_t word_t;
 
-enum class MemoryMode { LittleEndian, BigEndian };
+enum class MemoryMode : bool { LittleEndian, BigEndian };
 
 /* TODO :: finalize op-codes */
 #define NO_ARG std::tuple{false, std::nullopt}
@@ -37,7 +37,7 @@ enum class MemoryMode { LittleEndian, BigEndian };
     \
     M(HLT, NO_ARG),
 
-enum class InstructionName {
+enum class InstructionName : byte_t {
     #define PROJECTION(ACT, _) ACT
     MAP_ON_INSTRUCTION_NAMES(PROJECTION)
     #undef PROJECTION
