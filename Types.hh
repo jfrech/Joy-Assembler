@@ -43,7 +43,17 @@ enum class InstructionName : byte_t {
     #undef PROJECTION
 };
 
-struct Instruction { InstructionName name; word_t argument; };
+struct Instruction {
+    public:
+        InstructionName name;
+        word_t argument;
+
+    public:
+        bool operator==(Instruction const& instruction) const {
+            return name == instruction.name && argument == instruction.argument; }
+        bool operator!=(Instruction const& instruction) const {
+            return !operator==(instruction); }
+};
 
 namespace InstructionNameRepresentationHandler {
     std::map<InstructionName, std::string> representation = {

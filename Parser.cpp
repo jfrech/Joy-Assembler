@@ -24,9 +24,12 @@ class Parser {
         word_t pragmaMemorySize;
         MemoryMode pragmaMemoryMode;
         std::optional<word_t> pragmaRNGSeed;
+        bool pragmaStaticProgram;
 
         std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
         bool embedProfilerOutput;
+
+        std::map<word_t, Instruction> staticProgramAlignment;
 
         bool ok;
 
@@ -44,9 +47,12 @@ class Parser {
         pragmaMemorySize{0x10000},
         pragmaMemoryMode{MemoryMode::LittleEndian},
         pragmaRNGSeed{std::nullopt},
+        pragmaStaticProgram{true},
 
         profiler{},
         embedProfilerOutput{false},
+
+        staticProgramAlignment{},
 
         ok{true},
 
@@ -88,6 +94,9 @@ class Parser {
 
         if (!parseAssemble(oCS.value()))
             return std::nullopt;
+
+        if (pragmaStaticProgram)
+            oCS.value().setOStaticProgramAligment(staticProgramAlignment);
 
         return oCS; }
 
@@ -356,6 +365,12 @@ class Parser {
                     return error(filepath, lineNumber, "invalid boolean: " + tf);
                 embedProfilerOutput = tf == "true";
                 return true; }},
+
+            {"pragma_static-program", [&](line_number_t lineNumber, std::string const&tf) {
+                if (tf != "false" && tf != "true")
+                    return error(filepath, lineNumber, "invalid boolean: " + tf);
+                pragmaStaticProgram = tf == "true";
+                return true; }},
         };
 
         for (auto [pragma, action] : pragmaActions)
@@ -390,10 +405,7 @@ class Parser {
                 if (memPtr > stackBeginning)
                     memPtrGTStackBeginningAndNonDataOccurred = true;
 
-                parsingInstruction instruction{
-                    std::get<parsingInstruction>(p)};
-                InstructionName name = std::get<0>(instruction);
-                auto oArg = std::get<1>(instruction);
+                auto [name, oArg] = std::get<parsingInstruction>(p);
                 std::optional<word_t> oValue{std::nullopt};
                 if (oArg.has_value()) {
                     if (Util::std20::contains(definitions, oArg.value())) {
@@ -456,21 +468,16 @@ class Parser {
                     if (!oValue.has_value())
                         oValue = optionalValue; }
 
-                if (oValue.has_value()) {
-                    log("instruction " + InstructionNameRepresentationHandler
-                        ::to_string(name) + " " + std::to_string(oValue.value()));
-                    auto argument = oValue.value();
-                    memPtr += cs.storeInstruction(memPtr, Instruction{
-                        name, argument});
-                } else {
-                    log("instruction " + InstructionNameRepresentationHandler
-                        ::to_string(name) + " (none)");
-                    memPtr += cs.storeInstruction(memPtr, Instruction{
-                        name, 0x00000000}); }
+                auto argument = oValue.value_or(0x00000000);
+                Instruction instruction{name, argument};
+                log("instruction " + InstructionRepresentationHandler::to_string(instruction));
+                staticProgramAlignment[memPtr] = instruction;
+                log("staticProgramAlignment[" + std::to_string(memPtr) + "]:" + InstructionRepresentationHandler::to_string(instruction));
+                memPtr += cs.storeInstruction(memPtr, instruction);
 
                 haltInstructionWasUsed |= InstructionName::HLT == name;
-                stackInstructionWasUsed |=
-                    InstructionNameRepresentationHandler::isStackInstruction(name);
+                stackInstructionWasUsed |= InstructionNameRepresentationHandler
+                    ::isStackInstruction(name);
             }
             else
                 return error("internal error: parsing piece holds invalid alternative");

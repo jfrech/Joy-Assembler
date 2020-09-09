@@ -14,6 +14,7 @@
 
 #include "Types.hh"
 #include "Util.cpp"
+#include "RepresentationHandlers.cpp"
 
 #include "Computation.cpp"
 #include "Log.cpp"

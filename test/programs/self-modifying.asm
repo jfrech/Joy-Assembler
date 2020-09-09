@@ -1,6 +1,8 @@
 ; Jonathan Frech, 26th of August 2020
 ; a Joy Assembler example program demonstrating byte code self-modification
 
+pragma_static-program := false
+
 jmp @main
 
 benevolent:

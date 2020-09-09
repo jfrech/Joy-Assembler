@@ -3,42 +3,6 @@
 
 #include "Includes.hh"
 
-namespace InstructionNameRepresentationHandler {
-    std::optional<InstructionName> fromByteCode(byte_t const opCode) {
-        return instructions[opCode]; }
-
-    byte_t toByteCode(InstructionName const name) {
-        for (uint16_t opCode = 0; opCode < 0x100; ++opCode) {
-            if (!instructions[opCode].has_value())
-                continue;
-            if (instructions[opCode].value() == name)
-                return static_cast<byte_t>(opCode); }
-        return 0x00; }
-
-    std::string to_string(InstructionName const name) {
-        if (Util::std20::contains(representation, name))
-            return representation[name];
-        return representation[InstructionName::NOP]; }
-
-    std::optional<InstructionName> from_string(std::string const&repr) {
-        for (auto const&[in, insr] : representation)
-            if (insr == Util::stringToUpper(repr))
-                return std::optional<InstructionName>{in};
-        return std::nullopt; }
-
-    bool isStackInstruction(InstructionName const name) {
-        return Util::std20::contains(std::set<InstructionName>{
-            InstructionName::CAL, InstructionName::RET, InstructionName::PSH,
-            InstructionName::POP, InstructionName::LSA, InstructionName::SSA,
-            InstructionName::LSC, InstructionName::SSC}, name); }
-}
-
-namespace InstructionRepresentationHandler {
-    std::string to_string(Instruction const instruction) {
-        return InstructionNameRepresentationHandler::to_string(instruction.name)
-               + " 0x" + Util::UInt32AsPaddedHex(instruction.argument); }
-}
-
 class ComputationState {
     private:
         std::vector<byte_t> memory;
@@ -53,12 +17,20 @@ class ComputationState {
         std::stack<uint64_t> profilerCycles;
         bool embedProfilerOutput;
 
+        std::optional<std::map<word_t, Instruction>> oStaticProgramAlignment;
+
         bool mock;
         bool erroneous;
     public:
         ComputationStateDebug debug;
 
-    public: ComputationState(word_t const memorySize, MemoryMode const memoryMode, Util::rng_t const&rng, std::map<word_t, std::vector<std::tuple<bool, std::string>>> const&profiler, bool const embedProfilerOutput) :
+    public: ComputationState(
+        word_t const memorySize,
+        MemoryMode const memoryMode,
+        Util::rng_t const&rng,
+        std::map<word_t, std::vector<std::tuple<bool, std::string>>> const&profiler,
+        bool const embedProfilerOutput
+    ) :
         memory{std::vector<byte_t>(memorySize, 0x00000000)},
         memoryMode{memoryMode},
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
@@ -69,11 +41,18 @@ class ComputationState {
         profiler{profiler}, cycles{0}, profilerCycles{},
         embedProfilerOutput{embedProfilerOutput},
 
+        oStaticProgramAlignment{std::nullopt},
+
         mock{false}, erroneous{false},
 
         debug{}
     {
         updateFlags(); }
+
+    public: void setOStaticProgramAligment(
+        std::map<word_t, Instruction> const&staticProgramAlignment
+    ) {
+        oStaticProgramAlignment = std::make_optional(staticProgramAlignment); }
 
     /* since ComputationState::memory may be rather large, all copy
        constructors are deleted and the default move constructor is used */
@@ -411,19 +390,31 @@ class ComputationState {
         return 4;
     }
 
+    // TODO: move to Util
+    #define FMAP_OPTIONAL(F, OV) \
+        ((OV).has_value() ? std::make_optional((F)(OV.value())) : std::nullopt)
+
     private: std::optional<Instruction> nextInstruction() {
+        if (oStaticProgramAlignment.has_value() && !Util::std20::contains(oStaticProgramAlignment.value(), registerPC)) {
+            err("nextInstruction: statically unknown program counter: " + std::to_string(registerPC));
+            return std::nullopt; }
+        std::optional<Instruction> staticallyRequiredInstruction = FMAP_OPTIONAL([&](auto spa) { return spa[registerPC]; }, oStaticProgramAlignment);
+
         byte_t opCode{loadMemory(registerPC++)};
-        word_t arg{loadMemory4((registerPC += 4) - 4)};
+        word_t argument{loadMemory4((registerPC += 4) - 4)};
 
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
         if (!oInstructionName.has_value())
             return std::nullopt;
 
-        InstructionName name = oInstructionName.value();
-        word_t argument = arg;
+        Instruction instruction{oInstructionName.value(), static_cast<word_t>(argument)};
 
-        return std::make_optional(Instruction{name, argument}); }
+        if (staticallyRequiredInstruction.has_value() && instruction != staticallyRequiredInstruction.value()) {
+            err("nextInstruction: statical and dynamic instructions differ: expected " + InstructionRepresentationHandler::to_string(staticallyRequiredInstruction.value()) + ", got " + InstructionRepresentationHandler::to_string(instruction));
+            return std::nullopt; }
+
+        return std::make_optional(instruction); }
 
     private: void updateFlags() {
         flagAZero = registerA == 0;
