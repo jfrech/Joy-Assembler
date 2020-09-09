@@ -3,7 +3,7 @@
 readme="$(dirname "$(realpath "$0")")/README.md"
 
 isoDate () {
-    date +'%Y-%m-%dT%H:%M:%SZ'
+    date +'%Y-%m-%dT%H:%M:%S%:z'
 }
 buildInfo () {
     sed --in-place \

@@ -357,17 +357,18 @@ class Parser {
                 pragmaRNGSeed = std::make_optional(oRNGSeed.value());
                 return true; }},
 
+            {"pragma_static-program", [&](line_number_t lineNumber, std::string const&tf) {
+                if (tf != "false" && tf != "true")
+                    return error(filepath, lineNumber, "invalid boolean: " + tf);
+                pragmaStaticProgram = tf == "true";
+                return true; }},
+
             {"pragma_embed-profiler-output", [&](line_number_t lineNumber, std::string const&tf) {
                 if (tf != "false" && tf != "true")
                     return error(filepath, lineNumber, "invalid boolean: " + tf);
                 embedProfilerOutput = tf == "true";
                 return true; }},
 
-            {"pragma_static-program", [&](line_number_t lineNumber, std::string const&tf) {
-                if (tf != "false" && tf != "true")
-                    return error(filepath, lineNumber, "invalid boolean: " + tf);
-                pragmaStaticProgram = tf == "true";
-                return true; }},
         };
 
         for (auto [pragma, action] : pragmaActions)
