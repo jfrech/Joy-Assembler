@@ -70,8 +70,6 @@ class Parser {
             cs.enableVisualization();
         else if (arg == "step")
             cs.enableStepping();
-        else if (arg == "cycles")
-            cs.enableFinalCycles();
         else
             return err("unknown commandline argument: " + arg);
         return true; }

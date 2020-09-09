@@ -29,7 +29,7 @@ int main(int const argc, char const*argv[]) {
         do cs.memoryDump(); while (cs.step()); cs.memoryDump();
         return EXIT_SUCCESS; }
 
-    do cs.visualize(); while (cs.step()); cs.finalCycles();
+    do cs.visualize(); while (cs.step());
 
     return EXIT_SUCCESS;
 }

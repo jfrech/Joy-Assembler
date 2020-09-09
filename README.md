@@ -4,14 +4,14 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-09T14:48:02Z)
+**Build: 🟩 passing** (2020-09-09T14:50:34Z)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
 ````
-./JoyAssembler <input-file.asm> [visualize | step | cycles | memory-dump]
+./JoyAssembler <input-file.asm> [visualize | step | memory-dump]
 ````
-The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `cycles` prints the number of execution cycles that were performed. `memory-dump` mocks any I/O and outputs a step-by-step memory dump to `stdout` whilst executing.
+The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `memory-dump` mocks any I/O and outputs a step-by-step memory dump to `stdout` whilst executing.
 
 # Architecture
 Joy Assembler mimics a 32-bit architecture. It has four 32-bit registers: two general-prupose registers `A` (**a**ccumulation) and `B` (o**b**erand) and two special-prupose registers `PC` (**p**rogram **c**ounter) and `SC` (**s**tack **c**ounter).

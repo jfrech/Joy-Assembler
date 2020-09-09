@@ -73,14 +73,12 @@ namespace InstructionNameRepresentationHandler {
 struct ComputationStateDebug {
     public:
         word_t highestUsedMemoryLocation;
-        uint64_t executionCycles;
-        bool doWaitForUser, doVisualizeSteps, doShowFinalCycles;
+        bool doWaitForUser, doVisualizeSteps;
         std::optional<std::tuple<word_t, word_t>> stackBoundaries;
 
     public: ComputationStateDebug() :
         highestUsedMemoryLocation{0},
-        executionCycles{0},
-        doWaitForUser{false}, doVisualizeSteps{false}, doShowFinalCycles{false},
+        doWaitForUser{false}, doVisualizeSteps{false},
         stackBoundaries{std::nullopt}
     { ; }
 };

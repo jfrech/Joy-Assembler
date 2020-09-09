@@ -373,7 +373,6 @@ class ComputationState {
 
         updateFlags();
         std::flush(std::cout);
-        ++debug.executionCycles;
 
         if (erroneous)
             return err("step: erroneous machine state");
@@ -381,20 +380,12 @@ class ComputationState {
         return true;
     }
 
-    public: void finalCycles() const {
-        std::cout << "\n";
-        if (debug.doShowFinalCycles)
-            printExecutionCycles(); }
-
     public: void enableVisualization() {
         debug.doVisualizeSteps = true; }
 
     public: void enableStepping() {
         enableVisualization();
         debug.doWaitForUser = true; }
-
-    public: void enableFinalCycles() {
-        debug.doShowFinalCycles = true; }
 
     public: void initializeStack(
             word_t const stackBeginning, word_t const stackEnd
@@ -431,9 +422,6 @@ class ComputationState {
         word_t argument = arg;
 
         return std::make_optional(Instruction{name, argument}); }
-
-    private: void printExecutionCycles() const {
-        std::cout << "Execution cycles: " << debug.executionCycles << "\n"; }
 
     private: void updateFlags() {
         flagAZero = registerA == 0;
