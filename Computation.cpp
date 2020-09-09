@@ -47,7 +47,8 @@ class ComputationState {
         bool flagAZero, flagANegative, flagAEven;
         Util::rng_t rng;
 
-        std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
+        std::map<word_t, std::vector<std::tuple<bool, std::string>>>
+            const profiler;
         uint64_t cycles;
         std::stack<uint64_t> profilerCycles;
 
@@ -56,7 +57,7 @@ class ComputationState {
     public:
         ComputationStateDebug debug;
 
-    public: ComputationState(word_t const memorySize, MemoryMode const memoryMode, Util::rng_t const&rng) :
+    public: ComputationState(word_t const memorySize, MemoryMode const memoryMode, Util::rng_t const&rng, std::map<word_t, std::vector<std::tuple<bool, std::string>>> const&profiler) :
         memory{std::vector<byte_t>(memorySize, 0x00000000)},
         memoryMode{memoryMode},
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
@@ -64,7 +65,7 @@ class ComputationState {
 
         rng{rng},
 
-        profiler{}, cycles{0}, profilerCycles{},
+        profiler{profiler}, cycles{0}, profilerCycles{},
 
         mock{false}, erroneous{false},
 
@@ -77,9 +78,6 @@ class ComputationState {
     public: ComputationState(ComputationState &)      = delete;
     public: ComputationState(ComputationState const&) = delete;
     public: ComputationState(ComputationState &&)     = default;
-
-    public: void setProfiler(std::map<word_t, std::vector<std::tuple<bool, std::string>>> &_profiler) {
-        profiler.merge(_profiler); }
 
     public: void visualize() {
         visualize(true); }

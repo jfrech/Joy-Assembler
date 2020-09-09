@@ -9,13 +9,11 @@ class Parser {
         typedef std::tuple<InstructionName, std::optional<std::string>>
             parsingInstruction;
         typedef word_t parsingData;
-        typedef std::tuple<bool, std::string> parsingProfiler;
 
     private:
         std::set<std::filesystem::path> parsedFilepaths;
         std::vector<std::tuple<std::filesystem::path, line_number_t,
-            std::variant<parsingInstruction, parsingData, parsingProfiler>>>
-            parsing;
+            std::variant<parsingInstruction, parsingData>>> parsing;
         std::map<std::string, std::tuple<line_number_t, std::string>>
             definitions;
         bool stackInstructionWasUsed;
@@ -26,6 +24,8 @@ class Parser {
         word_t pragmaMemorySize;
         MemoryMode pragmaMemoryMode;
         std::optional<word_t> pragmaRNGSeed;
+
+        std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
 
         bool ok;
 
@@ -82,7 +82,7 @@ class Parser {
             return std::nullopt;
 
         std::optional<ComputationState> oCS{
-            std::in_place, pragmaMemorySize, pragmaMemoryMode, rng};
+            std::in_place, pragmaMemorySize, pragmaMemoryMode, rng, profiler};
 
         if (!parseAssemble(oCS.value()))
             return std::nullopt;
@@ -287,8 +287,9 @@ class Parser {
                         + std::to_string(lineNumber)
                         + std::string{profilerMessage == "" ? "" : ": "} + profilerMessage;
 
-                    parsing.push_back(std::make_tuple(filepath, lineNumber,
-                        parsingProfiler{std::make_tuple(profilerStartStop == std::string{"start"}, profilerMessage)}));
+                    if (!Util::std20::contains(profiler, memPtr))
+                        profiler[memPtr] = std::vector<std::tuple<bool, std::string>>{};
+                    profiler[memPtr].push_back(std::make_tuple(profilerStartStop == std::string{"start"}, profilerMessage));
 
                     return true; }))
 
@@ -361,8 +362,6 @@ class Parser {
     }
 
     private: bool parseAssemble(ComputationState &cs) {
-        std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
-
         log("@@@ parseAssemble @@@");
 
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
@@ -464,11 +463,6 @@ class Parser {
                 stackInstructionWasUsed |=
                     InstructionNameRepresentationHandler::isStackInstruction(name);
             }
-            else if (std::holds_alternative<parsingProfiler>(p)) {
-                if (!Util::std20::contains(profiler, memPtr))
-                    profiler[memPtr] = std::vector<std::tuple<bool, std::string>>{};
-                profiler[memPtr].push_back(std::get<std::tuple<bool, std::string>>(p));
-            }
             else
                 return error("internal error: parsing piece holds invalid alternative");
         }
@@ -492,8 +486,6 @@ class Parser {
             cs.initializeStack(stackBeginning.value(), stackEnd.value());
         } else
             log("no stack was defined");
-
-        cs.setProfiler(profiler);
 
         return true;
     }
