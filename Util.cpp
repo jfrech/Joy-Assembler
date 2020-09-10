@@ -275,7 +275,8 @@ namespace Util {
     std::optional<typename std::result_of<F(V)>::type> fmapOptional(
         F f, std::optional<V> oV
     ) {
-        return oV.has_value() ? std::make_optional(f(oV.value())) : std::nullopt; }
+        return oV.has_value()
+            ? std::make_optional(f(oV.value())) : std::nullopt; }
 
     template<typename F>
     auto flip(F f) {
