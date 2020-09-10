@@ -99,16 +99,15 @@ class ComputationState {
         std::cout << "\n    Current instruction: ";
 
         byte_t opCode = loadMemory(registerPC);
-        std::string opCodeName = "(err. NOP)";
+        std::string opCodeName{"(err. NOP)"};
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
         if (oInstructionName.has_value())
             opCodeName = InstructionNameRepresentationHandler
                          ::to_string(oInstructionName.value());
         word_t argument{loadMemory4(registerPC+1)};
-        std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, "0x" + Util::UInt32AsPaddedHex(argument)) + "\n");
+        std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, "0x" + Util::UInt32AsPaddedHex(argument)) + " (#" + std::to_string(cycles) + ")\n");
 
-        //std::cout << "    Current instruction: ";
         std::cout << ("    Registers:    " + std::string{"A:  0x"} + paintRegister(Util::UInt32AsPaddedHex(registerA))  + ",     B:  0x" + paintRegister(Util::UInt32AsPaddedHex(registerB))  + "\n");
         std::cout << ("                  " + std::string{"PC: 0x"} + paintRegister(Util::UInt32AsPaddedHex(registerPC)) + ",     SC: 0x" + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
         std::cout << ("    Flags (A zero, A negative, A even): " + paintRegister(Util::UBitAsPaddedHex(flagAZero)) + paintRegister(Util::UBitAsPaddedHex(flagANegative)) + paintRegister(Util::UBitAsPaddedHex(flagAEven)) + "\n");

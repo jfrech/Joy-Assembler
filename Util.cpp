@@ -272,15 +272,11 @@ namespace Util {
 
     // fmap :: (a -> b) -> Maybe a -> Maybe b
     template<typename F, typename V>
-    std::optional<typename std::result_of<F(V)>::type> fmapOptional(
-        F f, std::optional<V> oV
+    inline std::optional<decltype(F{}(V{}))> fmapOptional(
+        F const&f, std::optional<V> const&oV
     ) {
-        return oV.has_value()
-            ? std::make_optional(f(oV.value())) : std::nullopt; }
-
-    template<typename F>
-    auto flip(F f) {
-        return [&](auto x, auto y) { return f(y, x); }; }
+        return oV.has_value() ? std::make_optional(f(oV.value()))
+                              : std::nullopt; }
 }
 
 

@@ -27,11 +27,21 @@ namespace InstructionNameRepresentationHandler {
                 return std::optional<InstructionName>{in};
         return std::nullopt; }
 
+    #define I(INS) InstructionName::INS
     bool isStackInstruction(InstructionName const name) {
         return Util::std20::contains(std::set<InstructionName>{
-            InstructionName::CAL, InstructionName::RET, InstructionName::PSH,
-            InstructionName::POP, InstructionName::LSA, InstructionName::SSA,
-            InstructionName::LSC, InstructionName::SSC}, name); }
+            I(CAL), I(RET), I(PSH), I(POP), I(LSA), I(SSA), I(LSC), I(SSC)}, name); }
+
+/* TODO
+    bool isMemoryInstruction(InstructionName const name) {
+        return Utl::std20::contains(std::set<InstructionName>{
+            I(LDA), I(LDB), I(STA), I(STB), I(LYA), I(SYA)}, name); }
+
+    bool isJumpInstruction(InstructionName const name) {
+        return Utl::std20::contains(std::set<InstructionName>{
+            I(JMP), I(JN), I(JNN), I(JZ), I(JNZ), I(JP), I(JNP), I(JE), I(JNE)}, name); }
+*/
+    #undef I
 }
 
 namespace InstructionRepresentationHandler {
