@@ -13,6 +13,9 @@
 #include "Types.hh"
 #include "UTF8.cpp"
 
+#define lambda(expr) \
+    ([&](auto x) { return (expr); })
+
 namespace Util {
     /* custom C++20 implementations */
     namespace std20 {
@@ -266,18 +269,18 @@ namespace Util {
             std::shuffle(v.begin(), v.end(), rng);
             return v; }
     };
+
+    // fmap :: (a -> b) -> Maybe a -> Maybe b
+    template<typename F, typename V>
+    std::optional<typename std::result_of<F(V)>::type> fmapOptional(
+        F f, std::optional<V> oV
+    ) {
+        return oV.has_value() ? std::make_optional(f(oV.value())) : std::nullopt; }
+
+    template<typename F>
+    auto flip(F f) {
+        return [&](auto x, auto y) { return f(y, x); }; }
 }
 
-// TODO :: remove
-#define FMAP_OPTIONAL(F, OV) \
-    ((OV).has_value() ? std::make_optional((F)(OV.value())) : std::nullopt)
-#undef FMAP_OPTIONAL
-
-// fmap :: (a -> b) -> Maybe a -> Maybe b
-template<typename F, typename V>
-std::optional<typename std::result_of<F(V)>::type> fmapOptional(
-    F f, std::optional<V> oV
-) {
-    return oV.has_value() ? std::make_optional(f(oV.value())) : std::nullopt; }
 
 #endif

@@ -394,9 +394,10 @@ class ComputationState {
         if (oStaticProgramAlignment.has_value() && !Util::std20::contains(oStaticProgramAlignment.value(), registerPC)) {
             err("nextInstruction: statically unknown program counter: " + std::to_string(registerPC));
             return std::nullopt; }
-        std::optional<Instruction> staticallyRequiredInstruction = fmapOptional(
-            [&](auto spa) { return spa[registerPC]; },
-            oStaticProgramAlignment);
+        std::optional<Instruction> staticallyRequiredInstruction =
+            Util::fmapOptional(
+                std::function<Instruction(std::map<word_t, Instruction>)>{lambda(x[registerPC])},
+                oStaticProgramAlignment);
 
         byte_t opCode{loadMemory(registerPC++)};
         word_t argument{loadMemory4((registerPC += 4) - 4)};
