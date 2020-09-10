@@ -380,6 +380,10 @@ class Parser {
         if (pragmaRNGSeed.has_value())
             rng.seed(pragmaRNGSeed.value());
 
+        if (!profiler.empty() && !pragmaStaticProgram)
+            return error("incompatible pragmas: using the profiler forbids "
+                "'pragma_static-program := false'");
+
         return true;
     }
 
