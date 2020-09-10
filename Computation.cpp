@@ -377,9 +377,14 @@ class ComputationState {
     public: word_t storeInstruction(
             word_t const m, Instruction const instruction
     ) {
+        auto o{oStaticProgramAlignment};
+        oStaticProgramAlignment = std::nullopt;
+
         storeMemory(m, InstructionNameRepresentationHandler
                        ::toByteCode(instruction.name));
         storeMemory4(1+m, instruction.argument);
+
+        oStaticProgramAlignment = o;
         debug.highestUsedMemoryLocation = 0;
         return 5;
     }
@@ -433,8 +438,15 @@ class ComputationState {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
         if (/*m < 0 || */m >= memory.size()) {
-            err("loadMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
+            err("storeMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return; }
+
+        if (oStaticProgramAlignment.has_value())
+            for (word_t j = 0; j < 5; j++)
+                if (Util::std20::contains(oStaticProgramAlignment.value(), m - j)) {
+                    err("storeMemory: attempting to store to read-only section: " + std::to_string(m) + ", instruction aligment offset: " + std::to_string(j));
+                    return; }
+
         memory[m] = b; }
 
     private: word_t loadMemory4(word_t const m) {
