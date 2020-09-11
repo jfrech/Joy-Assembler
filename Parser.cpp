@@ -22,6 +22,7 @@ class Parser {
         word_t memPtr;
 
         word_t memorySize;
+        bool memoryIsDynamic;
 
         MemoryMode pragmaMemoryMode;
         std::optional<word_t> pragmaRNGSeed;
@@ -45,7 +46,8 @@ class Parser {
         stackEnd{std::nullopt},
         memPtr{0},
 
-        memorySize{},
+        memorySize{/*TODO possible gcc bug when writing `-1`*/},
+        memoryIsDynamic{false},
 
         pragmaMemoryMode{MemoryMode::LittleEndian},
         pragmaRNGSeed{std::nullopt},
@@ -93,7 +95,7 @@ class Parser {
 
         oMemorySemantics = constructMemorySemantics();
 
-        std::optional<ComputationState> oCS{std::in_place, memorySize,
+        std::optional<ComputationState> oCS{std::in_place, memorySize, memoryIsDynamic,
             pragmaMemoryMode, rng, profiler, embedProfilerOutput, oMemorySemantics};
 
         if (!parseAssemble(oCS.value()))
@@ -368,6 +370,20 @@ class Parser {
                 embedProfilerOutput = tf == "true";
                 return true; }},
 
+            {"pragma_memory-size", [&](line_number_t lineNumber, std::string const&ms) {
+                if (ms == "minimal")
+                    ;
+                else if (ms == "dynamic")
+                    memoryIsDynamic = true;
+                else {
+                    std::optional<word_t> oM{Util::stringToUInt32(ms)};
+                    if (!oM.has_value())
+                        return error(filepath, lineNumber, "invalid memory size: " + ms);
+                    word_t m{oM.value()};
+                    if (m < memorySize)
+                        return error(filepath, lineNumber, "memory size smaller than minimal required");
+                    memorySize = m; }
+                return true; }},
         };
 
         for (auto [pragma, action] : pragmaActions)

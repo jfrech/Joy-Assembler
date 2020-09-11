@@ -4,7 +4,7 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-11T22:51:37+02:00)
+**Build: 🟩 passing** (2020-09-11T23:13:02+02:00)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
@@ -47,12 +47,13 @@ x := 0b00100000
 
 # Pragmas
 Pragmas are used to alter the simulated machine's fundamental behavior or capability.
-| pragma                         | options                         | description                                              | default                           |
-|--------------------------------|---------------------------------|----------------------------------------------------------|-----------------------------------|
-| `pragma_memory-mode`           | `little-endian` or `big-endian` | set the endianness for all 4-byte memory operations      | `little-endian`                   |
-| `pragma_rng-seed`              | an unsigned 32-bit value        | set the random number generator's seed                   | on default, a random seed is used |
-| `pragma_static-program`        | `true` or `false`               | set all instructions in memory to read-only              | `true`                            |
-| `pragma_embed-profiler-output` | `false` or `true`               | if enabled, the profiler will tacitly output to `stdout` | `false`                           |
+| pragma                         | options                                          | description                                              | default                           |
+|--------------------------------|--------------------------------------------------|----------------------------------------------------------|-----------------------------------|
+| `pragma_memory-size`           | `mininal`, `dynamic` or an unsigned 32-bit value | set the size in bytes of the available memory block      | `minimal`                         |
+| `pragma_memory-mode`           | `little-endian` or `big-endian`                  | set the endianness for all 4-byte memory operations      | `little-endian`                   |
+| `pragma_rng-seed`              | an unsigned 32-bit value                         | set the random number generator's seed                   | on default, a random seed is used |
+| `pragma_static-program`        | `true` or `false`                                | set all instructions in memory to read-only              | `true`                            |
+| `pragma_embed-profiler-output` | `false` or `true`                                | if enabled, the profiler will tacitly output to `stdout` | `false`                           |
 
 # Labels
 One can either hard-code program positions to jump to or use an abstraction; _program labels_. A label is defined by an identifier succeeded by a colon (`:`) and accessed by the same identifier preceded by an at sign (`@`). A label definition has to be unique, yet can be used arbitrarily often:

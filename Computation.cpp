@@ -15,7 +15,8 @@ struct Statistics {
 class ComputationState {
     private:
         std::vector<byte_t> memory;
-        MemoryMode memoryMode;
+        bool const memoryIsDynamic;
+        MemoryMode const memoryMode;
         word_t registerA, registerB, registerPC, registerSC;
         bool flagAZero, flagANegative, flagAEven;
         Util::rng_t rng;
@@ -34,12 +35,14 @@ class ComputationState {
 
     public: ComputationState(
         word_t const memorySize,
+        bool const memoryIsDynamic,
         MemoryMode const memoryMode,
         Util::rng_t const&rng,
         std::map<word_t, std::vector<std::tuple<bool, std::string>>> const&profiler,
         bool const embedProfilerOutput, std::optional<std::vector<MemorySemantic>> const&oMemorySemantics
     ) :
         memory{std::vector<byte_t>(memorySize, 0x00000000)},
+        memoryIsDynamic{memoryIsDynamic},
         memoryMode{memoryMode},
         registerA{0}, registerB{0}, registerPC{0}, registerSC{0},
         flagAZero{true}, flagANegative{false}, flagAEven{true},
@@ -429,12 +432,27 @@ class ComputationState {
         flagAEven = registerA % 2 == 0;
     }
 
+    private: void accountForDynamicMemory(word_t const m) {
+        if (m < memory.size())
+            return;
+
+        word_t m2{2 * m};
+        if (m2 <= m)
+            m2 = 0xffffffff;
+        if (m2 <= m)
+            err("accountForDynamicMemory: cannot grow");
+
+        memory.resize(m2);
+        /* TODO catch? */
+    }
+
     private: byte_t loadMemory(word_t const m) {
         return loadMemory(std::nullopt, m); }
     private: byte_t loadMemory(std::optional<MemorySemantic> const&oSem, word_t const m) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
 
+        accountForDynamicMemory(m);
         if (/*m < 0 || */m >= memory.size()) {
             err("loadMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return 0; }
@@ -457,6 +475,7 @@ class ComputationState {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
 
+        accountForDynamicMemory(m);
         if (/*m < 0 || */m >= memory.size()) {
             err("storeMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return; }
