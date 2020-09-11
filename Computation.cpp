@@ -432,17 +432,17 @@ class ComputationState {
         flagAEven = registerA % 2 == 0;
     }
 
-    private: void accountForDynamicMemory(word_t const m) {
-        if (m < memory.size())
+    private: void accountForDynamicMemory(word_t const idx) {
+        if (!memoryIsDynamic || idx < memory.size())
             return;
 
-        word_t m2{2 * m};
-        if (m2 <= m)
-            m2 = 0xffffffff;
-        if (m2 <= m)
+        word_t idx2{2 * idx};
+        if (idx2 <= idx)
+            idx2 = 0xffffffff;
+        if (idx2 <= idx)
             err("accountForDynamicMemory: cannot grow");
 
-        memory.resize(m2);
+        memory.resize(idx2);
         /* TODO catch? */
     }
 
