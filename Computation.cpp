@@ -77,23 +77,49 @@ class ComputationState {
 
         std::cout << "\n    ====================- MEMORY -=====================\n";
         word_t pc = 0, rPC = registerPC;
-        std::size_t w = 16;
+        word_t w = 16;
         std::printf("       ");
-        for (std::size_t x = 0; x < w; ++x)
+        for (word_t x = 0; x < w; ++x)
             std::cout << (paintFaint("_" + Util::UNibbleAsPaddedHex(x & 0xf) + " "));
-        for (std::size_t y = 0; true; ++y) {
+        for (word_t y = 0; true; ++y) {
             std::cout << ("\n    " + paintFaint(Util::UInt8AsPaddedHex(y & 0xff) + "_"));
-            for (std::size_t x = 0; x < w; ++x) {
-                word_t m = y *w+ x;
-                if (registerSC <= pc+4 && pc+4 < registerSC + 4)
-                    std::cout << Util::ANSI_COLORS::STACK_FAINT;
-                if (registerSC <= pc && pc < registerSC + 4)
-                    std::cout << Util::ANSI_COLORS::STACK;
+            for (word_t x = 0; x < w; ++x) {
+                word_t m{y *w+ x};
+
+                if (m >= memory.size()) {
+                    std::cout << " --";
+                    continue; }
+
+                {
+                    if (oMemorySemantics.has_value()) {
+                        std::vector<MemorySemantic> const memorySemantics{oMemorySemantics.value()};
+                        if (m < memorySemantics.size()) {
+                            MemorySemantic sem{memorySemantics[m]};
+                            if (sem == MemorySemantic::InstructionHead)
+                                std::cout << Util::ANSI_COLORS::MEMORY_SEMANTICS__INSTRUCTION_HEAD;
+                            if (sem == MemorySemantic::Instruction)
+                                std::cout << Util::ANSI_COLORS::MEMORY_SEMANTICS__INSTRUCTION;
+                            if (sem == MemorySemantic::DataHead)
+                                std::cout << Util::ANSI_COLORS::MEMORY_SEMANTICS__DATA_HEAD;
+                            if (sem == MemorySemantic::Data)
+                                std::cout << Util::ANSI_COLORS::MEMORY_SEMANTICS__DATA;
+                        }
+                    }
+                }
+
+                if (registerSC != 0) {
+                    if (registerSC <= pc+4 && pc+4 < registerSC + 4)
+                        std::cout << Util::ANSI_COLORS::STACK_FAINT;
+                    if (registerSC <= pc && pc < registerSC + 4)
+                        std::cout << Util::ANSI_COLORS::STACK;
+                }
                 if (rPC <= pc && pc < rPC + 5)
                     std::cout << (pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
                 else if (m <= debug.highestUsedMemoryLocation)
                     std::cout << Util::ANSI_COLORS::MEMORY_LOCATION_USED;
-                std::printf(" %02X", memory[y *w+ x]);
+
+
+                std::cout << (" " + Util::UInt8AsPaddedHex(memory[y *w+ x]));
                 std::cout << Util::ANSI_COLORS::CLEAR;
                 ++pc;
             }

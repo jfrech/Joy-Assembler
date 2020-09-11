@@ -46,6 +46,11 @@ namespace Util {
         std::string const FAINT = "\33[2m";
         std::string const REGISTER = "\33[38;5;198m";
 
+        std::string const MEMORY_SEMANTICS__INSTRUCTION_HEAD = "\33[38;5;34m";
+        std::string const MEMORY_SEMANTICS__INSTRUCTION = "\33[38;5;70m";
+        std::string const MEMORY_SEMANTICS__DATA_HEAD = "\33[38;5;56m";
+        std::string const MEMORY_SEMANTICS__DATA = "\33[38;5;92m";
+
         std::string paint(std::string const&ansi, std::string const&text) {
             return ansi + text + CLEAR; }
 
