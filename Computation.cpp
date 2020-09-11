@@ -4,7 +4,13 @@
 #include "Includes.hh"
 
 struct Statistics {
-    uint64_t nInstructions, nMicroInstructions; };
+    uint64_t nInstructions, nMicroInstructions;
+
+    Statistics operator-(Statistics const&statistics) const {
+        return Statistics{nInstructions - statistics.nInstructions, nMicroInstructions - statistics.nMicroInstructions}; }
+    std::string toString() const {
+        return "#" + std::to_string(nInstructions) + ": " + std::to_string(nMicroInstructions); }
+};
 
 class ComputationState {
     private:
@@ -17,7 +23,7 @@ class ComputationState {
         std::map<word_t, std::vector<std::tuple<bool, std::string>>>
             const profiler;
         Statistics statistics;
-        std::stack<uint64_t> profilerNInstructions;
+        std::stack<Statistics> profilerStatistics;
         bool embedProfilerOutput;
         std::optional<std::vector<MemorySemantic>> oMemorySemantics;
 
@@ -40,7 +46,7 @@ class ComputationState {
 
         rng{rng},
 
-        profiler{profiler}, statistics{0, 0}, profilerNInstructions{},
+        profiler{profiler}, statistics{0, 0}, profilerStatistics{},
         embedProfilerOutput{embedProfilerOutput},
         oMemorySemantics{oMemorySemantics},
 
@@ -141,31 +147,29 @@ class ComputationState {
             return;
 
         for (auto [start, msg] : profiler.at(registerPC)) {
-            std::string const nInstructionsString{"[instruction number: " + std::to_string(statistics.nInstructions)
-                + "] "};
-            std::string const nInstructionsStringPadding{
-                std::string(nInstructionsString.size(), ' ')};
+            std::string const str{"[# " + std::to_string(statistics.nInstructions) + ": " + std::to_string(statistics.nMicroInstructions) + "] "};
+            std::string const strPad{std::string(str.size(), ' ')};
 
             if (start) {
                 if (!embedProfilerOutput)
-                    std::clog << nInstructionsString << "starting profiler: " + msg << std::endl;
-                profilerNInstructions.push(statistics.nInstructions);
+                    std::clog << str << "starting profiler: " + msg << std::endl;
+                profilerStatistics.push(statistics);
             } else {
                 if (!embedProfilerOutput)
-                    std::clog << nInstructionsString << "stopping profiler: " + msg << std::endl;
-                if (profilerNInstructions.empty())
-                    std::clog << nInstructionsString << "profiler could not be stopped since it was not started" << std::endl;
+                    std::clog << str << "stopping profiler: " + msg << std::endl;
+                if (profilerStatistics.empty())
+                    std::clog << str << "profiler could not be stopped since it was not started" << std::endl;
                 else {
-                    uint64_t start{profilerNInstructions.top()}, stop{statistics.nInstructions};
-                    profilerNInstructions.pop();
-                    if (start > stop)
-                        std::clog << nInstructionsStringPadding << "profiler time travelled" << std::endl;
+                    Statistics start{profilerStatistics.top()}, stop{statistics};
+                    profilerStatistics.pop();
+                    if (start.nInstructions > stop.nInstructions || start.nMicroInstructions > stop.nMicroInstructions)
+                        std::clog << strPad << "profiler time travelled" << std::endl;
                     else {
-                        uint64_t const elapsed{stop - start};
+                        Statistics const elapsed{stop - start};
                         if (!embedProfilerOutput)
-                            std::clog << nInstructionsStringPadding << "-> number of elapsed instructions: " + std::to_string(elapsed) << std::endl;
+                            std::clog << strPad << "-> number of elapsed instructions: " + elapsed.toString() << std::endl;
                         else
-                            std::cout << std::to_string(elapsed) << "\n";
+                            std::cout << std::to_string(elapsed.nMicroInstructions) << "\n";
                     }
                 }
             }
