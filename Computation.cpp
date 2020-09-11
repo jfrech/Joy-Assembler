@@ -188,7 +188,7 @@ class ComputationState {
         Instruction instruction = oInstruction.value();
 
         ++statistics.nInstructions;
-        statistics.nMicroInstructions += InstructionRepresentationHandler::microInstructions(instruction);
+        statistics.nMicroInstructions += InstructionNameRepresentationHandler::microInstructions(instruction.name);
 
         auto jmp = [&](bool const cnd) {
             if (cnd)

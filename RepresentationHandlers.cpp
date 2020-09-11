@@ -42,6 +42,72 @@ namespace InstructionNameRepresentationHandler {
         I(JMP), I(JN), I(JNN), I(JZ), I(JNZ), I(JP), I(JNP), I(JE), I(JNE)}))
     #undef I
     #undef FACTORY
+
+    constexpr std::array<uint64_t, 256> buildMicroInstructionLookupTable() {
+        static_assert(std::is_same<std::underlying_type<InstructionName>::type, byte_t>::value);
+        std::array<uint64_t, 256> lookupTable{};
+
+        //NOP LDA LDB STA STB LIA SIA LPC SPC LYA SYA JMP JN JNN JZ JNZ JP JNP JE JNE CAL RET PSH POP LSA SSA LSC SSC MOV NOT SHL SHR INC DEC NEG SWP AND OR XOR ADD SUB PTU PTS PTB PTC GET GTC RND HLT
+        #define N(INS, MIC) lookupTable[static_cast<std::underlying_type< \
+            InstructionName>::type>(InstructionName::INS)] = (MIC)
+        N(NOP, 1);
+        N(LDA, 2);
+        N(LDB, 2);
+        N(STA, 2);
+        N(STB, 2);
+        N(LIA, 5);
+        N(SIA, 5);
+        N(LPC, 2);
+        N(SPC, 2);
+        N(LYA, 2);
+        N(SYA, 2);
+        N(JMP, 2);
+        N(JN , 3);
+        N(JNN, 3);
+        N(JZ , 3);
+        N(JNZ, 3);
+        N(JP , 3);
+        N(JNP, 3);
+        N(JE , 3);
+        N(JNE, 3);
+        N(CAL, 8);
+        N(RET, 8);
+        N(PSH, 6);
+        N(POP, 6);
+        N(LSA, 5);
+        N(SSA, 5);
+        N(LSC, 5);
+        N(SSC, 5);
+        N(MOV, 2);
+        N(NOT, 3);
+        N(SHL, 3);
+        N(SHR, 3);
+        N(INC, 3);
+        N(DEC, 3);
+        N(NEG, 3);
+        N(SWP, 5);
+        N(AND, 5);
+        N(OR , 5);
+        N(XOR, 5);
+        N(ADD, 5);
+        N(SUB, 5);
+        N(PTU, 9);
+        N(PTS, 9);
+        N(PTB, 9);
+        N(PTC, 9);
+        N(GET, 9);
+        N(GTC, 9);
+        N(RND, 9);
+        N(HLT, 1);
+        #undef N
+
+        return lookupTable;
+    }
+    uint64_t microInstructions(InstructionName const name) {
+        static_assert(std::is_same<std::underlying_type<InstructionName>::type, byte_t>::value);
+        return buildMicroInstructionLookupTable()[
+            static_cast<std::underlying_type<InstructionName>::type>(name)];
+    }
 }
 
 namespace InstructionRepresentationHandler {
@@ -72,65 +138,6 @@ namespace InstructionRepresentationHandler {
                 if (memorySemantics[instruction.argument+j] != MemorySemantic::Instruction)
                     return std::make_optional("static analysis detected a misaligned instruction error (non-head)"); }
         return std::nullopt;
-    }
-
-    uint64_t microInstructions(Instruction const instruction) {
-        #define N(n, v) case InstructionName::n: return v;
-        switch (instruction.name) {
-            //NOP LDA LDB STA STB LIA SIA LPC SPC LYA SYA JMP JN JNN JZ JNZ JP JNP JE JNE CAL RET PSH POP LSA SSA LSC SSC MOV NOT SHL SHR INC DEC NEG SWP AND OR XOR ADD SUB PTU PTS PTB PTC GET GTC RND HLT
-            N(NOP, 1)
-            N(LDA, 2)
-            N(LDB, 2)
-            N(STA, 2)
-            N(STB, 2)
-            N(LIA, 2)
-            N(SIA, 2)
-            N(LPC, 2)
-            N(SPC, 2)
-            N(LYA, 3)
-            N(SYA, 3)
-            N(JMP, 2)
-            N(JN , 2)
-            N(JNN, 2)
-            N(JZ , 2)
-            N(JNZ, 2)
-            N(JP , 2)
-            N(JNP, 2)
-            N(JE , 2)
-            N(JNE, 2)
-            N(CAL, 4 + 100)
-            N(RET, 3 + 100)
-            N(PSH, 3)
-            N(POP, 2)
-            N(LSA, 2)
-            N(SSA, 2)
-            N(LSC, 2)
-            N(SSC, 2)
-            N(MOV, 2)
-            N(NOT, 2)
-            N(SHL, 2)
-            N(SHR, 2)
-            N(INC, 2)
-            N(DEC, 2)
-            N(NEG, 2)
-            N(SWP, 2)
-            N(AND, 2)
-            N(OR , 2)
-            N(XOR, 2)
-            N(ADD, 2)
-            N(SUB, 2)
-            N(PTU, 4)
-            N(PTS, 4)
-            N(PTB, 4)
-            N(PTC, 4)
-            N(GET, 12)
-            N(GTC, 3)
-            N(RND, 2)
-            N(HLT, 1)
-        }
-        #undef N
-
-        return 0;
     }
 }
 
