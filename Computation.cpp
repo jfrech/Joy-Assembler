@@ -100,7 +100,7 @@ class ComputationState {
         }
         std::cout << "\n    Current instruction: ";
 
-        byte_t opCode = loadMemory(false, registerPC);
+        byte_t opCode = loadMemory(std::nullopt, registerPC);
         std::string opCodeName{"(err. NOP)"};
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
@@ -397,9 +397,9 @@ class ComputationState {
     public: word_t storeInstruction(
             word_t const m, Instruction const instruction
     ) {
-        storeMemory(false, m, InstructionNameRepresentationHandler
+        storeMemory(MemorySemantic::InstructionHead, m, InstructionNameRepresentationHandler
                        ::toByteCode(instruction.name));
-        storeMemory4(false, 1+m, instruction.argument);
+        storeMemory4(false/*TODO MemorySemantic::Instruction*/, 1+m, instruction.argument);
         debug.highestUsedMemoryLocation = 0;
         return 5;
     }
@@ -411,8 +411,8 @@ class ComputationState {
     }
 
     private: std::optional<Instruction> nextInstruction() {
-        byte_t opCode{loadMemory(false, registerPC++)};
-        word_t argument{loadMemory4(false, (registerPC += 4) - 4)};
+        byte_t opCode{loadMemory(MemorySemantic::InstructionHead, registerPC++)};
+        word_t argument{loadMemory4(false/*TODO MemorySemantic::Instruction*/, (registerPC += 4) - 4)};
 
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
@@ -430,8 +430,8 @@ class ComputationState {
     }
 
     private: byte_t loadMemory(word_t const m) {
-        return loadMemory(true, m); }
-    private: byte_t loadMemory(bool const doStaticAnalysis, word_t const m) {
+        return loadMemory(std::nullopt, m); }
+    private: byte_t loadMemory(std::optional<MemorySemantic> const&oSem, word_t const m) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
 
@@ -439,12 +439,11 @@ class ComputationState {
             err("loadMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return 0; }
 
-        /* TODO possibly further distinguish between head and non-head? */
-        if (doStaticAnalysis && oMemorySemantics.has_value()) {
+        if (oSem.has_value() && oMemorySemantics.has_value()) {
             if (oMemorySemantics.value().size() <= m) {
                 err("loadMemory: no semantics available");
                 return 0; }
-            if (oMemorySemantics.value()[m] != MemorySemantic::DataHead && oMemorySemantics.value()[m] != MemorySemantic::Data) {
+            if (oMemorySemantics.value()[m] != oSem.value()) {
                 err("loadMemory: statically invalid memory access");
                 return 0; }
         }
@@ -453,8 +452,8 @@ class ComputationState {
     }
 
     private: void storeMemory(word_t const m, byte_t const b) {
-        storeMemory(true, m, b); }
-    private: void storeMemory(bool const doStaticAnalysis, word_t const m, byte_t const b) {
+        storeMemory(std::nullopt, m, b); }
+    private: void storeMemory(std::optional<MemorySemantic> const&oSem, word_t const m, byte_t const b) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
 
@@ -462,12 +461,11 @@ class ComputationState {
             err("storeMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return; }
 
-        /* TODO possibly further distinguish between head and non-head? */
-        if (doStaticAnalysis && oMemorySemantics.has_value()) {
+        if (oSem.has_value() && oMemorySemantics.has_value()) {
             if (oMemorySemantics.value().size() <= m) {
                 err("storeMemory: no semantics available");
                 return; }
-            if (oMemorySemantics.value()[m] != MemorySemantic::DataHead && oMemorySemantics.value()[m] != MemorySemantic::Data) {
+            if (oMemorySemantics.value()[m] != oSem.value()) {
                 err("storeMemory: statically invalid memory access");
                 return; }
         }
@@ -481,17 +479,17 @@ class ComputationState {
         byte_t b3{0}, b2{0}, b1{0}, b0{0};
         switch (memoryMode) {
             case MemoryMode::BigEndian:
-                b3 = loadMemory(doStaticAnalysis, m+0);
-                b2 = loadMemory(doStaticAnalysis, m+1);
-                b1 = loadMemory(doStaticAnalysis, m+2);
-                b0 = loadMemory(doStaticAnalysis, m+3);
+                b3 = loadMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead) : std::nullopt, m+0);
+                b2 = loadMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+1);
+                b1 = loadMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+2);
+                b0 = loadMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+3);
                 break;
 
             case MemoryMode::LittleEndian:
-                b3 = loadMemory(doStaticAnalysis, m+3);
-                b2 = loadMemory(doStaticAnalysis, m+2);
-                b1 = loadMemory(doStaticAnalysis, m+1);
-                b0 = loadMemory(doStaticAnalysis, m+0);
+                b3 = loadMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+3);
+                b2 = loadMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+2);
+                b1 = loadMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+1);
+                b0 = loadMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead) : std::nullopt, m+0);
                 break;
         }
         return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
@@ -506,17 +504,17 @@ class ComputationState {
         byte_t b0 = static_cast<byte_t>( w        & 0xff);
         switch (memoryMode) {
             case MemoryMode::LittleEndian:
-                storeMemory(doStaticAnalysis, m+3, b3);
-                storeMemory(doStaticAnalysis, m+2, b2);
-                storeMemory(doStaticAnalysis, m+1, b1);
-                storeMemory(doStaticAnalysis, m+0, b0);
+                storeMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+3, b3);
+                storeMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+2, b2);
+                storeMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+1, b1);
+                storeMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead) : std::nullopt, m+0, b0);
                 break;
 
             case MemoryMode::BigEndian:
-                storeMemory(doStaticAnalysis, m+0, b3);
-                storeMemory(doStaticAnalysis, m+1, b2);
-                storeMemory(doStaticAnalysis, m+2, b1);
-                storeMemory(doStaticAnalysis, m+3, b0);
+                storeMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead) : std::nullopt, m+0, b3);
+                storeMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+1, b2);
+                storeMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+2, b1);
+                storeMemory(doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt, m+3, b0);
                 break;
         }
     }

@@ -144,6 +144,9 @@ namespace Util {
                 unescaped.push_back(escapedRune);
                 continue; }
 
+            // e.g. `\1` is the escape code for `1`
+            unescaped.push_back(emprisonedRune);
+
             return std::nullopt; }
 
         if (unescaped.size() < 1 || unescaped.front()

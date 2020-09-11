@@ -4,7 +4,7 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-11T21:19:08+02:00)
+**Build: 🟩 passing** (2020-09-11T22:51:37+02:00)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
@@ -51,7 +51,7 @@ Pragmas are used to alter the simulated machine's fundamental behavior or capabi
 |--------------------------------|---------------------------------|----------------------------------------------------------|-----------------------------------|
 | `pragma_memory-mode`           | `little-endian` or `big-endian` | set the endianness for all 4-byte memory operations      | `little-endian`                   |
 | `pragma_rng-seed`              | an unsigned 32-bit value        | set the random number generator's seed                   | on default, a random seed is used |
-| `pragma_static-program"`       | `true` or `false`               | set all instructions in memory to read-only              | `true`                            |
+| `pragma_static-program`        | `true` or `false`               | set all instructions in memory to read-only              | `true`                            |
 | `pragma_embed-profiler-output` | `false` or `true`               | if enabled, the profiler will tacitly output to `stdout` | `false`                           |
 
 # Labels
