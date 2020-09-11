@@ -3,6 +3,9 @@
 
 #include "Includes.hh"
 
+struct Statistics {
+    uint64_t nInstructions, nMicroInstructions; };
+
 class ComputationState {
     private:
         std::vector<byte_t> memory;
@@ -13,8 +16,8 @@ class ComputationState {
 
         std::map<word_t, std::vector<std::tuple<bool, std::string>>>
             const profiler;
-        uint64_t cycles;
-        std::stack<uint64_t> profilerCycles;
+        Statistics statistics;
+        std::stack<uint64_t> profilerNInstructions;
         bool embedProfilerOutput;
         std::optional<std::vector<MemorySemantic>> oMemorySemantics;
 
@@ -37,7 +40,7 @@ class ComputationState {
 
         rng{rng},
 
-        profiler{profiler}, cycles{0}, profilerCycles{},
+        profiler{profiler}, statistics{0, 0}, profilerNInstructions{},
         embedProfilerOutput{embedProfilerOutput},
         oMemorySemantics{oMemorySemantics},
 
@@ -91,15 +94,15 @@ class ComputationState {
         }
         std::cout << "\n    Current instruction: ";
 
-        byte_t opCode = loadMemory(registerPC);
+        byte_t opCode = loadMemory(false, registerPC);
         std::string opCodeName{"(err. NOP)"};
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
         if (oInstructionName.has_value())
             opCodeName = InstructionNameRepresentationHandler
                          ::to_string(oInstructionName.value());
-        word_t argument{loadMemory4(registerPC+1)};
-        std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, "0x" + Util::UInt32AsPaddedHex(argument)) + " (#" + std::to_string(cycles) + ")\n");
+        word_t argument{loadMemory4(false, registerPC+1)};
+        std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, "0x" + Util::UInt32AsPaddedHex(argument)) + " (#" + std::to_string(statistics.nInstructions) + ": " + std::to_string(statistics.nMicroInstructions) + ")\n");
 
         std::cout << ("    Registers:    " + std::string{"A:  0x"} + paintRegister(Util::UInt32AsPaddedHex(registerA))  + ",     B:  0x" + paintRegister(Util::UInt32AsPaddedHex(registerB))  + "\n");
         std::cout << ("                  " + std::string{"PC: 0x"} + paintRegister(Util::UInt32AsPaddedHex(registerPC)) + ",     SC: 0x" + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
@@ -138,29 +141,29 @@ class ComputationState {
             return;
 
         for (auto [start, msg] : profiler.at(registerPC)) {
-            std::string const cyclesString{"[cycles: " + std::to_string(cycles)
+            std::string const nInstructionsString{"[instruction number: " + std::to_string(statistics.nInstructions)
                 + "] "};
-            std::string const cyclesStringPadding{
-                std::string(cyclesString.size(), ' ')};
+            std::string const nInstructionsStringPadding{
+                std::string(nInstructionsString.size(), ' ')};
 
             if (start) {
                 if (!embedProfilerOutput)
-                    std::clog << cyclesString << "starting profiler: " + msg << std::endl;
-                profilerCycles.push(cycles);
+                    std::clog << nInstructionsString << "starting profiler: " + msg << std::endl;
+                profilerNInstructions.push(statistics.nInstructions);
             } else {
                 if (!embedProfilerOutput)
-                    std::clog << cyclesString << "stopping profiler: " + msg << std::endl;
-                if (profilerCycles.empty())
-                    std::clog << cyclesStringPadding << "profiler could not be stopped since it was not started" << std::endl;
+                    std::clog << nInstructionsString << "stopping profiler: " + msg << std::endl;
+                if (profilerNInstructions.empty())
+                    std::clog << nInstructionsString << "profiler could not be stopped since it was not started" << std::endl;
                 else {
-                    uint64_t start{profilerCycles.top()}, stop{cycles};
-                    profilerCycles.pop();
+                    uint64_t start{profilerNInstructions.top()}, stop{statistics.nInstructions};
+                    profilerNInstructions.pop();
                     if (start > stop)
-                        std::clog << cyclesStringPadding << "profiler time travelled" << std::endl;
+                        std::clog << nInstructionsStringPadding << "profiler time travelled" << std::endl;
                     else {
-                        uint64_t elapsed{stop - start};
+                        uint64_t const elapsed{stop - start};
                         if (!embedProfilerOutput)
-                            std::clog << cyclesStringPadding << "-> elapsed cycles: " + std::to_string(elapsed) << std::endl;
+                            std::clog << nInstructionsStringPadding << "-> number of elapsed instructions: " + std::to_string(elapsed) << std::endl;
                         else
                             std::cout << std::to_string(elapsed) << "\n";
                     }
@@ -171,12 +174,14 @@ class ComputationState {
 
     public: bool step() {
         checkProfiler();
-        ++cycles;
 
         std::optional<Instruction> oInstruction = nextInstruction();
         if (!oInstruction.has_value())
             return err("step: failed to fetch next instruction");
         Instruction instruction = oInstruction.value();
+
+        ++statistics.nInstructions;
+        statistics.nMicroInstructions += InstructionRepresentationHandler::microInstructions(instruction);
 
         auto jmp = [&](bool const cnd) {
             if (cnd)
@@ -219,15 +224,33 @@ class ComputationState {
                     registerA & 0xff));
                 break;
 
-            case InstructionName::JMP: jmp(true); break;
-            case InstructionName::JN : jmp(flagANegative); break;
-            case InstructionName::JNN: jmp(!flagANegative); break;
-            case InstructionName::JZ : jmp(flagAZero); break;
-            case InstructionName::JNZ: jmp(!flagAZero); break;
-            case InstructionName::JP : jmp(!flagANegative && !flagAZero); break;
-            case InstructionName::JNP: jmp(flagANegative || flagAZero); break;
-            case InstructionName::JE : jmp(flagAEven); break;
-            case InstructionName::JNE: jmp(!flagAEven); break;
+            case InstructionName::JMP:
+                jmp(true);
+                break;
+            case InstructionName::JN:
+                jmp(flagANegative);
+                break;
+            case InstructionName::JNN:
+                jmp(!flagANegative);
+                break;
+            case InstructionName::JZ:
+                jmp(flagAZero);
+                break;
+            case InstructionName::JNZ:
+                jmp(!flagAZero);
+                break;
+            case InstructionName::JP:
+                jmp(!flagANegative && !flagAZero);
+                break;
+            case InstructionName::JNP:
+                jmp(flagANegative || flagAZero);
+                break;
+            case InstructionName::JE:
+                jmp(flagAEven);
+                break;
+            case InstructionName::JNE:
+                jmp(!flagAEven);
+                break;
 
             case InstructionName::CAL:
                 storeMemory4Stack(registerSC, registerPC);
@@ -341,7 +364,8 @@ class ComputationState {
                 registerA = rng.unif(registerA);
                 break;
 
-            case InstructionName::HLT: return false;
+            case InstructionName::HLT:
+                return false;
         }
 
         updateFlags();

@@ -73,6 +73,65 @@ namespace InstructionRepresentationHandler {
                     return std::make_optional("static analysis detected a misaligned instruction error (non-head)"); }
         return std::nullopt;
     }
+
+    uint64_t microInstructions(Instruction const instruction) {
+        #define N(n, v) case InstructionName::n: return v;
+        switch (instruction.name) {
+            //NOP LDA LDB STA STB LIA SIA LPC SPC LYA SYA JMP JN JNN JZ JNZ JP JNP JE JNE CAL RET PSH POP LSA SSA LSC SSC MOV NOT SHL SHR INC DEC NEG SWP AND OR XOR ADD SUB PTU PTS PTB PTC GET GTC RND HLT
+            N(NOP, 1)
+            N(LDA, 2)
+            N(LDB, 2)
+            N(STA, 2)
+            N(STB, 2)
+            N(LIA, 2)
+            N(SIA, 2)
+            N(LPC, 2)
+            N(SPC, 2)
+            N(LYA, 3)
+            N(SYA, 3)
+            N(JMP, 2)
+            N(JN , 2)
+            N(JNN, 2)
+            N(JZ , 2)
+            N(JNZ, 2)
+            N(JP , 2)
+            N(JNP, 2)
+            N(JE , 2)
+            N(JNE, 2)
+            N(CAL, 4)
+            N(RET, 3)
+            N(PSH, 3)
+            N(POP, 2)
+            N(LSA, 2)
+            N(SSA, 2)
+            N(LSC, 2)
+            N(SSC, 2)
+            N(MOV, 2)
+            N(NOT, 2)
+            N(SHL, 2)
+            N(SHR, 22)
+            N(INC, 2)
+            N(DEC, 2)
+            N(NEG, 2)
+            N(SWP, 2)
+            N(AND, 2)
+            N(OR , 2)
+            N(XOR, 2)
+            N(ADD, 2)
+            N(SUB, 2)
+            N(PTU, 4)
+            N(PTS, 4)
+            N(PTB, 4)
+            N(PTC, 4)
+            N(GET, 12)
+            N(GTC, 3)
+            N(RND, 2)
+            N(HLT, 1)
+        }
+        #undef N
+
+        return 0;
+    }
 }
 
 #endif
