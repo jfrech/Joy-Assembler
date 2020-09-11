@@ -17,8 +17,6 @@ class ComputationState {
         std::stack<uint64_t> profilerCycles;
         bool embedProfilerOutput;
 
-        std::optional<std::map<word_t, Instruction>> oStaticProgramAlignment;
-
         bool mock;
         bool erroneous;
     public:
@@ -41,18 +39,11 @@ class ComputationState {
         profiler{profiler}, cycles{0}, profilerCycles{},
         embedProfilerOutput{embedProfilerOutput},
 
-        oStaticProgramAlignment{std::nullopt},
-
         mock{false}, erroneous{false},
 
         debug{}
     {
         updateFlags(); }
-
-    public: void setOStaticProgramAligment(
-        std::map<word_t, Instruction> const&staticProgramAlignment
-    ) {
-        oStaticProgramAlignment = std::make_optional(staticProgramAlignment); }
 
     /* since ComputationState::memory may be rather large, all copy
        constructors are deleted and the default move constructor is used */
@@ -376,14 +367,9 @@ class ComputationState {
     public: word_t storeInstruction(
             word_t const m, Instruction const instruction
     ) {
-        auto o{oStaticProgramAlignment};
-        oStaticProgramAlignment = std::nullopt;
-
         storeMemory(m, InstructionNameRepresentationHandler
                        ::toByteCode(instruction.name));
         storeMemory4(1+m, instruction.argument);
-
-        oStaticProgramAlignment = o;
         debug.highestUsedMemoryLocation = 0;
         return 5;
     }
@@ -395,14 +381,6 @@ class ComputationState {
     }
 
     private: std::optional<Instruction> nextInstruction() {
-        if (oStaticProgramAlignment.has_value() && !Util::std20::contains(oStaticProgramAlignment.value(), registerPC)) {
-            err("nextInstruction: statically unknown program counter: " + std::to_string(registerPC));
-            return std::nullopt; }
-        std::optional<Instruction> staticallyRequiredInstruction =
-            Util::fmapOptional(
-                std::function<Instruction(std::map<word_t, Instruction>)>{lambda(x[registerPC])},
-                oStaticProgramAlignment);
-
         byte_t opCode{loadMemory(registerPC++)};
         word_t argument{loadMemory4((registerPC += 4) - 4)};
 
@@ -412,10 +390,6 @@ class ComputationState {
             return std::nullopt;
 
         Instruction instruction{oInstructionName.value(), static_cast<word_t>(argument)};
-
-        if (staticallyRequiredInstruction.has_value() && instruction != staticallyRequiredInstruction.value()) {
-            err("nextInstruction: statical and dynamic instructions differ: expected " + InstructionRepresentationHandler::to_string(staticallyRequiredInstruction.value()) + ", got " + InstructionRepresentationHandler::to_string(instruction));
-            return std::nullopt; }
 
         return std::make_optional(instruction); }
 
@@ -439,12 +413,6 @@ class ComputationState {
         if (/*m < 0 || */m >= memory.size()) {
             err("storeMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return; }
-
-        if (oStaticProgramAlignment.has_value())
-            for (word_t j = 0; j < 5; j++)
-                if (Util::std20::contains(oStaticProgramAlignment.value(), m - j)) {
-                    err("storeMemory: attempting to store to read-only section: " + std::to_string(m) + ", instruction aligment offset: " + std::to_string(j));
-                    return; }
 
         memory[m] = b; }
 

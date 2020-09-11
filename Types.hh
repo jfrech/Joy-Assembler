@@ -5,6 +5,8 @@ typedef uint8_t byte_t;
 typedef uint32_t word_t;
 
 enum class MemoryMode : bool { LittleEndian, BigEndian };
+enum class MemorySemantic : uint8_t {
+    InstructionHead, Instruction, DataHead, Data };
 
 /* TODO :: finalize op-codes */
 #define NO_ARG std::tuple{false, std::nullopt}

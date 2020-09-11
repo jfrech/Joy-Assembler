@@ -28,20 +28,20 @@ namespace InstructionNameRepresentationHandler {
         return std::nullopt; }
 
     #define I(INS) InstructionName::INS
-    bool isStackInstruction(InstructionName const name) {
-        return Util::std20::contains(std::set<InstructionName>{
-            I(CAL), I(RET), I(PSH), I(POP), I(LSA), I(SSA), I(LSC), I(SSC)}, name); }
-
-/* TODO
-    bool isMemoryInstruction(InstructionName const name) {
-        return Utl::std20::contains(std::set<InstructionName>{
-            I(LDA), I(LDB), I(STA), I(STB), I(LYA), I(SYA)}, name); }
-
-    bool isJumpInstruction(InstructionName const name) {
-        return Utl::std20::contains(std::set<InstructionName>{
-            I(JMP), I(JN), I(JNN), I(JZ), I(JNZ), I(JP), I(JNP), I(JE), I(JNE)}, name); }
-*/
+    #define FACTORY(IDENT, INSTRS) \
+        bool IDENT(InstructionName const name) { \
+            return Util::std20::contains(std::set<InstructionName>/*{*/ \
+                INSTRS/*}*/, name); }
+    FACTORY(isStackInstruction, ({
+        I(CAL), I(RET), I(PSH), I(POP), I(LSA), I(SSA), I(LSC), I(SSC)}))
+    FACTORY(doesPointAtData, ({
+        I(LDA), I(LDB), I(STA), I(STB)}))
+    FACTORY(doesPointAtDataByte, ({
+        I(LYA), I(SYA)}))
+    FACTORY(doesPointAtInstruction, ({
+        I(JMP), I(JN), I(JNN), I(JZ), I(JNZ), I(JP), I(JNP), I(JE), I(JNE)}))
     #undef I
+    #undef FACTORY
 }
 
 namespace InstructionRepresentationHandler {
