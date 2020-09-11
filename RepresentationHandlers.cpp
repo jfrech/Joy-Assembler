@@ -48,6 +48,31 @@ namespace InstructionRepresentationHandler {
     std::string to_string(Instruction const&instruction) {
         return InstructionNameRepresentationHandler::to_string(instruction.name)
                + " 0x" + Util::UInt32AsPaddedHex(instruction.argument); }
+
+    std::optional<std::string> staticallyValidInstruction(std::vector<MemorySemantic> const&memorySemantics, Instruction const&instruction) {
+        if (InstructionNameRepresentationHandler::doesPointAtData(instruction.name)) {
+            if (instruction.argument+3 >= memorySemantics.size())
+                return std::make_optional("static analysis detected an out-of-bounds data error");
+            if (memorySemantics[instruction.argument] != MemorySemantic::DataHead)
+                return std::make_optional("static analysis detected a misaligned data error (head)");
+            for (std::size_t j{1}; j < 4; ++j)
+                if (memorySemantics[instruction.argument+j] != MemorySemantic::Data)
+                    return std::make_optional("static analysis detected a misaligned data error (non-head)"); }
+        if (InstructionNameRepresentationHandler::doesPointAtDataByte(instruction.name)) {
+            if (instruction.argument >= memorySemantics.size())
+                return std::make_optional("static analysis detected an out-of-bounds data error (byte)");
+            if (memorySemantics[instruction.argument] != MemorySemantic::DataHead && memorySemantics[instruction.argument] != MemorySemantic::Data)
+                return std::make_optional("static analysis detected a misaligned data error (byte)"); }
+        if (InstructionNameRepresentationHandler::doesPointAtInstruction(instruction.name)) {
+            if (instruction.argument+4 >= memorySemantics.size())
+                return std::make_optional("static analysis detected an out-of-bounds instruction error");
+            if (memorySemantics[instruction.argument] != MemorySemantic::InstructionHead)
+                return std::make_optional("static analysis detected a misaligned instruction error (head)");
+            for (std::size_t j{1}; j < 5; ++j)
+                if (memorySemantics[instruction.argument+j] != MemorySemantic::Instruction)
+                    return std::make_optional("static analysis detected a misaligned instruction error (non-head)"); }
+        return std::nullopt;
+    }
 }
 
 #endif

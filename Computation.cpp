@@ -16,6 +16,7 @@ class ComputationState {
         uint64_t cycles;
         std::stack<uint64_t> profilerCycles;
         bool embedProfilerOutput;
+        std::optional<std::vector<MemorySemantic>> oMemorySemantics;
 
         bool mock;
         bool erroneous;
@@ -27,7 +28,7 @@ class ComputationState {
         MemoryMode const memoryMode,
         Util::rng_t const&rng,
         std::map<word_t, std::vector<std::tuple<bool, std::string>>> const&profiler,
-        bool const embedProfilerOutput
+        bool const embedProfilerOutput, std::optional<std::vector<MemorySemantic>> const&oMemorySemantics
     ) :
         memory{std::vector<byte_t>(memorySize, 0x00000000)},
         memoryMode{memoryMode},
@@ -38,6 +39,7 @@ class ComputationState {
 
         profiler{profiler}, cycles{0}, profilerCycles{},
         embedProfilerOutput{embedProfilerOutput},
+        oMemorySemantics{oMemorySemantics},
 
         mock{false}, erroneous{false},
 
@@ -367,9 +369,9 @@ class ComputationState {
     public: word_t storeInstruction(
             word_t const m, Instruction const instruction
     ) {
-        storeMemory(m, InstructionNameRepresentationHandler
+        storeMemory(false, m, InstructionNameRepresentationHandler
                        ::toByteCode(instruction.name));
-        storeMemory4(1+m, instruction.argument);
+        storeMemory4(false, 1+m, instruction.argument);
         debug.highestUsedMemoryLocation = 0;
         return 5;
     }
@@ -381,8 +383,8 @@ class ComputationState {
     }
 
     private: std::optional<Instruction> nextInstruction() {
-        byte_t opCode{loadMemory(registerPC++)};
-        word_t argument{loadMemory4((registerPC += 4) - 4)};
+        byte_t opCode{loadMemory(false, registerPC++)};
+        word_t argument{loadMemory4(false, (registerPC += 4) - 4)};
 
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
@@ -400,60 +402,93 @@ class ComputationState {
     }
 
     private: byte_t loadMemory(word_t const m) {
+        return loadMemory(true, m); }
+    private: byte_t loadMemory(bool const doStaticAnalysis, word_t const m) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
+
         if (/*m < 0 || */m >= memory.size()) {
             err("loadMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return 0; }
-        return memory[m]; }
+
+        /* TODO possibly further distinguish between head and non-head? */
+        if (doStaticAnalysis && oMemorySemantics.has_value()) {
+            if (oMemorySemantics.value().size() <= m) {
+                err("loadMemory: no semantics available");
+                return 0; }
+            if (oMemorySemantics.value()[m] != MemorySemantic::DataHead && oMemorySemantics.value()[m] != MemorySemantic::Data) {
+                err("loadMemory: statically invalid memory access");
+                return 0; }
+        }
+
+        return memory[m];
+    }
 
     private: void storeMemory(word_t const m, byte_t const b) {
+        storeMemory(true, m, b); }
+    private: void storeMemory(bool const doStaticAnalysis, word_t const m, byte_t const b) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
+
         if (/*m < 0 || */m >= memory.size()) {
             err("storeMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
             return; }
 
-        memory[m] = b; }
+        /* TODO possibly further distinguish between head and non-head? */
+        if (doStaticAnalysis && oMemorySemantics.has_value()) {
+            if (oMemorySemantics.value().size() <= m) {
+                err("storeMemory: no semantics available");
+                return; }
+            if (oMemorySemantics.value()[m] != MemorySemantic::DataHead && oMemorySemantics.value()[m] != MemorySemantic::Data) {
+                err("storeMemory: statically invalid memory access");
+                return; }
+        }
+
+        memory[m] = b;
+    }
 
     private: word_t loadMemory4(word_t const m) {
+        return loadMemory4(true, m); }
+    private: word_t loadMemory4(bool const doStaticAnalysis, word_t const m) {
         byte_t b3{0}, b2{0}, b1{0}, b0{0};
         switch (memoryMode) {
             case MemoryMode::BigEndian:
-                b3 = loadMemory(m+0);
-                b2 = loadMemory(m+1);
-                b1 = loadMemory(m+2);
-                b0 = loadMemory(m+3);
+                b3 = loadMemory(doStaticAnalysis, m+0);
+                b2 = loadMemory(doStaticAnalysis, m+1);
+                b1 = loadMemory(doStaticAnalysis, m+2);
+                b0 = loadMemory(doStaticAnalysis, m+3);
                 break;
 
             case MemoryMode::LittleEndian:
-                b3 = loadMemory(m+3);
-                b2 = loadMemory(m+2);
-                b1 = loadMemory(m+1);
-                b0 = loadMemory(m+0);
+                b3 = loadMemory(doStaticAnalysis, m+3);
+                b2 = loadMemory(doStaticAnalysis, m+2);
+                b1 = loadMemory(doStaticAnalysis, m+1);
+                b0 = loadMemory(doStaticAnalysis, m+0);
                 break;
         }
         return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
     }
 
     private: void storeMemory4(word_t const m, word_t const w) {
+        storeMemory4(true, m, w); }
+    private: void storeMemory4(bool const doStaticAnalysis, word_t const m, word_t const w) {
         byte_t b3 = static_cast<byte_t>((w >> 24) & 0xff);
         byte_t b2 = static_cast<byte_t>((w >> 16) & 0xff);
         byte_t b1 = static_cast<byte_t>((w >>  8) & 0xff);
         byte_t b0 = static_cast<byte_t>( w        & 0xff);
         switch (memoryMode) {
             case MemoryMode::LittleEndian:
-                storeMemory(m+3, b3);
-                storeMemory(m+2, b2);
-                storeMemory(m+1, b1);
-                storeMemory(m+0, b0);
+                storeMemory(doStaticAnalysis, m+3, b3);
+                storeMemory(doStaticAnalysis, m+2, b2);
+                storeMemory(doStaticAnalysis, m+1, b1);
+                storeMemory(doStaticAnalysis, m+0, b0);
                 break;
 
             case MemoryMode::BigEndian:
-                storeMemory(m+0, b3);
-                storeMemory(m+1, b2);
-                storeMemory(m+2, b1);
-                storeMemory(m+3, b0);
+                storeMemory(doStaticAnalysis, m+0, b3);
+                storeMemory(doStaticAnalysis, m+1, b2);
+                storeMemory(doStaticAnalysis, m+2, b1);
+                storeMemory(doStaticAnalysis, m+3, b0);
                 break;
         }
     }

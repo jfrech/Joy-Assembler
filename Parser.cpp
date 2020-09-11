@@ -30,6 +30,8 @@ class Parser {
         std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
         bool embedProfilerOutput;
 
+        std::optional<std::vector<MemorySemantic>> oMemorySemantics;
+
         bool ok;
 
         Util::rng_t rng;
@@ -51,6 +53,8 @@ class Parser {
 
         profiler{},
         embedProfilerOutput{false},
+
+        oMemorySemantics{std::nullopt},
 
         ok{true},
 
@@ -87,8 +91,10 @@ class Parser {
         if (!pragmas(filepath))
             return std::nullopt;
 
+        oMemorySemantics = constructMemorySemantics();
+
         std::optional<ComputationState> oCS{std::in_place, memorySize,
-            pragmaMemoryMode, rng, profiler, embedProfilerOutput};
+            pragmaMemoryMode, rng, profiler, embedProfilerOutput, oMemorySemantics};
 
         if (!parseAssemble(oCS.value()))
             return std::nullopt;
@@ -380,30 +386,30 @@ class Parser {
         return true;
     }
 
-    private: bool parseAssemble(ComputationState &cs) {
-        std::optional<std::vector<MemorySemantic>> const oMemorySemantics{[&]() -> std::optional<std::vector<MemorySemantic>> {
-            if (!pragmaStaticProgram)
-                return std::nullopt;
-            std::vector<MemorySemantic> memorySemantics{};
-            memorySemantics.reserve(memorySize);
-            for (auto const&[filepath, lineNumber, p] : parsing) {
-                if (std::holds_alternative<parsingData>(p)) {
-                    memorySemantics.push_back(MemorySemantic::DataHead);
-                    for (std::size_t j = 0; j < 3; j++)
-                        memorySemantics.push_back(MemorySemantic::Data); }
-                else if (std::holds_alternative<parsingInstruction>(p)) {
-                    memorySemantics.push_back(MemorySemantic::InstructionHead);
-                    for (std::size_t j = 0; j < 4; j++)
-                        memorySemantics.push_back(MemorySemantic::Instruction); }
-                else {
-                    error("internal error (memory semantics): parsing piece holds invalid alternative");
-                    return std::nullopt; }
-            }
-            return std::make_optional(memorySemantics);
-        }()};
-        if (!ok)
-            return false;
+    private: std::optional<std::vector<MemorySemantic>> constructMemorySemantics() {
+        if (!pragmaStaticProgram)
+            return std::nullopt;
 
+        std::vector<MemorySemantic> memorySemantics{};
+        memorySemantics.reserve(memorySize);
+        for (auto const&[filepath, lineNumber, p] : parsing) {
+            if (std::holds_alternative<parsingData>(p)) {
+                memorySemantics.push_back(MemorySemantic::DataHead);
+                for (std::size_t j = 0; j < 3; j++)
+                    memorySemantics.push_back(MemorySemantic::Data); }
+            else if (std::holds_alternative<parsingInstruction>(p)) {
+                memorySemantics.push_back(MemorySemantic::InstructionHead);
+                for (std::size_t j = 0; j < 4; j++)
+                    memorySemantics.push_back(MemorySemantic::Instruction); }
+            else {
+                error("internal error (memory semantics): parsing piece holds invalid alternative");
+                return std::nullopt; }
+        }
+
+        return std::make_optional(memorySemantics);
+    }
+
+    private: bool parseAssemble(ComputationState &cs) {
         log("@@@ parseAssemble @@@");
 
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
@@ -489,34 +495,12 @@ class Parser {
                 log("instruction " + InstructionRepresentationHandler::to_string(instruction));
 
                 if (oMemorySemantics.has_value()) {
-                    std::vector<MemorySemantic> memorySemantics{/*TODO move*/oMemorySemantics.value()};
-                    if (InstructionNameRepresentationHandler::doesPointAtData(instruction.name)) {
-                        if (argument+3 >= memorySemantics.size())
-                            return error(filepath, lineNumber, "static analysis detected an out-of-bounds data error");
-                        if (memorySemantics[argument] != MemorySemantic::DataHead)
-                            return error(filepath, lineNumber, "static analysis detected a misaligned data error (head)");
-                        for (std::size_t j{1}; j < 4; ++j)
-                            if (memorySemantics[argument+j] != MemorySemantic::Data)
-                                return error(filepath, lineNumber, "static analysis detected a misaligned data error (non-head)");
-                    }
-                    else if (InstructionNameRepresentationHandler::doesPointAtDataByte(instruction.name)) {
-                        if (argument >= memorySemantics.size())
-                            return error(filepath, lineNumber, "static analysis detected an out-of-bounds data error (byte)");
-                        if (memorySemantics[argument] != MemorySemantic::DataHead && memorySemantics[argument] != MemorySemantic::Data)
-                            return error(filepath, lineNumber, "static analysis detected a misaligned data error (byte)");
-                    }
-                    else if (InstructionNameRepresentationHandler::doesPointAtInstruction(instruction.name)) {
-                        if (argument+4 >= memorySemantics.size())
-                            return error(filepath, lineNumber, "static analysis detected an out-of-bounds instruction error");
-                        if (memorySemantics[argument] != MemorySemantic::InstructionHead)
-                            return error(filepath, lineNumber, "static analysis detected a misaligned instruction error (head)");
-                        for (std::size_t j{1}; j < 5; ++j)
-                            if (memorySemantics[argument+j] != MemorySemantic::Instruction)
-                                return error(filepath, lineNumber, "static analysis detected a misaligned instruction error (non-head)");
-                    }
-                    else {
-                        ;
-                    }
+                    std::optional<std::string> err{
+                        InstructionRepresentationHandler
+                        ::staticallyValidInstruction(
+                            oMemorySemantics.value(), instruction)};
+                    if (err.has_value())
+                        return error(filepath, lineNumber, err.value());
                 }
 
                 memPtr += cs.storeInstruction(memPtr, instruction);
