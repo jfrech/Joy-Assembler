@@ -494,6 +494,8 @@ class Parser {
                 Instruction instruction{name, argument};
                 log("instruction " + InstructionRepresentationHandler::to_string(instruction));
 
+
+                /* TODO Consider possibly moving the following block into `ComputationState::storeInstruction`? */
                 if (oMemorySemantics.has_value()) {
                     std::optional<std::string> err{
                         InstructionRepresentationHandler
@@ -502,6 +504,7 @@ class Parser {
                     if (err.has_value())
                         return error(filepath, lineNumber, err.value());
                 }
+
 
                 memPtr += cs.storeInstruction(memPtr, instruction);
 
