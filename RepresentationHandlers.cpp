@@ -103,11 +103,12 @@ namespace InstructionNameRepresentationHandler {
 
         return lookupTable;
     }
+
     uint64_t microInstructions(InstructionName const name) {
-        static_assert(std::is_same<std::underlying_type<InstructionName>::type, byte_t>::value);
+        static_assert(std::is_same<
+            std::underlying_type<InstructionName>::type, byte_t>::value);
         return buildMicroInstructionLookupTable()[
-            static_cast<std::underlying_type<InstructionName>::type>(name)];
-    }
+            static_cast<std::underlying_type<InstructionName>::type>(name)]; }
 }
 
 namespace InstructionRepresentationHandler {
