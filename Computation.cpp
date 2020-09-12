@@ -243,10 +243,10 @@ class ComputationState {
                 storeMemory4(registerB + instruction.argument, registerA);
                 break;
             case InstructionName::LPC:
-                registerPC = registerA;
+                registerA = registerPC;
                 break;
             case InstructionName::SPC:
-                registerA = registerPC;
+                registerPC = registerA;
                 break;
             case InstructionName::LYA:
                 registerA = (registerA                        & 0xffffff00)
@@ -308,10 +308,10 @@ class ComputationState {
                 storeMemory4Stack(registerSC + instruction.argument, registerA);
                 break;
             case InstructionName::LSC:
-                registerSC = registerA;
+                registerA = registerSC;
                 break;
             case InstructionName::SSC:
-                registerA = registerSC;
+                registerSC = registerA;
                 break;
 
             case InstructionName::MOV:

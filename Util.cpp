@@ -96,9 +96,10 @@ namespace Util {
             {static_cast<UTF8::rune_t>('r'),  static_cast<UTF8::rune_t>('\r')},
             {static_cast<UTF8::rune_t>('t'),  static_cast<UTF8::rune_t>('\t')},
             {static_cast<UTF8::rune_t>('v'),  static_cast<UTF8::rune_t>('\v')},
+            /* any other character is its own escape; the most useful being:
             {static_cast<UTF8::rune_t>('\"'), static_cast<UTF8::rune_t>('\"')},
             {static_cast<UTF8::rune_t>('\''), static_cast<UTF8::rune_t>('\'')},
-            {static_cast<UTF8::rune_t>(';'), static_cast<UTF8::rune_t>(';')},
+            {static_cast<UTF8::rune_t>(';'), static_cast<UTF8::rune_t>(';')}, */
         };
         std::map<UTF8::rune_t, uint8_t> const&nibbleEscapes{[]() {
             std::map<UTF8::rune_t, uint8_t> nibbleEscapes{};

@@ -4,7 +4,7 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-12T22:45:39+02:00)
+**Build: 🟩 passing** (2020-09-13T00:56:53+02:00)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
@@ -117,8 +117,8 @@ An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `
 | `stb`             | required               | "**st**ore **b**"                   | Store the value in register `B` to the specified memory location.                                                                                                   |
 | `lia`             | optional, default: `0` | "**l**oad **i**ndirect **a**"       | Load the value at the memory location identified by register `B`, possibly offset by the specified number of bytes, into register `A`.                              |
 | `sia`             | optional, default: `0` | "**s**tore **i**ndirect **a**"      | Store the value in register `A` at the memory location identified by register `B`, possibly offset by the specified number of bytes.                                |
-| `lpc`             | none                   | "**l**oad **p**rogram **c**ounter"  | Set the value of the program counter register `PC` to the value in register `A`.                                                                                    |
-| `spc`             | none                   | "**s**tore **p**rogram **c**ounter" | Store the value in the program counter register `PC` to register `A`.                                                                                               |
+| `lpc`             | none                   | "**l**oad **p**rogram **c**ounter"  | Load the value of the program counter register `PC` into the value in register `A`.                                                                                 |
+| `spc`             | none                   | "**s**tore **p**rogram **c**ounter" | Store the value in register `A` to the program counter register `PC`.                                                                                               |
 | `lya`             | required               | "**l**oad b**y**te **a**"           | Load the byte at the specified memory location into the least significant byte of register `A`, modifying it in-place and keeping the three most significant bytes. |
 | `sya`             | required               | "**s**tore b**y**te **a**"          | Store the least significant byte of register `A` to the specified memory location.                                                                                  |
 | **jumps**         |                        |                                     |                                                                                                                                                                     |
@@ -138,8 +138,8 @@ An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `
 | `pop`             | none                   | "**pop** stack"                     | Decrease the stack counter and pop the stack value into register `A`.                                                                                               |
 | `lsa`             | optional, default: `0` | "**l**oad **s**tack into **a**"     | Peek in the stack, possibly offset by the specified number of bytes, and load the value into register `A`.                                                          |
 | `ssa`             | optional, default: `0` | "**s**tore **s**tack from **a**"    | Poke in the stack, possibly offset by the specified number of bytes, and store the value of register `A`.                                                           |
-| `lsc`             | none                   | "**l**oad **s**tack **c**ounter"    | Load the value in register `A` into the current stack counter.                                                                                                      |
-| `ssc`             | none                   | "**s**tore **s**tack **c**ounter"   | Store the current stack counter into register `A`.                                                                                                                  |
+| `lpc`             | none                   | "**l**oad **s**tack **c**ounter"    | Load the value of the stack counter register `SC` into the value in register `A`.                                                                                 |
+| `spc`             | none                   | "**s**tore **s**tack **c**ounter"   | Store the value in register `A` to the stack counter register `SC`.                                                                                               |
 | **reg. `A`**      |                        |                                     |                                                                                                                                                                     |
 | `mov`             | required               | "**mov**e immediately"              | Move the specified immediate value into register `A`.                                                                                                               |
 | `not`             | none                   | "bitwise **not**"                   | Invert all bits in register `A`, modifying it in-place.                                                                                                             |
