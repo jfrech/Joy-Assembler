@@ -4,7 +4,7 @@ A minimalistic toy assembler written in C++ by Jonathan Frech, August 2020.
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-09-13T17:27:02+02:00)
+**Build: 🟩 passing** (2020-09-13T22:49:14+02:00)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
@@ -138,8 +138,8 @@ An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `
 | `pop`             | none                   | "**pop** stack"                     | Decrease the stack counter and pop the stack value into register `A`.                                                                                               |
 | `lsa`             | optional, default: `0` | "**l**oad **s**tack into **a**"     | Peek in the stack, possibly offset by the specified number of bytes, and load the value into register `A`.                                                          |
 | `ssa`             | optional, default: `0` | "**s**tore **s**tack from **a**"    | Poke in the stack, possibly offset by the specified number of bytes, and store the value of register `A`.                                                           |
-| `lpc`             | none                   | "**l**oad **s**tack **c**ounter"    | Load the value of the stack counter register `SC` into the value in register `A`.                                                                                 |
-| `spc`             | none                   | "**s**tore **s**tack **c**ounter"   | Store the value in register `A` to the stack counter register `SC`.                                                                                               |
+| `lsc`             | none                   | "**l**oad **s**tack **c**ounter"    | Load the value of the stack counter register `SC` into the value in register `A`.                                                                                   |
+| `ssc`             | none                   | "**s**tore **s**tack **c**ounter"   | Store the value in register `A` to the stack counter register `SC`.                                                                                                 |
 | **reg. `A`**      |                        |                                     |                                                                                                                                                                     |
 | `mov`             | required               | "**mov**e immediately"              | Move the specified immediate value into register `A`.                                                                                                               |
 | `not`             | none                   | "bitwise **not**"                   | Invert all bits in register `A`, modifying it in-place.                                                                                                             |
