@@ -7,7 +7,8 @@ make -C "$root/.." || exit 1
 pristineHashes="$root/pristine-hashes"
 programs="$root/programs"
 
-mkdir -p "pristineHashes"
+rm -rf "$pristineHashes"
+mkdir -p "$pristineHashes"
 
 find "$root/programs" -mindepth 1 -maxdepth 1 -type f | sort | \
 while read prg; do
