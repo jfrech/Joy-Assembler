@@ -162,187 +162,192 @@ class Parser {
                 return true;
             };
 
-            #define ON_MATCH(REGEX, LAMBDA) { \
-                std::smatch smatch{}; \
-                if (std::regex_match(ln, smatch, std::regex{(REGEX)})) { \
-                    if (!(LAMBDA)(smatch)) \
-                        return false; \
-                    continue; }}
 
-            ON_MATCH("^(" + regexIdentifier + ") ?:= ?(" + regexValue + ")$", (
-                [define](std::smatch const&smatch) {
-                    return define(std::string{smatch[1]},
-                        std::string{smatch[2]}); }))
+            std::vector<std::tuple<std::string, std::function<bool(std::smatch const&)>>> const onMatch{
+                { "^(" + regexIdentifier + ") ?:= ?(" + regexValue + ")$"
+                , [define](std::smatch const&smatch) {
+                      return define(std::string{smatch[1]},
+                          std::string{smatch[2]}); }},
 
-            ON_MATCH("^(" + regexIdentifier + "):$", (
-                [&](std::smatch const&smatch) {
-                    std::string label{smatch[1]};
-                    if (!define("@" + label, std::to_string(memPtr)))
-                        return false;
-                    if (label == "stack" && !stackBeginning.has_value())
-                        stackBeginning = std::make_optional(memPtr);
-                    return true; }))
+                { "^(" + regexIdentifier + "):$"
+                , [&](std::smatch const&smatch) {
+                      std::string label{smatch[1]};
+                      if (!define("@" + label, std::to_string(memPtr)))
+                          return false;
+                      if (label == "stack" && !stackBeginning.has_value())
+                          stackBeginning = std::make_optional(memPtr);
+                      return true; }},
 
             /* TODO :: too wide */
-            ON_MATCH("^data ?(.+)$", (
-                [&](std::smatch const&smatch) {
-                    log("parsing `data` ...");
-                    std::string commaSeparated{std::string{smatch[1]} + ","};
-                    for (uint64_t elementNumber{1}; commaSeparated != ""; ++elementNumber) {
-                        auto dataError = [&](std::string const&msg, std::string const&detail) {
-                            return error(filepath, lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
+                { "^data ?(.+)$"
+                , [&](std::smatch const&smatch) {
+                      log("parsing `data` ...");
+                      std::string commaSeparated{std::string{smatch[1]} + ","};
+                      for (uint64_t elementNumber{1}; commaSeparated != ""; ++elementNumber) {
+                          auto dataError = [&](std::string const&msg, std::string const&detail) {
+                              return error(filepath, lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
+  
+                          std::smatch smatch{};
+                          if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + "|" + "runif " + regexValue + "|" + "rperm" + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
+  
+                              log("smatch of size " + std::to_string(smatch.size()));
+                              for (auto j = 0u; j < smatch.size(); ++j)
+                                  log("smatch[" + std::to_string(j) + "]: @@@" + std::string{smatch[j]} + "@@@");
+  
+                              std::string unparsedElement{smatch[1]};
+                              std::string unparsedSize{smatch[3]};
+                              std::string unparsedValue{smatch[4]};
+                              commaSeparated = std::string{smatch[6]};
+  
+                              if (unparsedElement == "")
+                                  return dataError("invalid data element", "empty element");
+  
+                              if (unparsedElement.front() == '\"') {
+                                  log("parsing string: " + unparsedElement);
+                                  std::optional<std::vector<UTF8::rune_t>> oRunes = Util::parseString(unparsedElement);
+                                  if (!oRunes.has_value())
+                                      return dataError("invalid data string element", unparsedElement);
+                                  for (UTF8::rune_t rune : oRunes.value())
+                                      pushData(static_cast<word_t>(rune));
+                                  continue;
+                              }
+  
+                              log("parsing non-string: " + unparsedElement);
+  
+                              if (unparsedSize == "")
+                                  unparsedSize = std::string{"1"};
+                              std::optional<word_t> oSize{Util::stringToUInt32(unparsedSize)};
+                              if (!oSize.has_value())
+                                  return dataError("invalid data uint element size", unparsedSize);
+                              log("    ~> size: " + std::to_string(oSize.value()));
+  
+                              {
+                                  std::smatch smatch{};
+                                  if (std::regex_match(unparsedValue, smatch, std::regex{"^runif (" + regexValue + ")$"})) {
+                                      unparsedValue = std::string{smatch[1]};
+                                      std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
+                                      if (!oValue.has_value())
+                                          return dataError("invalid data unif range value", unparsedValue);
+  
+                                      for (word_t r : rng.unif(oSize.value(), oValue.value()))
+                                          pushData(r);
+                                      continue;
+                                  }
+                                  if (std::regex_match(unparsedValue, smatch, std::regex{"^rperm$"})) {
+                                      for (word_t r : rng.perm(oSize.value()))
+                                          pushData(r);
+                                      continue;
+                                  }
+                              }
+  
+                              log("parsing uint: " + unparsedElement);
+  
+                              if (unparsedValue == "")
+                                  unparsedValue = std::string{"0"};
+                              std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
+                              if (!oValue.has_value())
+                                  return dataError("invalid data uint element value", unparsedValue);
+                              log("    ~> value: " + std::to_string(oValue.value()));
+  
+                              for (word_t j = 0; j < oSize.value(); ++j)
+                                  pushData(oValue.value());
+                              continue;
+                          }
+                          return dataError("incomprehensible data element trunk", commaSeparated);
+                      }
+                      return true; }},
 
-                        std::smatch smatch{};
-                        if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + "|" + "runif " + regexValue + "|" + "rperm" + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
+                { "^include ?(" + regexString + ")$"
+                , [&](std::smatch const&smatch) {
+                      std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes{
+                          Util::parseString(std::string{smatch[1]})};
+                      if (!oIncludeFilepathRunes.has_value())
+                          return error(filepath, lineNumber, "malformed utf-8 include string: " + std::string{smatch[1]});
+  
+                      std::optional<std::string> oIncludeFilepath{
+                          UTF8::runeVectorToOptionalString(oIncludeFilepathRunes.value())};
+                      if (!oIncludeFilepath.has_value())
+                          return error(filepath, lineNumber, "malformed include string (contains non-7-bit ASCII): " + std::string{smatch[1]});
+  
+                      std::filesystem::path const includeFilepath{
+                          filepath.parent_path() / oIncludeFilepath.value()};
+  
+                      bool success{};
+                      log("including with memPtr = " + std::to_string(memPtr));
+                      success = parseFiles(includeFilepath);
+                      log("included with memPtr = " + std::to_string(memPtr));
+  
+                      if (!success)
+                          return error(filepath, lineNumber, "could not include "
+                              "file: " + std::string{includeFilepath});
+                      return true; }},
 
-                            log("smatch of size " + std::to_string(smatch.size()));
-                            for (auto j = 0u; j < smatch.size(); ++j)
-                                log("smatch[" + std::to_string(j) + "]: @@@" + std::string{smatch[j]} + "@@@");
+                { "^include.*$"
+                , [&](std::smatch const&_) {
+                      (void) _;
+                      return error(filepath, lineNumber,
+                          "improper include: either empty or missing quotes"); }},
 
-                            std::string unparsedElement{smatch[1]};
-                            std::string unparsedSize{smatch[3]};
-                            std::string unparsedValue{smatch[4]};
-                            commaSeparated = std::string{smatch[6]};
+                { "^profiler ([^ ]*?)(, ?(.*))?$"
+                , [&](std::smatch const&smatch) {
+                      std::string const profilerStartStop{smatch[1]};
+                      if (profilerStartStop != "start" && profilerStartStop != "stop")
+                          return error(filepath, lineNumber, "invalid profiler "
+                              "directive (must be 'start' or 'stop'): "
+                              + profilerStartStop);
 
-                            if (unparsedElement == "")
-                                return dataError("invalid data element", "empty element");
+                      std::string profilerMessage{smatch[3]};
+                      profilerMessage = "file " + std::string{filepath} + ", ln "
+                          + std::to_string(lineNumber)
+                          + std::string{profilerMessage == "" ? "" : ": "} + profilerMessage;
+  
+                      if (!Util::std20::contains(profiler, memPtr))
+                          profiler[memPtr] = std::vector<std::tuple<bool, std::string>>{};
+                      profiler[memPtr].push_back(std::make_tuple(profilerStartStop == std::string{"start"}, profilerMessage));
+  
+                      return true; }},
 
-                            if (unparsedElement.front() == '\"') {
-                                log("parsing string: " + unparsedElement);
-                                std::optional<std::vector<UTF8::rune_t>> oRunes = Util::parseString(unparsedElement);
-                                if (!oRunes.has_value())
-                                    return dataError("invalid data string element", unparsedElement);
-                                for (UTF8::rune_t rune : oRunes.value())
-                                    pushData(static_cast<word_t>(rune));
-                                continue;
-                            }
+                { "^(" + regexIdentifier + ")( (" + regexValue + "))?$"
+                , [&](std::smatch const&smatch) {
+                      auto oName = InstructionNameRepresentationHandler
+                          ::from_string(smatch[1]);
+                      if (!oName.has_value())
+                          return error(filepath, lineNumber, "invalid "
+                              "instruction name: " + std::string{smatch[1]});
+                      std::optional<std::string> oArg{std::nullopt};
+                      if (smatch[3] != "")
+                          oArg = std::optional{smatch[3]};
+                      log("pushing instruction: "
+                          + InstructionNameRepresentationHandler::to_string(oName.value())
+                          + " " + oArg.value_or("(no arg.)"));
+  
+                      InstructionName const name{oName.value()};
+                      auto [takesArgument, optionalArgument] = InstructionNameRepresentationHandler::argumentType.at(name);
+                      if (oArg.has_value() && !takesArgument)
+                          return error(filepath, lineNumber, "instruction takes no argument: " + InstructionNameRepresentationHandler::to_string(name));
+                      if (!oArg.has_value() && takesArgument && !optionalArgument.has_value())
+                          return error(filepath, lineNumber, "instruction requires an argument: " + InstructionNameRepresentationHandler::to_string(name));
+  
+                      {
+                          parsing.push_back(std::make_tuple(filepath, lineNumber,
+                              parsingInstruction{std::make_tuple(name, oArg)}));
+                          memPtr += 5;
+                      }
+                      return true; }},
+            };
 
-                            log("parsing non-string: " + unparsedElement);
-
-                            if (unparsedSize == "")
-                                unparsedSize = std::string{"1"};
-                            std::optional<word_t> oSize{Util::stringToUInt32(unparsedSize)};
-                            if (!oSize.has_value())
-                                return dataError("invalid data uint element size", unparsedSize);
-                            log("    ~> size: " + std::to_string(oSize.value()));
-
-                            {
-                                std::smatch smatch{};
-                                if (std::regex_match(unparsedValue, smatch, std::regex{"^runif (" + regexValue + ")$"})) {
-                                    unparsedValue = std::string{smatch[1]};
-                                    std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
-                                    if (!oValue.has_value())
-                                        return dataError("invalid data unif range value", unparsedValue);
-
-                                    for (word_t r : rng.unif(oSize.value(), oValue.value()))
-                                        pushData(r);
-                                    continue;
-                                }
-                                if (std::regex_match(unparsedValue, smatch, std::regex{"^rperm$"})) {
-                                    for (word_t r : rng.perm(oSize.value()))
-                                        pushData(r);
-                                    continue;
-                                }
-                            }
-
-                            log("parsing uint: " + unparsedElement);
-
-                            if (unparsedValue == "")
-                                unparsedValue = std::string{"0"};
-                            std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
-                            if (!oValue.has_value())
-                                return dataError("invalid data uint element value", unparsedValue);
-                            log("    ~> value: " + std::to_string(oValue.value()));
-
-                            for (word_t j = 0; j < oSize.value(); ++j)
-                                pushData(oValue.value());
-                            continue;
-                        }
-                        return dataError("incomprehensible data element trunk", commaSeparated);
+            if (![&]() {
+                for (auto [regexString, f] : onMatch) {
+                    std::smatch smatch{};
+                    if (std::regex_match(ln, smatch, std::regex{regexString})) {
+                        if (!f(smatch))
+                            return false;
+                        return true;
                     }
-                    return true; }))
-
-            ON_MATCH("^include ?(" + regexString + ")$", (
-                [&](std::smatch const&smatch) {
-                    std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes{
-                        Util::parseString(std::string{smatch[1]})};
-                    if (!oIncludeFilepathRunes.has_value())
-                        return error(filepath, lineNumber, "malformed utf-8 include string: " + std::string{smatch[1]});
-
-                    std::optional<std::string> oIncludeFilepath{
-                        UTF8::runeVectorToOptionalString(oIncludeFilepathRunes.value())};
-                    if (!oIncludeFilepath.has_value())
-                        return error(filepath, lineNumber, "malformed include string (contains non-7-bit ASCII): " + std::string{smatch[1]});
-
-                    std::filesystem::path const includeFilepath{
-                        filepath.parent_path() / oIncludeFilepath.value()};
-
-                    bool success{};
-                    log("including with memPtr = " + std::to_string(memPtr));
-                    success = parseFiles(includeFilepath);
-                    log("included with memPtr = " + std::to_string(memPtr));
-
-                    if (!success)
-                        return error(filepath, lineNumber, "could not include "
-                            "file: " + std::string{includeFilepath});
-                    return true; }))
-
-            ON_MATCH("^include.*$", (
-                [&](std::smatch const&_) {
-                    (void) _;
-                    return error(filepath, lineNumber,
-                        "improper include: either empty or missing quotes"); }))
-
-            ON_MATCH("^profiler ([^ ]*?)(, ?(.*))?$", (
-                [&](std::smatch const&smatch) {
-                    std::string const profilerStartStop{smatch[1]};
-                    if (profilerStartStop != "start" && profilerStartStop != "stop")
-                        return error(filepath, lineNumber, "invalid profiler "
-                            "directive (must be 'start' or 'stop'): "
-                            + profilerStartStop);
-
-                    std::string profilerMessage{smatch[3]};
-                    profilerMessage = "file " + std::string{filepath} + ", ln "
-                        + std::to_string(lineNumber)
-                        + std::string{profilerMessage == "" ? "" : ": "} + profilerMessage;
-
-                    if (!Util::std20::contains(profiler, memPtr))
-                        profiler[memPtr] = std::vector<std::tuple<bool, std::string>>{};
-                    profiler[memPtr].push_back(std::make_tuple(profilerStartStop == std::string{"start"}, profilerMessage));
-
-                    return true; }))
-
-            ON_MATCH("^(" + regexIdentifier + ")( (" + regexValue + "))?$", (
-                [&](std::smatch const&smatch) {
-                    auto oName = InstructionNameRepresentationHandler
-                        ::from_string(smatch[1]);
-                    if (!oName.has_value())
-                        return error(filepath, lineNumber, "invalid "
-                            "instruction name: " + std::string{smatch[1]});
-                    std::optional<std::string> oArg{std::nullopt};
-                    if (smatch[3] != "")
-                        oArg = std::optional{smatch[3]};
-                    log("pushing instruction: "
-                        + InstructionNameRepresentationHandler::to_string(oName.value())
-                        + " " + oArg.value_or("(no arg.)"));
-
-                    InstructionName const name{oName.value()};
-                    auto [takesArgument, optionalArgument] = InstructionNameRepresentationHandler::argumentType.at(name);
-                    if (oArg.has_value() && !takesArgument)
-                        return error(filepath, lineNumber, "instruction takes no argument: " + InstructionNameRepresentationHandler::to_string(name));
-                    if (!oArg.has_value() && takesArgument && !optionalArgument.has_value())
-                        return error(filepath, lineNumber, "instruction requires an argument: " + InstructionNameRepresentationHandler::to_string(name));
-
-                    {
-                        parsing.push_back(std::make_tuple(filepath, lineNumber,
-                            parsingInstruction{std::make_tuple(name, oArg)}));
-                        memPtr += 5;
-                    }
-                    return true; }))
-
-            #undef ON_MATCH
-
-            return error(filepath, lineNumber, "incomprehensible");
+                }
+                return false;
+            }())
+                return error(filepath, lineNumber, "incomprehensible");
         }
 
         memorySize = memPtr;
@@ -351,9 +356,7 @@ class Parser {
     }
 
     private: bool pragmas(std::filesystem::path const&filepath) {
-        std::map<std::string, std::function<
-            bool(line_number_t, std::string const&)>> const&pragmaActions
-        {
+        std::map<std::string, std::function<bool(line_number_t, std::string const&)>> const&pragmaActions{
             {"pragma_memory-mode", [&](line_number_t lineNumber, std::string const&mm) {
                 if (mm == "little-endian") {
                     pragmaMemoryMode = MemoryMode::LittleEndian;
