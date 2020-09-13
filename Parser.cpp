@@ -321,9 +321,17 @@ class Parser {
                     log("pushing instruction: "
                         + InstructionNameRepresentationHandler::to_string(oName.value())
                         + " " + oArg.value_or("(no arg.)"));
+
+                    InstructionName const name{oName.value()};
+                    auto [takesArgument, optionalArgument] = InstructionNameRepresentationHandler::argumentType.at(name);
+                    if (oArg.has_value() && !takesArgument)
+                        return error(filepath, lineNumber, "instruction takes no argument: " + InstructionNameRepresentationHandler::to_string(name));
+                    if (!oArg.has_value() && takesArgument && !optionalArgument.has_value())
+                        return error(filepath, lineNumber, "instruction requires an argument: " + InstructionNameRepresentationHandler::to_string(name));
+
                     {
                         parsing.push_back(std::make_tuple(filepath, lineNumber,
-                            parsingInstruction{std::make_tuple(oName.value(), oArg)}));
+                            parsingInstruction{std::make_tuple(name, oArg)}));
                         memPtr += 5;
                     }
                     return true; }))
