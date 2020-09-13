@@ -155,6 +155,10 @@ class Parser {
                     return error(filepath, lineNumber,
                         "duplicate definition: " + k);
                 definitions[k] = std::make_tuple(lineNumber, v);
+
+                /* TODO inefficient? */
+                pragmas(filepath);
+
                 return true;
             };
 
