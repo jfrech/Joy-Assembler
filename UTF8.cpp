@@ -177,6 +177,7 @@ namespace UTF8 {
             buf[0] = static_cast<byte_t>(rune);
             buf[1] = '\0';
             s += std::string{buf}; }
+
         return std::make_optional(s);
     }
 }

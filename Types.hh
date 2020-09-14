@@ -96,4 +96,15 @@ struct ComputationStateDebug {
     { ; }
 };
 
+struct ComputationStateStatistics {
+    uint64_t nInstructions, nMicroInstructions;
+
+    ComputationStateStatistics operator-(ComputationStateStatistics const&statistics) const {
+        return ComputationStateStatistics{nInstructions - statistics.nInstructions, nMicroInstructions - statistics.nMicroInstructions}; }
+
+    std::string toString() const {
+        return "#" + std::to_string(nInstructions) + ": " + std::to_string(nMicroInstructions); }
+};
+
+
 #endif
