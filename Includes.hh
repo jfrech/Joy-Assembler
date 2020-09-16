@@ -1,12 +1,16 @@
 #ifndef JOY_ASSEMBLER__ALL_HH
 #define JOY_ASSEMBLER__ALL_HH
 
+#include <array>
 #include <bitset>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <map>
+#include <numeric>
+#include <optional>
+#include <random>
 #include <regex>
 #include <set>
 #include <stack>

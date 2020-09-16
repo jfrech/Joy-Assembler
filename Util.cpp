@@ -190,7 +190,9 @@ namespace Util {
         if (oN.has_value() && ((oN.value() < min32 || oN.value() > max32)))
             oN = std::nullopt;
 
-        return static_cast<std::optional<word_t>>(oN);
+	if (oN.has_value())
+	    return std::make_optional(static_cast<word_t>(oN.value()));
+	return std::nullopt;
     }
 
     std::string UInt32AsPaddedHex(uint32_t const n) {

@@ -281,7 +281,7 @@ class Parser {
 
                       if (!success)
                           return error(filepath, lineNumber, "could not include "
-                              "file: " + std::string{includeFilepath});
+                              "file: " + includeFilepath.u8string());
                       return true; }},
 
                 { "^include.*$"
@@ -299,7 +299,7 @@ class Parser {
                               + profilerStartStop);
 
                       std::string profilerMessage{smatch[3]};
-                      profilerMessage = "file " + std::string{filepath} + ", ln "
+                      profilerMessage = "file " + filepath.u8string() + ", ln "
                           + std::to_string(lineNumber)
                           + std::string{profilerMessage == "" ? "" : ": "} + profilerMessage;
 
