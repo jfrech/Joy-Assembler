@@ -121,8 +121,8 @@ class Parser {
             return error("recursive file inclusion; not parsing file twice");
         parsedFilepaths.insert(filepath);
 
-        std::ifstream is{filepath};
-        if (!is.is_open())
+        std::ifstream fs{filepath};
+        if (!fs)
             return error("unable to read file");
 
         std::string const regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
@@ -131,7 +131,7 @@ class Parser {
 
         line_number_t lineNumber{1};
         std::string ln{};
-        for (; std::getline(is, ln); ++lineNumber) {
+        for (; std::getline(fs, ln); ++lineNumber) {
             auto pushData = [&](uint32_t const data) {
                 log("pushing data: 0x" + Util::UInt32AsPaddedHex(data));
                 {
