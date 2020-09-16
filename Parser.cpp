@@ -113,7 +113,9 @@ class Parser {
         if (filepath != filepath.lexically_normal())
             return parseFiles(filepath.lexically_normal());
 
-        if (!is_regular_file(filepath))
+        if (!std::filesystem::exists(filepath))
+            return error("file does not exist");
+        if (!std::filesystem::is_regular_file(filepath))
             return error("not a regular file");
         if (Util::std20::contains(parsedFilepaths, filepath))
             return error("recursive file inclusion; not parsing file twice");
@@ -165,7 +167,9 @@ class Parser {
             };
 
 
-            std::vector<std::tuple<std::string, std::function<bool(std::smatch const&)>>> const onMatch{
+            std::vector<std::tuple<
+                std::string, std::function<bool(std::smatch const&)>
+            >> const onMatch{
                 { "^(" + regexIdentifier + ") ?:= ?(" + regexValue + ")$"
                 , [define](std::smatch const&smatch) {
                       return define(std::string{smatch[1]},
