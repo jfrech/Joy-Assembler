@@ -36,26 +36,43 @@ namespace Util {
     }
 
     namespace ANSI_COLORS {
-        std::string const CLEAR = "\33[0m";
+        std::string const CLEAR{"\33[0m"};
+        std::string const NONE{""};
 
-        std::string const INSTRUCTION_NAME = "\33[38;5;119m";
-        std::string const INSTRUCTION_ARGUMENT = "\33[38;5;121m";
-        std::string const STACK = "\33[38;5;127m";
-        std::string const STACK_FAINT = "\33[38;5;53m";
-        std::string const MEMORY_LOCATION_USED = "\33[1m";
-        std::string const FAINT = "\33[2m";
-        std::string const REGISTER = "\33[38;5;198m";
+        std::string const INSTRUCTION_NAME{"\33[38;5;119m"};
+        std::string const INSTRUCTION_ARGUMENT{"\33[38;5;121m"};
+        std::string const STACK{"\33[38;5;127m"};
+        std::string const STACK_FAINT{"\33[38;5;53m"};
+        std::string const MEMORY_LOCATION_USED{"\33[1m"};
+        std::string const FAINT{"\33[2m"};
+        std::string const REGISTER{"\33[38;5;198m"};
 
-        std::string const MEMORY_SEMANTICS__INSTRUCTION_HEAD = "\33[38;5;34m";
-        std::string const MEMORY_SEMANTICS__INSTRUCTION = "\33[38;5;70m";
-        std::string const MEMORY_SEMANTICS__DATA_HEAD = "\33[38;5;56m";
-        std::string const MEMORY_SEMANTICS__DATA = "\33[38;5;92m";
+        std::string const MEMORY_SEMANTICS__INSTRUCTION_HEAD{"\33[38;5;34m"};
+        std::string const MEMORY_SEMANTICS__INSTRUCTION{"\33[38;5;70m"};
+        std::string const MEMORY_SEMANTICS__DATA_HEAD{"\33[38;5;56m"};
+        std::string const MEMORY_SEMANTICS__DATA{"\33[38;5;92m"};
 
         std::string paint(std::string const&ansi, std::string const&text) {
             return ansi + text + CLEAR; }
 
         auto paintFactory(std::string const&ansi) {
-            return [&ansi](std::string const&text) { return paint(ansi, text); }; }
+            return [&ansi](std::string const&text) {
+                return paint(ansi, text); }; }
+
+        std::string memorySemanticColor(MemorySemantic const sem) {
+            switch (sem) {
+                case MemorySemantic::InstructionHead:
+                    return MEMORY_SEMANTICS__INSTRUCTION_HEAD;
+                case MemorySemantic::Instruction:
+                    return MEMORY_SEMANTICS__INSTRUCTION;
+                case MemorySemantic::DataHead:
+                    return MEMORY_SEMANTICS__DATA_HEAD;
+                case MemorySemantic::Data:
+                    return MEMORY_SEMANTICS__DATA;
+            }
+
+            return NONE;
+        }
     }
 
     namespace IO {
@@ -170,6 +187,7 @@ namespace Util {
     std::optional<word_t> stringToUInt32(std::string const&s) {
         std::optional<long long int> oN{std::nullopt};
         std::smatch smatch{};
+        /* TODO remove macro */
         #define ON_MATCH(REGEX, LAMBDA, BASE) \
             if (!oN.has_value()) \
                 if (std::regex_match(s, smatch, std::regex{(REGEX)})) \
@@ -190,9 +208,9 @@ namespace Util {
         if (oN.has_value() && ((oN.value() < min32 || oN.value() > max32)))
             oN = std::nullopt;
 
-	if (oN.has_value())
-	    return std::make_optional(static_cast<word_t>(oN.value()));
-	return std::nullopt;
+        if (oN.has_value())
+            return std::make_optional(static_cast<word_t>(oN.value()));
+        return std::nullopt;
     }
 
     std::string UInt32AsPaddedHex(uint32_t const n) {
@@ -280,6 +298,17 @@ namespace Util {
             std::shuffle(v.begin(), v.end(), rng);
             return v; }
     };
+
+    /*
+    template<typename T>
+    std::vector<T> take(std::size_t mutable n, std::vector<T> const&v) {
+        std::vector<T> taken{};
+        taken.reserve(n);
+        for (T const&x : v)
+            if (n-- > 0)
+                taken.push_back(v);
+        return v; }
+    */
 
     // fmap :: (a -> b) -> Maybe a -> Maybe b
     template<typename F, typename V>

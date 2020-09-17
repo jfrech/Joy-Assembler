@@ -135,16 +135,19 @@ class Parser {
         word_t memPtr{0};
 
         auto pushData = [&](uint32_t const data) {
-            log("pushing data: 0x" + Util::UInt32AsPaddedHex(data));
-
             parsing.push_back(std::make_tuple(filepath, lineNumber,
                 parsingData{data}));
             memPtr += 4;
         };
+        auto pushInstruction = [&](
+            InstructionName const name, std::optional<std::string> const&oArg
+        ) {
+            parsing.push_back(std::make_tuple(filepath, lineNumber,
+                parsingInstruction{std::make_tuple(name, oArg)}));
+            memPtr += 5;
+        };
 
         auto define = [&](std::string k, std::string v) {
-            log("defining " + k + " to be " + v);
-
             if (Util::std20::contains(definitions, k))
                 return error(filepath, lineNumber,
                     "duplicate definition: " + k);
@@ -160,175 +163,208 @@ class Parser {
             std::string, std::function<bool(std::smatch const&)>
         >> const onMatch{
             { "^(" + regexIdentifier + ") ?:= ?(" + regexValue + ")$"
-            , [define](std::smatch const&smatch) {
-                  return define(std::string{smatch[1]},
-                      std::string{smatch[2]}); }},
+            , [&](std::smatch const&smatch) {
+                return define(std::string{smatch[1]}, std::string{smatch[2]});
+            }},
 
             { "^(" + regexIdentifier + "):$"
             , [&](std::smatch const&smatch) {
-                  std::string label{smatch[1]};
-                  if (!define("@" + label, std::to_string(memPtr)))
-                      return false;
-                  if (label == "stack" && !stackBeginning.has_value())
-                      stackBeginning = std::make_optional(memPtr);
-                  return true; }},
+                std::string label{smatch[1]};
+                if (!define("@" + label, std::to_string(memPtr)))
+                    return false;
+                if (label == "stack" && !stackBeginning.has_value())
+                    stackBeginning = std::make_optional(memPtr);
+                return true;
+            }},
 
-        /* TODO :: too wide */
             { "^data ?(.+)$"
             , [&](std::smatch const&smatch) {
-                  log("parsing `data` ...");
-                  std::string commaSeparated{std::string{smatch[1]} + ","};
-                  for (uint64_t elementNumber{1}; commaSeparated != ""; ++elementNumber) {
-                      auto dataError = [&](std::string const&msg, std::string const&detail) {
-                          return error(filepath, lineNumber, msg + " (element number " + std::to_string(elementNumber) + "): " + detail); };
+                log("parsing `data` ...");
+                std::string commaSeparated{std::string{smatch[1]} + ","};
+                for (uint64_t elemNr{1}; commaSeparated != ""; ++elemNr) {
+                    auto dataError = [&](
+                        std::string const&msg, std::string const&detail
+                    ) {
+                        return error(filepath, lineNumber, msg
+                            + " (element number " + std::to_string(elemNr)
+                            + "): " + detail); };
 
-                      std::smatch smatch{};
-                      if (std::regex_match(commaSeparated, smatch, std::regex{"^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue + "|" + "runif " + regexValue + "|" + "rperm" + ")?") + "|" + regexString + ") ?, ?(.*)$"})) {
+                    std::smatch smatch{};
+                    if (std::regex_match(commaSeparated, smatch, std::regex{
+                        "^(" + ("(\\[(" + regexValue + ")\\])? ?(" + regexValue
+                        + "|" + "runif " + regexValue + "|" + "rperm" + ")?")
+                        + "|" + regexString + ") ?, ?(.*)$"})
+                    ) {
+                        std::string unparsedElement{smatch[1]};
+                        std::string unparsedSize{smatch[3]};
+                        std::string unparsedValue{smatch[4]};
+                        commaSeparated = std::string{smatch[6]};
 
-                          log("smatch of size " + std::to_string(smatch.size()));
-                          for (auto j = 0u; j < smatch.size(); ++j)
-                              log("smatch[" + std::to_string(j) + "]: @@@" + std::string{smatch[j]} + "@@@");
+                        if (unparsedElement == "")
+                            return dataError("invalid data element", "empty");
 
-                          std::string unparsedElement{smatch[1]};
-                          std::string unparsedSize{smatch[3]};
-                          std::string unparsedValue{smatch[4]};
-                          commaSeparated = std::string{smatch[6]};
+                        if (unparsedElement.front() == '\"') {
+                            log("parsing string: " + unparsedElement);
+                            std::optional<std::vector<UTF8::rune_t>> const
+                                oRunes{Util::parseString(unparsedElement)};
+                            if (!oRunes.has_value())
+                                return dataError("invalid data string element",
+                                    unparsedElement);
+                            for (UTF8::rune_t rune : oRunes.value())
+                                pushData(static_cast<word_t>(rune));
+                            continue; }
 
-                          if (unparsedElement == "")
-                              return dataError("invalid data element", "empty element");
+                        log("parsing non-string: " + unparsedElement);
 
-                          if (unparsedElement.front() == '\"') {
-                              log("parsing string: " + unparsedElement);
-                              std::optional<std::vector<UTF8::rune_t>> oRunes = Util::parseString(unparsedElement);
-                              if (!oRunes.has_value())
-                                  return dataError("invalid data string element", unparsedElement);
-                              for (UTF8::rune_t rune : oRunes.value())
-                                  pushData(static_cast<word_t>(rune));
-                              continue;
-                          }
+                        if (unparsedSize == "")
+                            unparsedSize = std::string{"1"};
+                        std::optional<word_t> const oSize{
+                            Util::stringToUInt32(unparsedSize)};
+                        if (!oSize.has_value())
+                            return dataError("invalid data uint element size",
+                                unparsedSize);
+                        log("    ~> size: " + std::to_string(oSize.value()));
 
-                          log("parsing non-string: " + unparsedElement);
+                        {
+                            std::smatch smatch{};
+                            if (std::regex_match(unparsedValue, smatch,
+                                std::regex{"^runif (" + regexValue + ")$"})
+                            ) {
+                                unparsedValue = std::string{smatch[1]};
+                                std::optional<word_t> const oValue{
+                                    Util::stringToUInt32(unparsedValue)};
+                                if (!oValue.has_value())
+                                    return dataError("invalid data unif range "
+                                        "value", unparsedValue);
 
-                          if (unparsedSize == "")
-                              unparsedSize = std::string{"1"};
-                          std::optional<word_t> oSize{Util::stringToUInt32(unparsedSize)};
-                          if (!oSize.has_value())
-                              return dataError("invalid data uint element size", unparsedSize);
-                          log("    ~> size: " + std::to_string(oSize.value()));
+                                for (word_t const&rnd : rng.unif(
+                                    oSize.value(), oValue.value())
+                                )
+                                    pushData(rnd);
+                                continue;
+                            }
+                            if (std::regex_match(unparsedValue, smatch,
+                                std::regex{"^rperm$"})
+                            ) {
+                                for (word_t r : rng.perm(oSize.value()))
+                                    pushData(r);
+                                continue;
+                            }
+                        }
 
-                          {
-                              std::smatch smatch{};
-                              if (std::regex_match(unparsedValue, smatch, std::regex{"^runif (" + regexValue + ")$"})) {
-                                  unparsedValue = std::string{smatch[1]};
-                                  std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
-                                  if (!oValue.has_value())
-                                      return dataError("invalid data unif range value", unparsedValue);
+                        log("parsing uint: " + unparsedElement);
 
-                                  for (word_t r : rng.unif(oSize.value(), oValue.value()))
-                                      pushData(r);
-                                  continue;
-                              }
-                              if (std::regex_match(unparsedValue, smatch, std::regex{"^rperm$"})) {
-                                  for (word_t r : rng.perm(oSize.value()))
-                                      pushData(r);
-                                  continue;
-                              }
-                          }
+                        if (unparsedValue == "")
+                            unparsedValue = std::string{"0"};
+                        std::optional<word_t> const oValue{
+                            Util::stringToUInt32(unparsedValue)};
+                        if (!oValue.has_value())
+                            return dataError("invalid data uint element value",
+                                unparsedValue);
+                        log("    ~> value: " + std::to_string(oValue.value()));
 
-                          log("parsing uint: " + unparsedElement);
+                        for (word_t j = 0; j < oSize.value(); ++j)
+                            pushData(oValue.value());
+                        continue;
+                    }
 
-                          if (unparsedValue == "")
-                              unparsedValue = std::string{"0"};
-                          std::optional<word_t> oValue{Util::stringToUInt32(unparsedValue)};
-                          if (!oValue.has_value())
-                              return dataError("invalid data uint element value", unparsedValue);
-                          log("    ~> value: " + std::to_string(oValue.value()));
-
-                          for (word_t j = 0; j < oSize.value(); ++j)
-                              pushData(oValue.value());
-                          continue;
-                      }
-                      return dataError("incomprehensible data element trunk", commaSeparated);
-                  }
-                  return true; }},
+                    return dataError("incomprehensible data element trunk",
+                        commaSeparated);
+                }
+                return true;
+            }},
 
             { "^include ?(" + regexString + ")$"
             , [&](std::smatch const&smatch) {
-                  std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes{
-                      Util::parseString(std::string{smatch[1]})};
-                  if (!oIncludeFilepathRunes.has_value())
-                      return error(filepath, lineNumber, "malformed utf-8 include string: " + std::string{smatch[1]});
+                std::string const includeFilepathString{smatch[1]};
+                std::optional<std::vector<UTF8::rune_t>> oIncludeFilepathRunes{
+                    Util::parseString(includeFilepathString)};
+                if (!oIncludeFilepathRunes.has_value())
+                    return error(filepath, lineNumber, "malformed utf-8 "
+                        "include string: " + includeFilepathString);
+                std::optional<std::string> oIncludeFilepath{
+                    UTF8::utf8string(oIncludeFilepathRunes.value())};
+                if (!oIncludeFilepath.has_value())
+                    return error(filepath, lineNumber, "malformed utf-8 "
+                        "include string: " + includeFilepathString);
 
-                  std::optional<std::string> oIncludeFilepath{
-                      UTF8::runeVectorToOptionalString(oIncludeFilepathRunes.value())};
-                  if (!oIncludeFilepath.has_value())
-                      return error(filepath, lineNumber, "malformed include string (contains non-7-bit ASCII): " + std::string{smatch[1]});
+                std::filesystem::path const includeFilepath{
+                    filepath.parent_path() / oIncludeFilepath.value()};
 
-                  std::filesystem::path const includeFilepath{
-                      filepath.parent_path() / oIncludeFilepath.value()};
-
-                  bool success{};
-                  log("including with memPtr = " + std::to_string(memPtr));
-                  success = parseFiles(includeFilepath);
-                  log("included with memPtr = " + std::to_string(memPtr));
-
-                  if (!success)
-                      return error(filepath, lineNumber, "could not include "
-                          "file: " + includeFilepath.u8string());
-                  return true; }},
+                log("including with memPtr = " + std::to_string(memPtr));
+                if (!parseFiles(includeFilepath))
+                    return error(filepath, lineNumber, "could not include "
+                        "file: " + includeFilepath.u8string());
+                log("included with memPtr = " + std::to_string(memPtr));
+                return true;
+            }},
 
             { "^include.*$"
             , [&](std::smatch const&_) {
-                  (void) _;
-                  return error(filepath, lineNumber,
-                      "improper include: either empty or missing quotes"); }},
+                (void) _;
+                return error(filepath, lineNumber,
+                    "improper include: either empty or missing quotes");
+            }},
 
             { "^profiler ([^ ]*?)(, ?(.*))?$"
             , [&](std::smatch const&smatch) {
-                  std::string const profilerStartStop{smatch[1]};
-                  if (profilerStartStop != "start" && profilerStartStop != "stop")
-                      return error(filepath, lineNumber, "invalid profiler "
-                          "directive (must be 'start' or 'stop'): "
-                          + profilerStartStop);
+                std::string const profilerStartStop{smatch[1]};
+                if (profilerStartStop != "start" && profilerStartStop != "stop")
+                    return error(filepath, lineNumber, "invalid profiler "
+                        "directive (must be 'start' or 'stop'): "
+                        + profilerStartStop);
 
-                  std::string profilerMessage{smatch[3]};
-                  profilerMessage = "file " + filepath.u8string() + ", ln "
-                      + std::to_string(lineNumber)
-                      + std::string{profilerMessage == "" ? "" : ": "} + profilerMessage;
+                std::string profilerMessage{smatch[3]};
+                profilerMessage = "file " + filepath.u8string() + ", ln "
+                    + std::to_string(lineNumber)
+                    + std::string{profilerMessage == "" ? "" : ": "}
+                    + profilerMessage;
 
-                  if (!Util::std20::contains(profiler, memPtr))
-                      profiler[memPtr] = std::vector<std::tuple<bool, std::string>>{};
-                  profiler[memPtr].push_back(std::make_tuple(profilerStartStop == std::string{"start"}, profilerMessage));
+                if (!Util::std20::contains(profiler, memPtr))
+                    profiler[memPtr] =
+                        std::vector<std::tuple<bool, std::string>>{};
+                profiler[memPtr].push_back(std::make_tuple(
+                    profilerStartStop == std::string{"start"},
+                    profilerMessage));
 
-                  return true; }},
+                return true;
+            }},
 
             { "^(" + regexIdentifier + ")( (" + regexValue + "))?$"
             , [&](std::smatch const&smatch) {
-                  auto oName = InstructionNameRepresentationHandler
-                      ::from_string(smatch[1]);
-                  if (!oName.has_value())
-                      return error(filepath, lineNumber, "invalid "
-                          "instruction name: " + std::string{smatch[1]});
-                  std::optional<std::string> oArg{std::nullopt};
-                  if (smatch[3] != "")
-                      oArg = std::optional{smatch[3]};
-                  log("pushing instruction: "
-                      + InstructionNameRepresentationHandler::to_string(oName.value())
-                      + " " + oArg.value_or("(no arg.)"));
+                auto oName = InstructionNameRepresentationHandler
+                    ::from_string(smatch[1]);
+                if (!oName.has_value())
+                    return error(filepath, lineNumber, "invalid "
+                        "instruction name: " + std::string{smatch[1]});
+                std::optional<std::string> oArg{std::nullopt};
+                if (smatch[3] != "")
+                    oArg = std::optional{smatch[3]};
+                log("pushing instruction: "
+                    + InstructionNameRepresentationHandler
+                        ::to_string(oName.value())
+                    + " " + oArg.value_or("(no arg.)"));
 
-                  InstructionName const name{oName.value()};
-                  auto [takesArgument, optionalArgument] = InstructionNameRepresentationHandler::argumentType.at(name);
-                  if (oArg.has_value() && !takesArgument)
-                      return error(filepath, lineNumber, "instruction takes no argument: " + InstructionNameRepresentationHandler::to_string(name));
-                  if (!oArg.has_value() && takesArgument && !optionalArgument.has_value())
-                      return error(filepath, lineNumber, "instruction requires an argument: " + InstructionNameRepresentationHandler::to_string(name));
+                InstructionName const name{oName.value()};
+                auto const [takesArgument, optionalArgument]{
+                  InstructionNameRepresentationHandler
+                      ::argumentType.at(name)};
+                if (oArg.has_value() && !takesArgument)
+                    return error(filepath, lineNumber,
+                      "instruction takes no argument: "
+                      + InstructionNameRepresentationHandler
+                          ::to_string(name));
+                if (
+                    !oArg.has_value() && takesArgument
+                    && !optionalArgument.has_value()
+                )
+                    return error(filepath, lineNumber, "instruction requires "
+                        "an argument: " + InstructionNameRepresentationHandler
+                            ::to_string(name));
 
-                  {
-                      parsing.push_back(std::make_tuple(filepath, lineNumber,
-                          parsingInstruction{std::make_tuple(name, oArg)}));
-                      memPtr += 5;
-                  }
-                  return true; }},
+                pushInstruction(name, oArg);
+                return true;
+            }},
         };
 
         auto parseLine = [&](std::string const&_ln) {
@@ -363,36 +399,56 @@ class Parser {
     }
 
     private: bool pragmas(std::filesystem::path const&filepath) {
-        std::vector<std::tuple<std::string, std::function<bool(line_number_t, std::string const&)>>> const&pragmaActions{
-            {"pragma_memory-mode", [&](line_number_t lineNumber, std::string const&mm) {
+        std::vector<std::tuple<std::string,
+            std::function<bool(line_number_t, std::string const&)>
+        >> const pragmaActions {
+            {"pragma_memory-mode", [&](
+                line_number_t lineNumber, std::string const&mm
+            ) {
                 if (mm == "little-endian") {
                     pragmaMemoryMode = MemoryMode::LittleEndian;
                     return true; }
                 if (mm == "big-endian") {
                     pragmaMemoryMode = MemoryMode::BigEndian;
                     return true; }
-                return error(filepath, lineNumber, "invalid pragma_memory-mode: " + mm); }},
+                return error(filepath, lineNumber,
+                    "invalid pragma_memory-mode: " + mm);
+            }},
 
-            {"pragma_rng-seed", [&](line_number_t lineNumber, std::string const&rs) {
+            {"pragma_rng-seed", [&](
+                line_number_t lineNumber, std::string const&rs
+            ) {
                 std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
                 if (!oRNGSeed.has_value())
-                    return error(filepath, lineNumber, "invalid pragma_rng-seed: " + rs);
+                    return error(filepath, lineNumber,
+                        "invalid pragma_rng-seed: " + rs);
                 pragmaRNGSeed = std::make_optional(oRNGSeed.value());
-                return true; }},
+                return true;
+            }},
 
-            {"pragma_static-program", [&](line_number_t lineNumber, std::string const&tf) {
+            {"pragma_static-program", [&](
+                line_number_t lineNumber, std::string const&tf
+            ) {
                 if (tf != "false" && tf != "true")
-                    return error(filepath, lineNumber, "invalid boolean: " + tf);
+                    return error(filepath, lineNumber,
+                        "invalid boolean: " + tf);
                 pragmaStaticProgram = tf == "true";
-                return true; }},
+                return true;
+            }},
 
-            {"pragma_embed-profiler-output", [&](line_number_t lineNumber, std::string const&tf) {
+            {"pragma_embed-profiler-output", [&](
+                line_number_t lineNumber, std::string const&tf
+            ) {
                 if (tf != "false" && tf != "true")
-                    return error(filepath, lineNumber, "invalid boolean: " + tf);
+                    return error(filepath, lineNumber,
+                        "invalid boolean: " + tf);
                 embedProfilerOutput = tf == "true";
-                return true; }},
+                return true;
+            }},
 
-            {"pragma_memory-size", [&](line_number_t lineNumber, std::string const&ms) {
+            {"pragma_memory-size", [&](
+                line_number_t lineNumber, std::string const&ms
+            ) {
                 if (ms == "minimal")
                     ;
                 else if (ms == "dynamic")
@@ -400,12 +456,15 @@ class Parser {
                 else {
                     std::optional<word_t> oM{Util::stringToUInt32(ms)};
                     if (!oM.has_value())
-                        return error(filepath, lineNumber, "invalid memory size: " + ms);
+                        return error(filepath, lineNumber, "invalid memory "
+                            "size: " + ms);
                     word_t m{oM.value()};
                     if (m < memorySize)
-                        return error(filepath, lineNumber, "memory size smaller than minimal required");
+                        return error(filepath, lineNumber, "memory size "
+                            "smaller than minimal required");
                     memorySize = m; }
-                return true; }},
+                return true;
+            }},
         };
 
         for (auto [pragma, action] : pragmaActions)
@@ -424,7 +483,8 @@ class Parser {
         return true;
     }
 
-    private: std::optional<std::vector<MemorySemantic>> constructMemorySemantics() const {
+    private: std::optional<std::vector<MemorySemantic>>
+    constructMemorySemantics() const {
         if (!pragmaStaticProgram)
             return std::nullopt;
 
@@ -440,7 +500,8 @@ class Parser {
                 for (std::size_t j = 0; j < 4; j++)
                     memorySemantics.push_back(MemorySemantic::Instruction); }
             else {
-                error("internal error (memory semantics): parsing piece holds invalid alternative");
+                error("internal error (memory semantics): parsing piece holds "
+                    "invalid alternative");
                 return std::nullopt; }
         }
 
@@ -474,43 +535,57 @@ class Parser {
                         oArg = std::make_optional(definition); }
 
                     if (oArg.value() == "")
-                        return error(filepath, lineNumber, "no instruction argument");
+                        return error(filepath, lineNumber,
+                            "no instruction argument");
                     if (oArg.value().front() == '@') {
                         std::string label{oArg.value()};
                         label.erase(label.begin());
 
-                        std::vector<std::string> labels{};
+                        std::vector<std::string> unsortedLabels{};
                         for (auto const&[lbl, _] : definitions)
-                            labels.push_back(lbl);
-                        labels = Util::sortByLevenshteinDistanceTo(labels, label);
+                            unsortedLabels.push_back(lbl);
+                        std::vector<std::string> const sortedLabels{
+                            Util::sortByLevenshteinDistanceTo(
+                                unsortedLabels, label)};
                         std::string msg{"label @" + label + " was not defined; "
-                            + "did you possibly mean one of the following defined "
-                            + "labels?"};
-                        for (std::size_t j = 0; j < labels.size() && j < 3; ++j)
+                            "did you possibly mean one of the following "
+                            "defined labels?"};
+                        for (
+                            std::size_t j{0};
+                            j < sortedLabels.size() && j < 3;
+                            ++j
+                        )
                             msg += "\n    " + std::to_string(j+1) + ") "
-                                + labels[j];
-                        if (labels.size() <= 0)
+                                + sortedLabels[j];
+                        if (sortedLabels.empty())
                             msg += "\n    (no labels have been defined)";
                         return error(filepath, lineNumber, msg);
                     }
 
                     if (oArg.value().front() == '\'') {
-                        if (oArg.value().size() < 2 || oArg.value().back() != '\'')
-                            return error(filepath, lineNumber, "invalid character literal");
+                        if (
+                            oArg.value().size() < 2
+                            || oArg.value().back() != '\''
+                        )
+                            return error(filepath, lineNumber,
+                                "invalid character literal");
                         std::string s{oArg.value()};
                         s.front() = s.back() = '"';
-                        std::optional<std::vector<UTF8::rune_t>> oRunes{Util::parseString(s)};
+                        std::optional<std::vector<UTF8::rune_t>> oRunes{
+                            Util::parseString(s)};
                         if (oRunes.has_value() && oRunes.value().size() != 1)
                             oRunes = std::nullopt;
                         if (!oRunes.has_value())
-                            return error(filepath, lineNumber, "invalid character literal");
-                        oValue = static_cast<std::optional<word_t>>(std::make_optional(oRunes.value().at(0)));
+                            return error(filepath, lineNumber,
+                                "invalid character literal");
+                        oValue = std::make_optional(static_cast<word_t>(
+                            oRunes.value()[0]));
                     } else {
                         oValue = static_cast<std::optional<word_t>>(
                             Util::stringToUInt32(oArg.value()));
                         if (!oValue.has_value())
-                            return error(filepath, lineNumber, "invalid argument value: "
-                                + oArg.value());
+                            return error(filepath, lineNumber,
+                                "invalid argument value: " + oArg.value());
                     }
                 }
 
@@ -522,18 +597,19 @@ class Parser {
                         + " " + std::to_string(oValue.value()));
                 if (hasArgument) {
                     if (!optionalValue.has_value() && !oValue.has_value())
-                        return error(filepath, lineNumber, "requiring argument: "
-                            + InstructionNameRepresentationHandler
-                              ::to_string(name));
+                        return error(filepath, lineNumber, "requiring "
+                            "argument: " + InstructionNameRepresentationHandler
+                                ::to_string(name));
                     if (!oValue.has_value())
                         oValue = optionalValue; }
 
                 word_t argument = oValue.value_or(0x00000000);
                 Instruction instruction{name, argument};
-                log("instruction " + InstructionRepresentationHandler::to_string(instruction));
+                log("instruction " + InstructionRepresentationHandler
+                    ::to_string(instruction));
 
 
-                /* TODO Consider possibly moving the following block into `ComputationState::storeInstruction`? */
+                /* TODO Consider possibly moving the following block into `ComputationState::storeInstruction`? TODO */
                 if (oMemorySemantics.has_value()) {
                     std::optional<std::string> err{
                         InstructionRepresentationHandler
@@ -550,7 +626,8 @@ class Parser {
                 stackInstructionWasUsed |= InstructionNameRepresentationHandler
                     ::isStackInstruction(name);
             } else
-                return error("internal error: parsing piece holds invalid alternative");
+                return error("internal error: parsing piece holds invalid "
+                    "alternative");
         }
 
         if (!haltInstructionWasUsed)
@@ -569,7 +646,8 @@ class Parser {
                 + std::to_string(stackBeginning.value()) + " and "
                 + std::to_string(stackEnd.value()));
 
-            cs.debug.stackBoundaries = std::make_tuple(stackBeginning.value(), stackEnd.value());
+            cs.debug.stackBoundaries = std::make_tuple(
+                stackBeginning.value(), stackEnd.value());
             cs.registerSC = stackBeginning.value();
         } else
             log("no stack was defined");

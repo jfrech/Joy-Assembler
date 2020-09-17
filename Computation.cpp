@@ -31,8 +31,10 @@ class ComputationState {
         bool const memoryIsDynamic,
         MemoryMode const memoryMode,
         Util::rng_t const&rng,
-        std::map<word_t, std::vector<std::tuple<bool, std::string>>> const&profiler,
-        bool const embedProfilerOutput, std::optional<std::vector<MemorySemantic>> const&oMemorySemantics
+        std::map<word_t, std::vector<std::tuple<bool, std::string>>>
+            const&profiler,
+        bool const embedProfilerOutput,
+        std::optional<std::vector<MemorySemantic>> const&oMemorySemantics
     ) :
         memory{std::vector<byte_t>(memorySize, 0x00000000)},
         memoryIsDynamic{memoryIsDynamic},
@@ -65,62 +67,60 @@ class ComputationState {
         if (!debug.doVisualizeSteps)
             return;
 
-        auto paintFaint = Util::ANSI_COLORS::paintFactory(Util::ANSI_COLORS::FAINT);
-        auto paintRegister = Util::ANSI_COLORS::paintFactory(Util::ANSI_COLORS::REGISTER);
+        auto const paintFaint{
+            Util::ANSI_COLORS::paintFactory(Util::ANSI_COLORS::FAINT)};
+        auto const paintRegister{
+            Util::ANSI_COLORS::paintFactory(Util::ANSI_COLORS::REGISTER)};
 
-        std::cout << "\n    ====================- MEMORY -=====================\n";
-        word_t pc = 0, rPC = registerPC;
-        word_t w = 16;
-        std::printf("       ");
+        auto const print{[](std::string const&msg) {
+            std::cout << msg; }};
+
+        print("\n    ====================- MEMORY -=====================\n");
+        word_t pc{0}, rPC{registerPC};
+        word_t const w{16};
+        print("       ");
         for (word_t x = 0; x < w; ++x)
-            std::cout << (paintFaint("_" + Util::UNibbleAsPaddedHex(x & 0xf) + " "));
+            print(paintFaint("_" + Util::UNibbleAsPaddedHex(x & 0xf) + " "));
         for (word_t y = 0; true; ++y) {
-            std::cout << ("\n    " + paintFaint(Util::UInt8AsPaddedHex(y & 0xff) + "_"));
+            print("\n    " + paintFaint(
+                Util::UInt8AsPaddedHex(y & 0xff) + "_"));
             for (word_t x = 0; x < w; ++x) {
                 word_t m{y *w+ x};
 
                 if (m >= memory.size()) {
-                    std::cout << " --";
+                    print(" --");
                     continue; }
 
-                {
-                    if (oMemorySemantics.has_value()) {
-                        std::vector<MemorySemantic> const memorySemantics{oMemorySemantics.value()};
-                        if (m < memorySemantics.size()) {
-                            MemorySemantic sem{memorySemantics[m]};
-                            if (sem == MemorySemantic::InstructionHead)
-                                std::cout << Util::ANSI_COLORS::MEMORY_SEMANTICS__INSTRUCTION_HEAD;
-                            if (sem == MemorySemantic::Instruction)
-                                std::cout << Util::ANSI_COLORS::MEMORY_SEMANTICS__INSTRUCTION;
-                            if (sem == MemorySemantic::DataHead)
-                                std::cout << Util::ANSI_COLORS::MEMORY_SEMANTICS__DATA_HEAD;
-                            if (sem == MemorySemantic::Data)
-                                std::cout << Util::ANSI_COLORS::MEMORY_SEMANTICS__DATA;
-                        }
-                    }
-                }
+                if (oMemorySemantics.has_value()) {
+                    std::vector<MemorySemantic> const memorySemantics{
+                        oMemorySemantics.value()};
+                    if (m < memorySemantics.size())
+                        print(Util::ANSI_COLORS
+                            ::memorySemanticColor(memorySemantics[m])); }
 
                 if (registerSC != 0) {
                     if (registerSC <= pc+4 && pc+4 < registerSC + 4)
-                        std::cout << Util::ANSI_COLORS::STACK_FAINT;
+                        print(Util::ANSI_COLORS::STACK_FAINT);
                     if (registerSC <= pc && pc < registerSC + 4)
-                        std::cout << Util::ANSI_COLORS::STACK;
+                        print(Util::ANSI_COLORS::STACK);
                 }
                 if (rPC <= pc && pc < rPC + 5)
-                    std::cout << (pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
+                    print(pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME
+                        : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
                 else if (m <= debug.highestUsedMemoryLocation)
-                    std::cout << Util::ANSI_COLORS::MEMORY_LOCATION_USED;
+                    print(Util::ANSI_COLORS::MEMORY_LOCATION_USED);
 
 
-                std::cout << (" " + Util::UInt8AsPaddedHex(memory[y *w+ x]));
-                std::cout << Util::ANSI_COLORS::CLEAR;
+                print(" " + Util::UInt8AsPaddedHex(memory[y *w+ x]));
+                print(Util::ANSI_COLORS::CLEAR);
                 ++pc;
             }
 
+            /* TODO */
             if ((y+1)*w >= 0x100 && debug.highestUsedMemoryLocation+1 < (y+1)*w)
                 break;
         }
-        std::cout << "\n    Current instruction: ";
+        print("\n    Current instruction: ");
 
         byte_t opCode = loadMemory(registerPC, std::nullopt);
         std::string opCodeName{"(err. NOP)"};
@@ -130,13 +130,28 @@ class ComputationState {
             opCodeName = InstructionNameRepresentationHandler
                          ::to_string(oInstructionName.value());
         word_t argument{loadMemory4(false, registerPC+1)};
-        std::cout << (Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_NAME, opCodeName) + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS::INSTRUCTION_ARGUMENT, "0x" + Util::UInt32AsPaddedHex(argument)) + " (#" + std::to_string(statistics.nInstructions) + ": " + std::to_string(statistics.nMicroInstructions) + ")\n");
+        print(Util::ANSI_COLORS::paint(Util::ANSI_COLORS
+                ::INSTRUCTION_NAME, opCodeName)
+            + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS
+                ::INSTRUCTION_ARGUMENT, "0x"
+                + Util::UInt32AsPaddedHex(argument))
+            + " (#" + std::to_string(statistics.nInstructions) + ": "
+            + std::to_string(statistics.nMicroInstructions) + ")\n");
 
-        std::cout << ("    Registers:    " + std::string{"A:  0x"} + paintRegister(Util::UInt32AsPaddedHex(registerA))  + ",     B:  0x" + paintRegister(Util::UInt32AsPaddedHex(registerB))  + "\n");
-        std::cout << ("                  " + std::string{"PC: 0x"} + paintRegister(Util::UInt32AsPaddedHex(registerPC)) + ",     SC: 0x" + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
-        std::cout << ("    Flags (A zero, A negative, A even): " + paintRegister(Util::UBitAsPaddedHex(flagAZero)) + paintRegister(Util::UBitAsPaddedHex(flagANegative)) + paintRegister(Util::UBitAsPaddedHex(flagAEven)) + "\n");
+        print("    Registers:    " + std::string{"A:  0x"}
+            + paintRegister(Util::UInt32AsPaddedHex(registerA))
+            + ",     B:  0x"
+            + paintRegister(Util::UInt32AsPaddedHex(registerB)) + "\n");
+        print("                  " + std::string{"PC: 0x"}
+            + paintRegister(Util::UInt32AsPaddedHex(registerPC))
+            + ",     SC: 0x"
+            + paintRegister(Util::UInt32AsPaddedHex(registerSC)) + "\n");
+        print("    Flags (A zero, A negative, A even): "
+            + paintRegister(Util::UBitAsPaddedHex(flagAZero))
+            + paintRegister(Util::UBitAsPaddedHex(flagANegative))
+            + paintRegister(Util::UBitAsPaddedHex(flagAEven)) + "\n");
 
-        std::cout << ("    % ");
+        print("    % ");
 
         if (blockAllowed) {
             if (debug.doWaitForUser)
@@ -145,6 +160,7 @@ class ComputationState {
                 Util::IO::wait(); }
     }
 
+    /* TODO: refactor */
     public: void memoryDump() {
         mock = true;
 
@@ -168,33 +184,46 @@ class ComputationState {
         if (!Util::std20::contains(profiler, registerPC))
             return;
 
-        for (auto [start, msg] : profiler.at(registerPC)) {
-            std::string const str{"[# " + std::to_string(statistics.nInstructions) + ": " + std::to_string(statistics.nMicroInstructions) + "] "};
+        auto const prf{[](std::string const&msg) {
+            std::clog << msg << std::endl; }};
+
+        for (auto [doStart, msg] : profiler.at(registerPC)) {
+            std::string const str{"[# "
+                + std::to_string(statistics.nInstructions) + ": "
+                + std::to_string(statistics.nMicroInstructions) + "] "};
             std::string const strPad{std::string(str.size(), ' ')};
 
-            if (start) {
+            if (doStart) {
                 if (!embedProfilerOutput)
-                    std::clog << str << "starting profiler: " + msg << std::endl;
+                    prf(str + "starting profiler: " + msg);
                 profilerStatistics.push(statistics);
-            } else {
-                if (!embedProfilerOutput)
-                    std::clog << str << "stopping profiler: " + msg << std::endl;
-                if (profilerStatistics.empty())
-                    std::clog << str << "profiler could not be stopped since it was not started" << std::endl;
-                else {
-                    ComputationStateStatistics start{profilerStatistics.top()}, stop{statistics};
-                    profilerStatistics.pop();
-                    if (start.nInstructions > stop.nInstructions || start.nMicroInstructions > stop.nMicroInstructions)
-                        std::clog << strPad << "profiler time travelled" << std::endl;
-                    else {
-                        ComputationStateStatistics const elapsed{stop - start};
-                        if (!embedProfilerOutput)
-                            std::clog << strPad << "-> number of elapsed instructions: " + elapsed.toString() << std::endl;
-                        else
-                            std::cout << std::to_string(elapsed.nMicroInstructions) << "\n";
-                    }
-                }
+                continue;
             }
+
+            if (!embedProfilerOutput)
+                prf(str + "stopping profiler: " + msg);
+            if (profilerStatistics.empty()) {
+                prf(str + "profiler could not be stopped since it was "
+                    "never started");
+                continue; }
+
+            ComputationStateStatistics const start{profilerStatistics.top()};
+            ComputationStateStatistics const stop{statistics};
+            profilerStatistics.pop();
+            if (
+                start.nInstructions > stop.nInstructions
+                || start.nMicroInstructions > stop.nMicroInstructions
+            ) {
+                prf(strPad + "profiler time travelled");
+                continue; }
+
+            ComputationStateStatistics const elapsed{stop - start};
+            if (!embedProfilerOutput) {
+                prf(strPad + "-> number of elapsed instructions: "
+                    + elapsed.toString());
+                continue; }
+
+            std::cout << std::to_string(elapsed.nMicroInstructions) << "\n";
         }
     }
 
@@ -207,7 +236,8 @@ class ComputationState {
         Instruction instruction = oInstruction.value();
 
         ++statistics.nInstructions;
-        statistics.nMicroInstructions += InstructionNameRepresentationHandler::microInstructions(instruction.name);
+        statistics.nMicroInstructions += InstructionNameRepresentationHandler
+            ::microInstructions(instruction.name);
 
         auto jmp = [&](bool const cnd) {
             if (cnd)
@@ -406,7 +436,8 @@ class ComputationState {
     public: word_t storeInstruction(
             word_t const m, Instruction const instruction
     ) {
-        storeMemory(m, InstructionNameRepresentationHandler::toByteCode(instruction.name), MemorySemantic::InstructionHead);
+        storeMemory(m, InstructionNameRepresentationHandler
+            ::toByteCode(instruction.name), MemorySemantic::InstructionHead);
         storeMemory4(1+m, instruction.argument, false/*TODO MemorySemantic::Instruction*/);
         debug.highestUsedMemoryLocation = 0;
         return 5;
@@ -419,15 +450,18 @@ class ComputationState {
     }
 
     private: std::optional<Instruction> nextInstruction() {
-        byte_t opCode{loadMemory(registerPC++, MemorySemantic::InstructionHead)};
-        word_t argument{loadMemory4((registerPC += 4) - 4, false/*TODO MemorySemantic::Instruction*/)};
+        byte_t opCode{loadMemory(
+            registerPC++, MemorySemantic::InstructionHead)};
+        word_t argument{loadMemory4(
+            (registerPC += 4) - 4, false/*TODO MemorySemantic::Instruction*/)};
 
         auto oInstructionName = InstructionNameRepresentationHandler
                                 ::fromByteCode(opCode);
         if (!oInstructionName.has_value())
             return std::nullopt;
 
-        Instruction instruction{oInstructionName.value(), static_cast<word_t>(argument)};
+        Instruction instruction{
+            oInstructionName.value(), static_cast<word_t>(argument)};
 
         return std::make_optional(instruction);
     }
@@ -454,13 +488,17 @@ class ComputationState {
             err("accountForDynamicMemory: cannot grow; bad alloc"); }
     }
 
-    private: byte_t loadMemory(word_t const m, std::optional<MemorySemantic> const&oSem=std::nullopt) {
+    private: byte_t loadMemory(
+        word_t const m,
+        std::optional<MemorySemantic> const&oSem=std::nullopt
+    ) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
 
         accountForDynamicMemory(m);
         if (/*m < 0 || */m >= memory.size()) {
-            err("loadMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
+            err("loadMemory: memory out of bounds (" + std::to_string(m)
+                + " >= " + std::to_string(memory.size()) + ")");
             return 0; }
 
         if (oSem.has_value() && oMemorySemantics.has_value()) {
@@ -475,13 +513,17 @@ class ComputationState {
         return memory[m];
     }
 
-    private: void storeMemory(word_t const m, byte_t const b, std::optional<MemorySemantic> const&oSem=std::nullopt) {
+    private: void storeMemory(
+        word_t const m, byte_t const b,
+        std::optional<MemorySemantic> const&oSem=std::nullopt
+    ) {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
 
         accountForDynamicMemory(m);
         if (/*m < 0 || */m >= memory.size()) {
-            err("storeMemory: memory out of bounds (" + std::to_string(m) + " >= " + std::to_string(memory.size()) + ")");
+            err("storeMemory: memory out of bounds (" + std::to_string(m)
+                + " >= " + std::to_string(memory.size()) + ")");
             return; }
 
         if (oSem.has_value() && oMemorySemantics.has_value()) {
@@ -496,44 +538,65 @@ class ComputationState {
         memory[m] = b;
     }
 
-    private: word_t loadMemory4(word_t const m, bool const doStaticAnalysis=true) {
+    private: word_t loadMemory4(
+        word_t const m,
+        bool const doStaticAnalysis=true
+    ) {
+        std::optional<MemorySemantic> const saData{
+            doStaticAnalysis ? std::make_optional(MemorySemantic::Data)
+                : std::nullopt};
+        std::optional<MemorySemantic> const saDataHead{
+            doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead)
+                : std::nullopt};
+
         byte_t b3{0}, b2{0}, b1{0}, b0{0};
         switch (memoryMode) {
-            case MemoryMode::BigEndian:
-                b3 = loadMemory(m+0, doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead) : std::nullopt);
-                b2 = loadMemory(m+1, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                b1 = loadMemory(m+2, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                b0 = loadMemory(m+3, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
+            case MemoryMode::LittleEndian:
+                b3 = loadMemory(m+3, saData);
+                b2 = loadMemory(m+2, saData);
+                b1 = loadMemory(m+1, saData);
+                b0 = loadMemory(m+0, saDataHead);
                 break;
 
-            case MemoryMode::LittleEndian:
-                b3 = loadMemory(m+3, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                b2 = loadMemory(m+2, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                b1 = loadMemory(m+1, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                b0 = loadMemory(m+0, doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead) : std::nullopt);
+            case MemoryMode::BigEndian:
+                b3 = loadMemory(m+0, saDataHead);
+                b2 = loadMemory(m+1, saData);
+                b1 = loadMemory(m+2, saData);
+                b0 = loadMemory(m+3, saData);
                 break;
+
         }
         return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
     }
 
-    private: void storeMemory4(word_t const m, word_t const w, bool const doStaticAnalysis=true) {
-        byte_t b3 = static_cast<byte_t>((w >> 24) & 0xff);
-        byte_t b2 = static_cast<byte_t>((w >> 16) & 0xff);
-        byte_t b1 = static_cast<byte_t>((w >>  8) & 0xff);
-        byte_t b0 = static_cast<byte_t>( w        & 0xff);
+    private: void storeMemory4(
+        word_t const m, word_t const w,
+        bool const doStaticAnalysis=true
+    ) {
+        std::optional<MemorySemantic> const saData{
+            doStaticAnalysis ? std::make_optional(MemorySemantic::Data)
+                : std::nullopt};
+        std::optional<MemorySemantic> const saDataHead{
+            doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead)
+                : std::nullopt};
+
+        byte_t const b3{static_cast<byte_t>((w >> 24) & 0xff)};
+        byte_t const b2{static_cast<byte_t>((w >> 16) & 0xff)};
+        byte_t const b1{static_cast<byte_t>((w >>  8) & 0xff)};
+        byte_t const b0{static_cast<byte_t>( w        & 0xff)};
         switch (memoryMode) {
             case MemoryMode::LittleEndian:
-                storeMemory(m+3, b3, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                storeMemory(m+2, b2, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                storeMemory(m+1, b1, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                storeMemory(m+0, b0, doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead) : std::nullopt);
+                storeMemory(m+3, b3, saData);
+                storeMemory(m+2, b2, saData);
+                storeMemory(m+1, b1, saData);
+                storeMemory(m+0, b0, saDataHead);
                 break;
 
             case MemoryMode::BigEndian:
-                storeMemory(m+0, b3, doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead) : std::nullopt);
-                storeMemory(m+1, b2, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                storeMemory(m+2, b1, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
-                storeMemory(m+3, b0, doStaticAnalysis ? std::make_optional(MemorySemantic::Data)     : std::nullopt);
+                storeMemory(m+0, b3, saData);
+                storeMemory(m+1, b2, saData);
+                storeMemory(m+2, b1, saData);
+                storeMemory(m+3, b0, saDataHead);
                 break;
         }
     }

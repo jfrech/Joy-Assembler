@@ -166,19 +166,18 @@ namespace UTF8 {
             return ok = false; }
     };
 
-    std::optional<std::string> runeVectorToOptionalString(
-        std::vector<rune_t> const&runes
-    ) {
-        std::string s{""};
-        for (rune_t rune : runes) {
-            if (rune > 0x7f)
-                return std::nullopt;
-            char buf[2];
-            buf[0] = static_cast<byte_t>(rune);
-            buf[1] = '\0';
-            s += std::string{buf}; }
+    std::optional<std::string> utf8string(std::vector<rune_t> const&runes) {
+        Encoder encoder{};
+        for (rune_t const&rune : runes)
+            encoder.encode(rune);
+        auto const&[bytes, ok]{encoder.finish()};
+        if (!ok)
+            return std::nullopt;
 
-        return std::make_optional(s);
+        std::string str{};
+        for (byte_t const&byte : bytes)
+            str += static_cast<std::string::value_type>(byte);
+        return std::make_optional(str);
     }
 }
 
