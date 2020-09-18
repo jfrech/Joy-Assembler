@@ -471,23 +471,6 @@ class ComputationState {
         flagANegative = static_cast<int32_t>(registerA) < 0;
         flagAEven = registerA % 2 == 0; }
 
-    /* TODO rename */
-    private: void accountForDynamicMemory(word_t const idx) {
-        if (!memoryIsDynamic || idx < memory.size())
-            return;
-
-        word_t idx2{2 * idx};
-        if (idx2 <= idx)
-            idx2 = 0xffffffff;
-        if (idx2 <= idx)
-            err("accountForDynamicMemory: cannot grow");
-
-        try {
-            memory.resize(idx2); }
-        catch (std::bad_alloc const&_) {
-            err("accountForDynamicMemory: cannot grow; bad alloc"); }
-    }
-
     private: byte_t loadMemory(
         word_t const m,
         std::optional<MemorySemantic> const&oSem=std::nullopt
@@ -495,11 +478,13 @@ class ComputationState {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
 
-        accountForDynamicMemory(m);
         if (/*m < 0 || */m >= memory.size()) {
-            err("loadMemory: memory out of bounds (" + std::to_string(m)
-                + " >= " + std::to_string(memory.size()) + ")");
-            return 0; }
+            if (!memoryIsDynamic) {
+                err("loadMemory: memory out of bounds (" + std::to_string(m)
+                    + " >= " + std::to_string(memory.size()) + ")");
+                return 0; }
+            memory.resize(m+1);
+        }
 
         if (oSem.has_value() && oMemorySemantics.has_value()) {
             if (oMemorySemantics.value().size() <= m) {
@@ -520,11 +505,13 @@ class ComputationState {
         debug.highestUsedMemoryLocation = std::max(
             debug.highestUsedMemoryLocation, m);
 
-        accountForDynamicMemory(m);
         if (/*m < 0 || */m >= memory.size()) {
-            err("storeMemory: memory out of bounds (" + std::to_string(m)
-                + " >= " + std::to_string(memory.size()) + ")");
-            return; }
+            if (!memoryIsDynamic) {
+                err("storeMemory: memory out of bounds (" + std::to_string(m)
+                    + " >= " + std::to_string(memory.size()) + ")");
+                return; }
+            memory.resize(m+1);
+        }
 
         if (oSem.has_value() && oMemorySemantics.has_value()) {
             if (oMemorySemantics.value().size() <= m) {

@@ -1,7 +1,3 @@
-#include <iostream>
-#include <tuple>
-#include <vector>
-
 #include "Includes.hh"
 
 bool unitTest_LevenshteinDistance() {
@@ -35,7 +31,6 @@ bool unitTest_LevenshteinDistance() {
 
     return true;
 }
-
 
 int main() {
     auto const&unitTests{std::vector{

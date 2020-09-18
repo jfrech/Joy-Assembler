@@ -27,7 +27,8 @@ struct InstructionDefinition {
         uint64_t microInstructions{0};
 };
 
-constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{[]() {;
+constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{
+    []() {
     static_assert(std::is_same<
         std::underlying_type<InstructionName>::type, byte_t>::value);
     std::array<InstructionDefinition, 256> defs{};
@@ -101,17 +102,16 @@ constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{[]
     withoutArgument(InstructionName::PTC, "PTC", 1+ioPenalty+1);
     withoutArgument(InstructionName::RND, "RND", ioPenalty+2);
     withoutArgument(InstructionName::HLT, "HLT", 1);
-    return defs;
-}()};
+    return defs; }()};
 
 struct Instruction {
     public:
         InstructionName name;
         word_t argument;
 
-    public:
         bool operator==(Instruction const& instruction) const {
-            return name == instruction.name && argument == instruction.argument; }
+            return name == instruction.name
+                && argument == instruction.argument; }
         bool operator!=(Instruction const& instruction) const {
             return !operator==(instruction); }
 };
@@ -132,12 +132,16 @@ struct ComputationStateDebug {
 struct ComputationStateStatistics {
     uint64_t nInstructions, nMicroInstructions;
 
-    ComputationStateStatistics operator-(ComputationStateStatistics const&statistics) const {
-        return ComputationStateStatistics{nInstructions - statistics.nInstructions, nMicroInstructions - statistics.nMicroInstructions}; }
+    ComputationStateStatistics operator-(
+        ComputationStateStatistics const&statistics
+    ) const {
+        return ComputationStateStatistics{
+            nInstructions - statistics.nInstructions,
+            nMicroInstructions - statistics.nMicroInstructions}; }
 
     std::string toString() const {
-        return "#" + std::to_string(nInstructions) + ": " + std::to_string(nMicroInstructions); }
+        return "#" + std::to_string(nInstructions) + ": "
+            + std::to_string(nMicroInstructions); }
 };
-
 
 #endif

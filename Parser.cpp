@@ -232,7 +232,8 @@ class Parser {
                             ) {
                                 unparsedValue = std::string{smatch[1]};
                                 std::optional<word_t> const oValue{
-                                    Util::stringToOptionalUInt32(unparsedValue)};
+                                    Util::stringToOptionalUInt32(
+                                        unparsedValue)};
                                 if (!oValue.has_value())
                                     return dataError("invalid data unif range "
                                         "value", unparsedValue);
@@ -345,10 +346,12 @@ class Parser {
                         ::toString(oName.value())
                     + " " + oArg.value_or("(no arg.)"));
 
+                /* TODO refactor */
                 InstructionName const name{oName.value()};
                 InstructionDefinition const idef{instructionDefinitions[InstructionNameRepresentationHandler::toByteCode(name)]};
                 bool const takesArgument{idef.requiresArgument || idef.optionalArgument != std::nullopt};
                 std::optional<word_t> const optionalArgument{idef.optionalArgument};
+
                 if (oArg.has_value() && !takesArgument)
                     return error(filepath, lineNumber,
                       "instruction takes no argument: "
@@ -590,6 +593,7 @@ class Parser {
                     }
                 }
 
+                /* TODO refactor */
                 InstructionDefinition const idef{instructionDefinitions[InstructionNameRepresentationHandler::toByteCode(name)]};
                 bool const hasArgument{idef.requiresArgument || idef.optionalArgument != std::nullopt};
                 std::optional<word_t> const optionalValue{idef.optionalArgument};
