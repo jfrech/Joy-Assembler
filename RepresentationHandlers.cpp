@@ -17,14 +17,15 @@ namespace InstructionNameRepresentationHandler {
         return 0x00; }
 
     std::string toString(InstructionName const name) {
-        if (Util::std20::contains(representation, name))
-            return representation[name];
-        return representation[InstructionName::NOP]; }
+        for (InstructionDefinition const&idef : instructionDefinitions)
+            if (idef.name == name)
+                return std::string{idef.nameRepresentation};
+        return std::string{instructionDefinitions[0xff].nameRepresentation}; }
 
     std::optional<InstructionName> from_string(std::string const&repr) {
-        for (auto const&[in, insr] : representation)
-            if (insr == Util::stringToUpper(repr))
-                return std::optional<InstructionName>{in};
+        for (InstructionDefinition const&idef : instructionDefinitions)
+            if (idef.nameRepresentation == Util::stringToUpper(repr))
+                return std::make_optional(idef.name);
         return std::nullopt; }
 
     #define I(INS) InstructionName::INS
@@ -69,7 +70,7 @@ namespace InstructionNameRepresentationHandler {
         N(JNN, 2);
         N(JZ , 2);
         N(JNZ, 2);
-        N(JP , 3);
+        N(JP , 2);
         N(JNP, 2);
         N(JE , 2);
         N(JNE, 2);
