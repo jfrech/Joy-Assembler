@@ -346,9 +346,9 @@ class Parser {
                     + " " + oArg.value_or("(no arg.)"));
 
                 InstructionName const name{oName.value()};
-                auto const [takesArgument, optionalArgument]{
-                  InstructionNameRepresentationHandler
-                      ::argumentType.at(name)};
+                InstructionDefinition const idef{instructionDefinitions[InstructionNameRepresentationHandler::toByteCode(name)]};
+                bool const takesArgument{idef.requiresArgument || idef.optionalArgument != std::nullopt};
+                std::optional<word_t> const optionalArgument{idef.optionalArgument};
                 if (oArg.has_value() && !takesArgument)
                     return error(filepath, lineNumber,
                       "instruction takes no argument: "
@@ -590,8 +590,9 @@ class Parser {
                     }
                 }
 
-                auto [hasArgument, optionalValue] =
-                    InstructionNameRepresentationHandler::argumentType[name];
+                InstructionDefinition const idef{instructionDefinitions[InstructionNameRepresentationHandler::toByteCode(name)]};
+                bool const hasArgument{idef.requiresArgument || idef.optionalArgument != std::nullopt};
+                std::optional<word_t> const optionalValue{idef.optionalArgument};
                 if (!hasArgument && oValue.has_value())
                     return error(filepath, lineNumber, "superfluous argument: "
                         + InstructionNameRepresentationHandler::toString(name)
