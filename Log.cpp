@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 
-bool constexpr doLog{false};
+constexpr bool const doLog{false};
 
 void log(std::string const&msg) {
     if (doLog)

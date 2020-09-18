@@ -45,8 +45,6 @@ namespace InstructionNameRepresentationHandler {
     #undef FACTORY
 
     constexpr uint64_t microInstructions(InstructionName const name) {
-        static_assert(std::is_same<
-            std::underlying_type<InstructionName>::type, byte_t>::value);
         return ([]() {
             static_assert(std::is_same<
                 std::underlying_type<InstructionName>::type, byte_t>::value);

@@ -5,6 +5,9 @@
 
 #include "Includes.hh"
 
+static_assert(sizeof (long long int) >= sizeof (uint64_t));
+static_assert(sizeof (std::size_t) >= sizeof (uint32_t));
+
 int main(int const argc, char const*argv[]) {
     if (argc < 2) {
         std::cerr << "please provide an input joy assembly file" << std::endl;

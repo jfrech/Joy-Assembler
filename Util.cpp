@@ -151,8 +151,8 @@ namespace Util {
                 unescaped.push_back(oneRuneEscapes.at(emprisonedRune));
                 continue; }
 
-            UTF8::rune_t constexpr shortU = static_cast<UTF8::rune_t>('u');
-            UTF8::rune_t constexpr longU = static_cast<UTF8::rune_t>('U');
+            UTF8::rune_t const shortU = static_cast<UTF8::rune_t>('u');
+            UTF8::rune_t const longU = static_cast<UTF8::rune_t>('U');
             if (emprisonedRune == shortU || emprisonedRune == longU) {
                 uint8_t const escapeLength = emprisonedRune == shortU ? 4 : 8;
                 UTF8::rune_t escapedRune = UTF8::NULL_RUNE;
@@ -203,8 +203,7 @@ namespace Util {
                     std::regex{"0[bB]"}, "")}; }), 2)
         #undef ON_MATCH
 
-        long long int constexpr min32 = -(1LL << 31);
-        long long int constexpr max32 = +(1LL << 32)-1;
+        long long int const min32{-(1LL << 31)}, max32{+(1LL << 32)-1};
         if (oN.has_value() && ((oN.value() < min32 || oN.value() > max32)))
             oN = std::nullopt;
 

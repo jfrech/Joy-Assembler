@@ -13,8 +13,8 @@ namespace UTF8 {
     typedef uint32_t rune_t;
     typedef uint8_t byte_t;
 
-    rune_t constexpr NULL_RUNE = static_cast<rune_t>(0x00000000);
-    rune_t constexpr ERROR_RUNE = static_cast<rune_t>(0x0000fffd);
+    constexpr rune_t const NULL_RUNE = static_cast<rune_t>(0x00000000);
+    constexpr rune_t const ERROR_RUNE = static_cast<rune_t>(0x0000fffd);
 
     class Encoder {
         private:
