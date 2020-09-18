@@ -219,7 +219,7 @@ class Parser {
                         if (unparsedSize == "")
                             unparsedSize = std::string{"1"};
                         std::optional<word_t> const oSize{
-                            Util::stringToUInt32(unparsedSize)};
+                            Util::stringToOptionalUInt32(unparsedSize)};
                         if (!oSize.has_value())
                             return dataError("invalid data uint element size",
                                 unparsedSize);
@@ -232,7 +232,7 @@ class Parser {
                             ) {
                                 unparsedValue = std::string{smatch[1]};
                                 std::optional<word_t> const oValue{
-                                    Util::stringToUInt32(unparsedValue)};
+                                    Util::stringToOptionalUInt32(unparsedValue)};
                                 if (!oValue.has_value())
                                     return dataError("invalid data unif range "
                                         "value", unparsedValue);
@@ -257,7 +257,7 @@ class Parser {
                         if (unparsedValue == "")
                             unparsedValue = std::string{"0"};
                         std::optional<word_t> const oValue{
-                            Util::stringToUInt32(unparsedValue)};
+                            Util::stringToOptionalUInt32(unparsedValue)};
                         if (!oValue.has_value())
                             return dataError("invalid data uint element value",
                                 unparsedValue);
@@ -342,7 +342,7 @@ class Parser {
                     oArg = std::optional{smatch[3]};
                 log("pushing instruction: "
                     + InstructionNameRepresentationHandler
-                        ::to_string(oName.value())
+                        ::toString(oName.value())
                     + " " + oArg.value_or("(no arg.)"));
 
                 InstructionName const name{oName.value()};
@@ -353,14 +353,14 @@ class Parser {
                     return error(filepath, lineNumber,
                       "instruction takes no argument: "
                       + InstructionNameRepresentationHandler
-                          ::to_string(name));
+                          ::toString(name));
                 if (
                     !oArg.has_value() && takesArgument
                     && !optionalArgument.has_value()
                 )
                     return error(filepath, lineNumber, "instruction requires "
                         "an argument: " + InstructionNameRepresentationHandler
-                            ::to_string(name));
+                            ::toString(name));
 
                 pushInstruction(name, oArg);
                 return true;
@@ -418,7 +418,8 @@ class Parser {
             {"pragma_rng-seed", [&](
                 line_number_t lineNumber, std::string const&rs
             ) {
-                std::optional<word_t> oRNGSeed{Util::stringToUInt32(rs)};
+                std::optional<word_t> oRNGSeed{
+                    Util::stringToOptionalUInt32(rs)};
                 if (!oRNGSeed.has_value())
                     return error(filepath, lineNumber,
                         "invalid pragma_rng-seed: " + rs);
@@ -454,7 +455,7 @@ class Parser {
                 else if (ms == "dynamic")
                     memoryIsDynamic = true;
                 else {
-                    std::optional<word_t> oM{Util::stringToUInt32(ms)};
+                    std::optional<word_t> oM{Util::stringToOptionalUInt32(ms)};
                     if (!oM.has_value())
                         return error(filepath, lineNumber, "invalid memory "
                             "size: " + ms);
@@ -582,7 +583,7 @@ class Parser {
                             oRunes.value()[0]));
                     } else {
                         oValue = static_cast<std::optional<word_t>>(
-                            Util::stringToUInt32(oArg.value()));
+                            Util::stringToOptionalUInt32(oArg.value()));
                         if (!oValue.has_value())
                             return error(filepath, lineNumber,
                                 "invalid argument value: " + oArg.value());
@@ -593,20 +594,20 @@ class Parser {
                     InstructionNameRepresentationHandler::argumentType[name];
                 if (!hasArgument && oValue.has_value())
                     return error(filepath, lineNumber, "superfluous argument: "
-                        + InstructionNameRepresentationHandler::to_string(name)
+                        + InstructionNameRepresentationHandler::toString(name)
                         + " " + std::to_string(oValue.value()));
                 if (hasArgument) {
                     if (!optionalValue.has_value() && !oValue.has_value())
                         return error(filepath, lineNumber, "requiring "
                             "argument: " + InstructionNameRepresentationHandler
-                                ::to_string(name));
+                                ::toString(name));
                     if (!oValue.has_value())
                         oValue = optionalValue; }
 
                 word_t argument = oValue.value_or(0x00000000);
                 Instruction instruction{name, argument};
                 log("instruction " + InstructionRepresentationHandler
-                    ::to_string(instruction));
+                    ::toString(instruction));
 
 
                 /* TODO Consider possibly moving the following block into `ComputationState::storeInstruction`? TODO */
@@ -616,7 +617,9 @@ class Parser {
                         ::staticallyValidInstruction(
                             oMemorySemantics.value(), instruction)};
                     if (err.has_value())
-                        return error(filepath, lineNumber, err.value());
+                        return error(filepath, lineNumber, "instruction "
+                            + InstructionRepresentationHandler
+                                ::toString(instruction) + ": " + err.value());
                 }
 
 

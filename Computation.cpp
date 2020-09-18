@@ -128,7 +128,7 @@ class ComputationState {
                                 ::fromByteCode(opCode);
         if (oInstructionName.has_value())
             opCodeName = InstructionNameRepresentationHandler
-                         ::to_string(oInstructionName.value());
+                         ::toString(oInstructionName.value());
         word_t argument{loadMemory4(false, registerPC+1)};
         print(Util::ANSI_COLORS::paint(Util::ANSI_COLORS
                 ::INSTRUCTION_NAME, opCodeName)
@@ -407,7 +407,7 @@ class ComputationState {
                     std::cout << "enter a number: ";
                     std::string get;
                     std::getline(std::cin, get);
-                    oN = Util::stringToUInt32(get);
+                    oN = Util::stringToOptionalUInt32(get);
                 }
                 registerA = static_cast<word_t>(oN.value());
             }; break;

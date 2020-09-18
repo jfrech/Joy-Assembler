@@ -184,7 +184,7 @@ namespace Util {
         return std::make_optional(unescaped);
     }
 
-    std::optional<word_t> stringToUInt32(std::string const&s) {
+    std::optional<word_t> stringToOptionalUInt32(std::string const&s) {
         std::optional<long long int> oN{std::nullopt};
         std::smatch smatch{};
         /* TODO remove macro */
