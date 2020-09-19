@@ -26,14 +26,12 @@ class Parser {
         MemoryMode pragmaMemoryMode;
         std::optional<word_t> pragmaRNGSeed;
         bool pragmaStaticProgram;
+        bool pragmaStaticStackCheck;
 
         std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
         bool embedProfilerOutput;
 
         std::optional<std::vector<MemorySemantic>> oMemorySemantics;
-
-        /* has to be global to the parsing to properly allow file inclusion */
-        word_t memPtr;
 
         mutable bool ok;
 
@@ -53,13 +51,12 @@ class Parser {
         pragmaMemoryMode{MemoryMode::LittleEndian},
         pragmaRNGSeed{std::nullopt},
         pragmaStaticProgram{true},
+        pragmaStaticStackCheck{true},
 
         profiler{},
         embedProfilerOutput{false},
 
         oMemorySemantics{std::nullopt},
-
-        memPtr{0},
 
         ok{true},
 
@@ -96,7 +93,8 @@ class Parser {
     public: std::optional<ComputationState> parse(
         std::filesystem::path const&filepath
     ) {
-        if (!parseFiles(filepath))
+        word_t memPtr{0};
+        if (!parseFiles(filepath, memPtr))
             return std::nullopt;
 
         if (!pragmas(filepath))
@@ -113,9 +111,11 @@ class Parser {
 
         return oCS; }
 
-    private: bool parseFiles(std::filesystem::path const&filepath) {
+    private: bool parseFiles(
+        std::filesystem::path const&filepath, word_t &memPtr
+    ) {
         if (filepath != filepath.lexically_normal())
-            return parseFiles(filepath.lexically_normal());
+            return parseFiles(filepath.lexically_normal(), memPtr);
 
         if (!std::filesystem::exists(filepath))
             return error("file does not exist");
@@ -297,7 +297,7 @@ class Parser {
                     filepath.parent_path() / oIncludeFilepath.value()};
 
                 log("including with memPtr = " + std::to_string(memPtr));
-                if (!parseFiles(includeFilepath))
+                if (!parseFiles(includeFilepath, memPtr))
                     return error(filepath, lineNumber, "could not include "
                         "file: " + includeFilepath.u8string());
                 log("included with memPtr = " + std::to_string(memPtr));
@@ -406,6 +406,12 @@ class Parser {
     }
 
     private: bool pragmas(std::filesystem::path const&filepath) {
+        auto const flag{[&](line_number_t const lineNumber, bool &flg, std::string const&tf) {
+            if (tf != "false" && tf != "true")
+                return error(filepath, lineNumber, "invalid boolean: " + tf);
+            flg = tf == "true";
+            return true; }};
+
         std::vector<std::tuple<std::string,
             std::function<bool(line_number_t, std::string const&)>
         >> const pragmaActions {
@@ -437,21 +443,19 @@ class Parser {
             {"pragma_static-program", [&](
                 line_number_t lineNumber, std::string const&tf
             ) {
-                if (tf != "false" && tf != "true")
-                    return error(filepath, lineNumber,
-                        "invalid boolean: " + tf);
-                pragmaStaticProgram = tf == "true";
-                return true;
+                return flag(lineNumber, pragmaStaticProgram, tf);
+            }},
+
+            {"pragma_static-stack-check", [&](
+                line_number_t lineNumber, std::string const&tf
+            ) {
+                return flag(lineNumber, pragmaStaticStackCheck, tf);
             }},
 
             {"pragma_embed-profiler-output", [&](
                 line_number_t lineNumber, std::string const&tf
             ) {
-                if (tf != "false" && tf != "true")
-                    return error(filepath, lineNumber,
-                        "invalid boolean: " + tf);
-                embedProfilerOutput = tf == "true";
-                return true;
+                return flag(lineNumber, embedProfilerOutput, tf);
             }},
 
             {"pragma_memory-size", [&](
@@ -645,7 +649,7 @@ class Parser {
         if (!haltInstructionWasUsed)
             return error("no halt instruction was used");
 
-        if (stackInstructionWasUsed)
+        if (pragmaStaticStackCheck && stackInstructionWasUsed)
             if (!Util::std20::contains(definitions, std::string{"@stack"}))
                 return error("stack instructions are used yet no stack was "
                     "defined");
