@@ -32,6 +32,9 @@ class Parser {
 
         std::optional<std::vector<MemorySemantic>> oMemorySemantics;
 
+        /* has to be global to the parsing to properly allow file inclusion */
+        word_t memPtr;
+
         mutable bool ok;
 
         Util::rng_t rng;
@@ -55,6 +58,8 @@ class Parser {
         embedProfilerOutput{false},
 
         oMemorySemantics{std::nullopt},
+
+        memPtr{0},
 
         ok{true},
 
@@ -132,7 +137,6 @@ class Parser {
 
         line_number_t lineNumber{1};
         std::string ln{};
-        word_t memPtr{0};
 
         auto pushData = [&](uint32_t const data) {
             parsing.push_back(std::make_tuple(filepath, lineNumber,
