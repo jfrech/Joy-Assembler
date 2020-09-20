@@ -67,18 +67,13 @@ class Parser {
         std::filesystem::path const&filepath, line_number_t const lineNumber,
         std::string const&msg
     ) const {
-        std::cerr << "file " << filepath << ", ln " << lineNumber << ": "
-                  << msg << std::endl;
+        std::cerr << "parsing: file " << filepath << ", ln " << lineNumber
+                  << ": " << msg << std::endl;
         return false; }
 
     public: bool error(std::string const&msg) const {
         std::cerr << msg << std::endl;
         return false; }
-
-    /* TODO :: remove in favor of `error` */
-    private: bool err(std::string const&msg) const {
-        std::cerr << "Parser: " << msg << std::endl;
-        return ok = false; }
 
     public: bool commandlineArg(ComputationState &cs, std::string const&arg) {
         if (arg == "visualize")
@@ -87,7 +82,7 @@ class Parser {
             cs.debug.doVisualizeSteps = true;
             cs.debug.doWaitForUser = true; }
         else
-            return err("unknown commandline argument: " + arg);
+            return error("unknown commandline argument: " + arg);
         return true; }
 
     public: std::optional<ComputationState> parse(
@@ -625,14 +620,14 @@ class Parser {
 
                 /* TODO Consider possibly moving the following block into `ComputationState::storeInstruction`? TODO */
                 if (oMemorySemantics.has_value()) {
-                    std::optional<std::string> err{
+                    std::optional<std::string> e{
                         InstructionRepresentationHandler
                         ::staticallyValidInstruction(
                             oMemorySemantics.value(), instruction)};
-                    if (err.has_value())
+                    if (e.has_value())
                         return error(filepath, lineNumber, "instruction "
                             + InstructionRepresentationHandler
-                                ::toString(instruction) + ": " + err.value());
+                                ::toString(instruction) + ": " + e.value());
                 }
 
 
