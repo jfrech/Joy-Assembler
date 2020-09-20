@@ -13,9 +13,6 @@
 #include "Types.hh"
 #include "UTF8.cpp"
 
-#define lambda(expr) \
-    ([&](auto x) { return (expr); })
-
 namespace Util {
     /* custom C++20 implementations */
     namespace std20 {
@@ -36,6 +33,12 @@ namespace Util {
     }
 
     namespace ANSI_COLORS {
+        #ifdef NO_ANSI_COLORS
+        constexpr bool const enabled{false};
+        #else
+        constexpr bool const enabled{true};
+        #endif
+
         std::string const CLEAR{"\33[0m"};
         std::string const NONE{""};
 
@@ -53,7 +56,7 @@ namespace Util {
         std::string const MEMORY_SEMANTICS__DATA{"\33[38;5;92m"};
 
         std::string paint(std::string const&ansi, std::string const&text) {
-            return ansi + text + CLEAR; }
+            return enabled ? ansi + text + CLEAR : text; }
 
         auto paintFactory(std::string const&ansi) {
             return [&ansi](std::string const&text) {

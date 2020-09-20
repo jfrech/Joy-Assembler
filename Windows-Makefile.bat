@@ -18,7 +18,7 @@ REM         walkthrough-compiling-a-native-cpp-program-on-the-command-line?
 REM         view=vs-2019
 
 REM build
-cl /EHsc JoyAssembler.cpp /std:c++17
+cl /EHsc JoyAssembler.cpp /std:c++17 /DNO_ANSI_COLORS
 del JoyAssembler.obj
 
 REM test
