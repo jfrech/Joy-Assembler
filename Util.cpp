@@ -33,30 +33,32 @@ namespace Util {
     }
 
     namespace ANSI_COLORS {
-        #ifdef NO_ANSI_COLORS
-        constexpr bool const enabled{false};
-        #else
-        constexpr bool const enabled{true};
-        #endif
+        auto esc{[](std::string const&code) {
+#ifdef NO_ANSI_COLORS
+                return "";
+#else
+                return "\33[" + code + "m";
+#endif
+        }};
 
-        std::string const CLEAR{"\33[0m"};
+        std::string const CLEAR{esc("0")};
         std::string const NONE{""};
 
-        std::string const INSTRUCTION_NAME{"\33[38;5;119m"};
-        std::string const INSTRUCTION_ARGUMENT{"\33[38;5;121m"};
-        std::string const STACK{"\33[38;5;127m"};
-        std::string const STACK_FAINT{"\33[38;5;53m"};
-        std::string const MEMORY_LOCATION_USED{"\33[1m"};
-        std::string const FAINT{"\33[2m"};
-        std::string const REGISTER{"\33[38;5;198m"};
+        std::string const INSTRUCTION_NAME{esc("38;5;119")};
+        std::string const INSTRUCTION_ARGUMENT{esc("38;5;121")};
+        std::string const STACK{esc("38;5;127")};
+        std::string const STACK_FAINT{esc("38;5;53")};
+        std::string const MEMORY_LOCATION_USED{esc("1")};
+        std::string const FAINT{esc("2")};
+        std::string const REGISTER{esc("38;5;198")};
 
-        std::string const MEMORY_SEMANTICS__INSTRUCTION_HEAD{"\33[38;5;34m"};
-        std::string const MEMORY_SEMANTICS__INSTRUCTION{"\33[38;5;70m"};
-        std::string const MEMORY_SEMANTICS__DATA_HEAD{"\33[38;5;56m"};
-        std::string const MEMORY_SEMANTICS__DATA{"\33[38;5;92m"};
+        std::string const MEMORY_SEMANTICS__INSTRUCTION_HEAD{esc("38;5;34")};
+        std::string const MEMORY_SEMANTICS__INSTRUCTION{esc("38;5;70")};
+        std::string const MEMORY_SEMANTICS__DATA_HEAD{esc("38;5;56")};
+        std::string const MEMORY_SEMANTICS__DATA{esc("38;5;92")};
 
         std::string paint(std::string const&ansi, std::string const&text) {
-            return enabled ? ansi + text + CLEAR : text; }
+            return ansi + text + CLEAR; }
 
         auto paintFactory(std::string const&ansi) {
             return [&ansi](std::string const&text) {
@@ -189,25 +191,32 @@ namespace Util {
 
     std::optional<word_t> stringToOptionalUInt32(std::string const&s) {
         std::optional<long long int> oN{std::nullopt};
-        std::smatch smatch{};
-        /* TODO remove macro */
-        #define ON_MATCH(REGEX, LAMBDA, BASE) \
-            if (!oN.has_value()) \
-                if (std::regex_match(s, smatch, std::regex{(REGEX)})) \
-                    try { oN = std::make_optional( \
-                        std::stoll((LAMBDA)(smatch[1]), nullptr, (BASE))); } \
-                    catch (std::invalid_argument const&_) { \
-                        oN = std::nullopt; }
-        ON_MATCH("^\\s*([+-]?0[xX][0-9a-fA-F]+)\\s*$", std20::identity, 16)
-        ON_MATCH("^\\s*([+-]?[0-9]+)\\s*$", std20::identity, 10)
-        ON_MATCH(std::regex{"^\\s*([+-]?0[bB][01]+)\\s*$"}, (
-            [](std::string const&s) {
-                return std::string{std::regex_replace(s,
-                    std::regex{"0[bB]"}, "")}; }), 2)
-        #undef ON_MATCH
 
-        long long int const min32{-(1LL << 31)}, max32{+(1LL << 32)-1};
-        if (oN.has_value() && ((oN.value() < min32 || oN.value() > max32)))
+        std::vector<std::tuple<std::string,
+        std::function<std::string(std::string const&)>, int>> const actions{
+            {"^\\s*([+-]?0[xX][0-9a-fA-F]+)\\s*$",
+                [](std::string const&str) { return str; }, 16},
+            {"^\\s*([+-]?[0-9]+)\\s*$",
+                [](std::string const&str) { return str; }, 10},
+            {"^\\s*([+-]?0[bB][01]+)\\s*$", [](std::string const&str) {
+                return std::string{std::regex_replace(
+                    str, std::regex{"0[bB]"}, "")}; }, 2},
+        };
+
+        for (auto const&[regexString, lambda, base] : actions)
+            if (!oN.has_value()) {
+                std::smatch smatch{};
+                if (std::regex_match(s, smatch, std::regex{regexString}))
+                    try {
+                        oN = std::make_optional(std::stoll(lambda(
+                            std::string{smatch[1]}), nullptr, base)); }
+                    catch (std::invalid_argument const&_) {
+                        oN = std::nullopt; }
+            }
+
+        static_assert(sizeof (long long int) > sizeof (word_t));
+        constexpr long long int const min32{-(1LL << 31)}, max32{(1LL << 32)-1};
+        if (oN.has_value() && (oN.value() < min32 || oN.value() > max32))
             oN = std::nullopt;
 
         if (oN.has_value())
@@ -222,17 +231,17 @@ namespace Util {
 
     std::string UInt8AsPaddedHex(uint8_t const n) {
         char buf[3];
-        std::snprintf(buf, 3, "%02X", n);
+        std::snprintf(buf, 3, "%02x", n);
         return std::string{buf}; }
 
     std::string UNibbleAsPaddedHex(uint8_t const n) {
         char buf[2];
-        std::snprintf(buf, 2, "%01X", n & 0xf);
+        std::snprintf(buf, 2, "%01x", n & 0xf);
         return std::string{buf}; }
 
     std::string UBitAsPaddedHex(uint8_t const n) {
         char buf[2];
-        std::snprintf(buf, 2, "%01X", n & 0x1);
+        std::snprintf(buf, 2, "%01x", n & 0x1);
         return std::string{buf}; }
 
     std::string stringToUpper(std::string const&_str) {
@@ -300,26 +309,6 @@ namespace Util {
             std::shuffle(v.begin(), v.end(), rng);
             return v; }
     };
-
-    /*
-    template<typename T>
-    std::vector<T> take(std::size_t mutable n, std::vector<T> const&v) {
-        std::vector<T> taken{};
-        taken.reserve(n);
-        for (T const&x : v)
-            if (n-- > 0)
-                taken.push_back(v);
-        return v; }
-    */
-
-    // fmap :: (a -> b) -> Maybe a -> Maybe b
-    template<typename F, typename V>
-    inline std::optional<decltype(F{}(V{}))> fmapOptional(
-        F const&f, std::optional<V> const&oV
-    ) {
-        return oV.has_value() ? std::make_optional(f(oV.value()))
-                              : std::nullopt; }
 }
-
 
 #endif
