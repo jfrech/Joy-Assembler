@@ -60,10 +60,7 @@ class ComputationState {
     public: ComputationState(ComputationState const&) = delete;
     public: ComputationState(ComputationState &&)     = default;
 
-    public: void visualize() {
-        visualize(true); }
-
-    public: void visualize(bool blockAllowed) {
+    public: void visualize(bool const blockAllowed=true) {
         if (!debug.doVisualizeSteps)
             return;
 

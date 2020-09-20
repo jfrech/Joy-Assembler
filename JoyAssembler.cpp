@@ -9,6 +9,8 @@ static_assert(sizeof (long long int) >= sizeof (uint64_t));
 static_assert(sizeof (std::size_t) >= sizeof (uint32_t));
 
 int main(int const argc, char const*argv[]) {
+    std::ios_base::sync_with_stdio(false);
+
     if (argc < 2) {
         std::cerr << "please provide an input joy assembly file" << std::endl;
         return EXIT_FAILURE; }
