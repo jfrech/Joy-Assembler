@@ -5,8 +5,16 @@
 #include "Util.cpp"
 
 namespace InstructionNameRepresentationHandler {
-    std::optional<InstructionName> fromByteCode(byte_t const opCode) {
-        return instructionDefinitions[opCode].name; }
+    InstructionName fromByteCode(byte_t const opCode) {
+        std::optional<InstructionName> oName{
+            instructionDefinitions[opCode].name};
+
+        if (!oName.has_value())
+            throw std::runtime_error(
+                "invalid op-code: " + std::to_string(opCode));
+
+        return oName.value();
+    }
 
     byte_t toByteCode(InstructionName const name) {
         for (uint16_t opCode = 0; opCode < 0x100; ++opCode) {

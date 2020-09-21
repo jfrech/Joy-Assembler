@@ -14,6 +14,7 @@
 #include <regex>
 #include <set>
 #include <stack>
+#include <stdexcept>
 #include <variant>
 #include <vector>
 

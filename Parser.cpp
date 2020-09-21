@@ -28,7 +28,7 @@ class Parser {
         bool pragmaStaticProgram;
         bool pragmaStaticStackCheck;
 
-        std::map<word_t, std::vector<std::tuple<bool, std::string>>> profiler;
+        std::vector<std::vector<std::tuple<bool, std::string>>> profiler;
         bool embedProfilerOutput;
 
         std::optional<std::vector<MemorySemantic>> oMemorySemantics;
@@ -320,9 +320,8 @@ class Parser {
                     + std::string{profilerMessage == "" ? "" : ": "}
                     + profilerMessage;
 
-                if (!Util::std20::contains(profiler, memPtr))
-                    profiler[memPtr] =
-                        std::vector<std::tuple<bool, std::string>>{};
+                if (profiler.size() < memPtr+1)
+                    profiler.resize(memPtr+1);
                 profiler[memPtr].push_back(std::make_tuple(
                     profilerStartStop == std::string{"start"},
                     profilerMessage));

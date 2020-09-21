@@ -14,8 +14,7 @@ class ComputationState {
         bool flagAZero, flagANegative, flagAEven;
         Util::rng_t rng;
 
-        std::map<word_t, std::vector<std::tuple<bool, std::string>>>
-            const profiler;
+        std::vector<std::vector<std::tuple<bool, std::string>>> const profiler;
         ComputationStateStatistics statistics;
         std::stack<ComputationStateStatistics> profilerStatistics;
         bool embedProfilerOutput;
@@ -31,8 +30,7 @@ class ComputationState {
         bool const memoryIsDynamic,
         MemoryMode const memoryMode,
         Util::rng_t const&rng,
-        std::map<word_t, std::vector<std::tuple<bool, std::string>>>
-            const&profiler,
+        std::vector<std::vector<std::tuple<bool, std::string>>> const&profiler,
         bool const embedProfilerOutput,
         std::optional<std::vector<MemorySemantic>> const&oMemorySemantics
     ) :
@@ -119,13 +117,10 @@ class ComputationState {
         }
         print("\n    Current instruction: ");
 
-        byte_t opCode = loadMemory(registerPC, std::nullopt);
-        std::string opCodeName{"(err. NOP)"};
-        auto oInstructionName = InstructionNameRepresentationHandler
-                                ::fromByteCode(opCode);
-        if (oInstructionName.has_value())
-            opCodeName = InstructionNameRepresentationHandler
-                         ::toString(oInstructionName.value());
+        std::string opCodeName{
+            InstructionNameRepresentationHandler::toString(
+                InstructionNameRepresentationHandler::fromByteCode(
+                    loadMemory(registerPC, std::nullopt)))};
         word_t argument{loadMemory4(false, registerPC+1)};
         print(Util::ANSI_COLORS::paint(Util::ANSI_COLORS
                 ::INSTRUCTION_NAME, opCodeName)
@@ -178,7 +173,7 @@ class ComputationState {
     }
 
     private: void checkProfiler() {
-        if (!Util::std20::contains(profiler, registerPC))
+        if (profiler.size() <= registerPC)
             return;
 
         auto const prf{[](std::string const&msg) {
@@ -194,8 +189,7 @@ class ComputationState {
                 if (!embedProfilerOutput)
                     prf(str + "starting profiler: " + msg);
                 profilerStatistics.push(statistics);
-                continue;
-            }
+                continue; }
 
             if (!embedProfilerOutput)
                 prf(str + "stopping profiler: " + msg);
@@ -227,10 +221,7 @@ class ComputationState {
     public: bool step() {
         checkProfiler();
 
-        std::optional<Instruction> oInstruction = nextInstruction();
-        if (!oInstruction.has_value())
-            return err("step: failed to fetch next instruction");
-        Instruction instruction = oInstruction.value();
+        Instruction instruction{nextInstruction()};
 
         ++statistics.nInstructions;
         statistics.nMicroInstructions += InstructionNameRepresentationHandler
@@ -446,21 +437,15 @@ class ComputationState {
         return 4;
     }
 
-    private: std::optional<Instruction> nextInstruction() {
+    private: Instruction nextInstruction() {
         byte_t opCode{loadMemory(
             registerPC++, MemorySemantic::InstructionHead)};
         word_t argument{loadMemory4(
             (registerPC += 4) - 4, false/*TODO MemorySemantic::Instruction*/)};
 
-        auto oInstructionName = InstructionNameRepresentationHandler
-                                ::fromByteCode(opCode);
-        if (!oInstructionName.has_value())
-            return std::nullopt;
-
-        Instruction instruction{
-            oInstructionName.value(), static_cast<word_t>(argument)};
-
-        return std::make_optional(instruction);
+        return Instruction{
+            InstructionNameRepresentationHandler::fromByteCode(opCode),
+            static_cast<word_t>(argument)};
     }
 
     private: void updateFlags() {
