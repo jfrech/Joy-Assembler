@@ -152,24 +152,27 @@ class ComputationState {
                 Util::IO::wait(); }
     }
 
-    /* TODO: refactor */
     public: void memoryDump() {
         mock = true;
 
-        std::string dump{""};
-        dump += "A: 0x" + Util::UInt32AsPaddedHex(registerA);
-        dump += ", B: 0x" + Util::UInt32AsPaddedHex(registerB);
-        dump += ", PC: 0x" + Util::UInt32AsPaddedHex(registerPC);
-        dump += ", SC: 0x" + Util::UInt32AsPaddedHex(registerSC);
-        dump += "; memory (" + std::to_string(memory.size()) + "B):";
-        word_t mx = memory.size();
-        while (--mx != 0 && memory[mx] == 0)
-            ;
-        ++mx;
-        for (word_t m = 0; m < mx; ++m)
-            dump += " " + Util::UInt8AsPaddedHex(memory[m]);
+        std::cout
+            << "A: 0x" << Util::UInt32AsPaddedHex(registerA)
+            << ", B: 0x" << Util::UInt32AsPaddedHex(registerB)
+            << ", PC: 0x" << Util::UInt32AsPaddedHex(registerPC)
+            << ", SC: 0x" << Util::UInt32AsPaddedHex(registerSC)
+            << "; memory (" << std::to_string(memory.size()) + "B):";
 
-        std::cout << dump << "\n";
+        // do not print unnecessary zeros
+        word_t mx{static_cast<word_t>(memory.size()-1)};
+        while (mx > 0 && memory[mx] == 0)
+            --mx;
+        for (byte_t const b : memory) {
+            std::cout << " " + Util::UInt8AsPaddedHex(b);
+            if (mx-- <= 0)
+                break;
+        }
+
+        std::cout << "\n";
     }
 
     private: void checkProfiler() {
@@ -461,20 +464,19 @@ class ComputationState {
             debug.highestUsedMemoryLocation, m);
 
         if (/*m < 0 || */m >= memory.size()) {
-            if (!memoryIsDynamic) {
-                err("loadMemory: memory out of bounds (" + std::to_string(m)
-                    + " >= " + std::to_string(memory.size()) + ")");
-                return 0; }
+            if (!memoryIsDynamic)
+                throw std::runtime_error{"loadMemory: memory out of bounds ("
+                    + std::to_string(m) + " >= " + std::to_string(memory.size())
+                    + ")"};
             memory.resize(m+1);
         }
 
         if (oSem.has_value() && oMemorySemantics.has_value()) {
-            if (oMemorySemantics.value().size() <= m) {
-                err("loadMemory: no semantics available");
-                return 0; }
-            if (oMemorySemantics.value()[m] != oSem.value()) {
-                err("loadMemory: statically invalid memory access");
-                return 0; }
+            if (oMemorySemantics.value().size() <= m)
+                throw std::runtime_error{"loadMemory: no semantics available"};
+            if (oMemorySemantics.value()[m] != oSem.value())
+                throw std::runtime_error{
+                    "loadMemory: statically invalid memory access"};
         }
 
         return memory[m];
@@ -488,20 +490,19 @@ class ComputationState {
             debug.highestUsedMemoryLocation, m);
 
         if (/*m < 0 || */m >= memory.size()) {
-            if (!memoryIsDynamic) {
-                err("storeMemory: memory out of bounds (" + std::to_string(m)
-                    + " >= " + std::to_string(memory.size()) + ")");
-                return; }
+            if (!memoryIsDynamic)
+                throw std::runtime_error{"storeMemory: memory out of bounds ("
+                    + std::to_string(m) + " >= " + std::to_string(memory.size())
+                    + ")"};
             memory.resize(m+1);
         }
 
         if (oSem.has_value() && oMemorySemantics.has_value()) {
-            if (oMemorySemantics.value().size() <= m) {
-                err("storeMemory: no semantics available");
-                return; }
-            if (oMemorySemantics.value()[m] != oSem.value()) {
-                err("storeMemory: statically invalid memory access");
-                return; }
+            if (oMemorySemantics.value().size() <= m)
+                throw std::runtime_error{"storeMemory: no semantics available"};
+            if (oMemorySemantics.value()[m] != oSem.value())
+                throw std::runtime_error{
+                    "storeMemory: statically invalid memory access"};
         }
 
         memory[m] = b;
@@ -533,8 +534,8 @@ class ComputationState {
                 b1 = loadMemory(m+2, saData);
                 b0 = loadMemory(m+3, saData);
                 break;
-
         }
+
         return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
     }
 
@@ -570,34 +571,26 @@ class ComputationState {
         }
     }
 
+    private: void assureStackBoundaries(
+        std::string const&callSite, word_t const m
+    ) {
+        if (!debug.stackBoundaries.has_value())
+            throw std::runtime_error{
+                callSite + ": no stack boundaries are defined"};
+        if (m < std::get<0>(debug.stackBoundaries.value()))
+            throw std::runtime_error{callSite + ": stack underflow"};
+        if (m >= std::get<1>(debug.stackBoundaries.value()))
+            throw std::runtime_error{callSite + ": stack overflow"};
+        if ((m - std::get<0>(debug.stackBoundaries.value())) % 4 != 0)
+            throw std::runtime_error{callSite + ": stack misalignment"};
+    }
+
     private: word_t loadMemory4Stack(word_t const m) {
-        if (!debug.stackBoundaries.has_value()) {
-            err("loadMemory4Stack: no stack boundaries defined");
-            return 0; }
-        if (m < std::get<0>(debug.stackBoundaries.value())) {
-            err("loadMemory4Stack: stack underflow");
-            return 0; }
-        if (m >= std::get<1>(debug.stackBoundaries.value())) {
-            err("loadMemory4Stack: stack overflow");
-            return 0; }
-        if ((m - std::get<0>(debug.stackBoundaries.value())) % 4 != 0) {
-            err("loadMemory4Stack: stack misalignment");
-            return 0; }
+        assureStackBoundaries("loadMemory4Stack", m);
         return loadMemory4(m); }
 
     private: void storeMemory4Stack(word_t const m, word_t const w) {
-        if (!debug.stackBoundaries.has_value()) {
-            err("storeMemory4Stack: no stack boundaries defined");
-            return; }
-        if (m < std::get<0>(debug.stackBoundaries.value())) {
-            err("storeMemory4Stack: stack underflow");
-            return; }
-        if (m >= std::get<1>(debug.stackBoundaries.value())) {
-            err("storeMemory4Stack: stack overflow");
-            return; }
-        if ((m - std::get<0>(debug.stackBoundaries.value())) % 4 != 0) {
-            err("storeMemory4Stack: stack misalignment");
-            return; }
+        assureStackBoundaries("storeMemory4Stack", m);
         storeMemory4(m, w); }
 
     private: bool err(std::string const&msg) const {

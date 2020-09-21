@@ -10,8 +10,8 @@ namespace InstructionNameRepresentationHandler {
             instructionDefinitions[opCode].name};
 
         if (!oName.has_value())
-            throw std::runtime_error(
-                "invalid op-code: " + std::to_string(opCode));
+            throw std::runtime_error{
+                "invalid op-code: " + std::to_string(opCode)};
 
         return oName.value();
     }
