@@ -120,8 +120,8 @@ class Parser {
             return error("recursive file inclusion; not parsing file twice");
         parsedFilepaths.insert(filepath);
 
-        std::ifstream fs{filepath};
-        if (!fs)
+        std::ifstream f{filepath};
+        if (!f.is_open())
             return error("unable to read file");
 
         std::string const regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
@@ -390,7 +390,7 @@ class Parser {
             return false;
         };
 
-        for (; std::getline(fs, ln); ++lineNumber)
+        for (; std::getline(f, ln); ++lineNumber)
             if (!parseLine(ln))
                 return error(filepath, lineNumber, "incomprehensible");
 

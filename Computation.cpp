@@ -335,10 +335,16 @@ class ComputationState {
                 registerA = ~registerA;
                 break;
             case InstructionName::SHL:
-                registerA <<= instruction.argument;
+                if (instruction.argument < 32)
+                    registerA <<= instruction.argument;
+                else
+                    registerA = 0;
                 break;
             case InstructionName::SHR:
-                registerA >>= instruction.argument;
+                if (instruction.argument < 32)
+                    registerA >>= instruction.argument;
+                else
+                    registerA = 0;
                 break;
             case InstructionName::INC:
                 registerA += instruction.argument;
