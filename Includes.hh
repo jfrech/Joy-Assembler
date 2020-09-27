@@ -3,6 +3,7 @@
 
 #include <array>
 #include <bitset>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <functional>
