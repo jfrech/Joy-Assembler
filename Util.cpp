@@ -80,6 +80,16 @@ namespace Util {
         }
     }
 
+    inline constexpr uint32_t asTwo_sComplement(int32_t const n) {
+        return n >= 0 ? static_cast<uint32_t>(n)
+            : ~static_cast<uint32_t>(-n) + 1;
+    }
+
+    inline constexpr int32_t fromTwo_sComplement(uint32_t const bits) {
+        return !(bits & (1ull << 31)) ?  static_cast<int32_t>(bits)
+            : -static_cast<int32_t>(~bits + 1);
+    }
+
     namespace IO {
         void wait() {
             std::this_thread::sleep_for(std::chrono::milliseconds(100)); }

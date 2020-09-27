@@ -163,13 +163,15 @@ class ComputationState {
             << "; memory (" << std::to_string(memory.size()) + "B):";
 
         // do not print unnecessary zeros
-        word_t mx{static_cast<word_t>(memory.size()-1)};
-        while (mx > 0 && memory[mx] == 0)
-            --mx;
-        for (byte_t const b : memory) {
-            std::cout << " " + Util::UInt8AsPaddedHex(b);
-            if (mx-- <= 0)
-                break;
+        if (!memory.empty()) {
+            word_t mx{static_cast<word_t>(memory.size()-1)};
+            while (mx > 0 && memory[mx] == 0)
+                --mx;
+            for (byte_t const b : memory) {
+                std::cout << " " + Util::UInt8AsPaddedHex(b);
+                if (mx-- <= 0)
+                    break;
+            }
         }
 
         std::cout << "\n";
@@ -353,7 +355,8 @@ class ComputationState {
                 registerA -= instruction.argument;
                 break;
             case InstructionName::NEG:
-                registerA = -registerA;
+                registerA = Util::asTwo_sComplement(
+                    -Util::fromTwo_sComplement(registerA));
                 break;
 
             case InstructionName::SWP:
@@ -372,7 +375,8 @@ class ComputationState {
                 registerA += registerB;
                 break;
             case InstructionName::SUB:
-                registerA -= registerB;
+                registerA += Util::asTwo_sComplement(
+                    -Util::fromTwo_sComplement(registerB));
                 break;
 
             case InstructionName::PTU:
@@ -383,7 +387,8 @@ class ComputationState {
             case InstructionName::PTS:
                 if (mock)
                     break;
-                std::cout << static_cast<int32_t>(registerA) << "\n";
+                std::cout << static_cast<int32_t>(
+                    Util::fromTwo_sComplement(registerA)) << "\n";
                 break;
             case InstructionName::PTB:
                 if (mock)
@@ -452,14 +457,13 @@ class ComputationState {
         word_t argument{loadMemory4(
             (registerPC += 4) - 4, false/*TODO MemorySemantic::Instruction*/)};
 
-        return Instruction{
-            InstructionNameRepresentationHandler::fromByteCode(opCode),
-            static_cast<word_t>(argument)};
+        return Instruction{InstructionNameRepresentationHandler
+            ::fromByteCode(opCode), argument};
     }
 
     private: void updateFlags() {
         flagAZero = registerA == 0;
-        flagANegative = static_cast<int32_t>(registerA) < 0;
+        flagANegative = Util::fromTwo_sComplement(registerA) < 0;
         flagAEven = registerA % 2 == 0; }
 
     private: byte_t loadMemory(
