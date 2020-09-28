@@ -3,9 +3,9 @@ CPPC = g++
 
 CPPFLAGS = -std=c++17 -Wall -Wpedantic -Wextra -Werror -Wswitch-enum -O3
 
-JoyAssembler: JoyAssembler.cpp Types.hh Util.cpp UTF8.cpp Parser.cpp \
-              Computation.cpp Log.cpp UnitTests.cpp RepresentationHandlers.cpp \
-              Includes.hh
+SOURCES = $(wildcard *.cpp *.hpp)
+
+JoyAssembler: $(SOURCES)
 	make unit-tests
 	
 	./set-build-status.sh failing
@@ -28,5 +28,5 @@ unit-tests:
 	make UnitTests
 	./UnitTests
 
-UnitTests: UnitTests.cpp
+UnitTests: $(SOURCES)
 	$(CPPC) $(CPPFLAGS) UnitTests.cpp -o UnitTests

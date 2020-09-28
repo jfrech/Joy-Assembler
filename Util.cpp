@@ -10,11 +10,11 @@
 #include <map>
 #include <set>
 
-#include "Types.hh"
+#include "Types.hpp"
 #include "UTF8.cpp"
 
 namespace Util {
-    /* custom C++20 implementations */
+    /* custom C++20 standard library feature implementations */
     namespace std20 {
         /* a custom std::map::contains (C++20) implementation */
         template<typename K, typename V>
@@ -25,11 +25,6 @@ namespace Util {
         template<typename V>
         inline constexpr bool contains(std::set<V> const&set, V const&value) {
             return set.count(value) != 0; }
-
-        /* a custom std::identity (C++20) implementation */
-        template<typename T>
-        inline constexpr T identity(T const&x) {
-            return x; }
     }
 
     namespace ANSI_COLORS {
@@ -109,8 +104,11 @@ namespace Util {
     }
 
     namespace IO {
+        constexpr std::chrono::duration const waitTime{
+            std::chrono::milliseconds(100)};
+
         void wait() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
+            std::this_thread::sleep_for(waitTime); }
     }
 
     template<typename T>
@@ -127,9 +125,7 @@ namespace Util {
         { ; }
 
         public: T read() {
-            if (exhausted())
-                return zeroValue;
-            return values.at(p++); }
+            return exhausted() ? zeroValue : values.at(p++); }
 
         public: bool exhausted() const {
             return p >= values.size(); }

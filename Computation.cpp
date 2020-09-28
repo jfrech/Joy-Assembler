@@ -1,7 +1,7 @@
 #ifndef JOY_ASSEMBLER__COMPUTATION_CPP
 #define JOY_ASSEMBLER__COMPUTATION_CPP
 
-#include "Includes.hh"
+#include "Includes.hpp"
 
 class ComputationState {
     friend class Parser;

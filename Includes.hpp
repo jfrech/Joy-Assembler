@@ -1,5 +1,5 @@
-#ifndef JOY_ASSEMBLER__ALL_HH
-#define JOY_ASSEMBLER__ALL_HH
+#ifndef JOY_ASSEMBLER__ALL_HPP
+#define JOY_ASSEMBLER__ALL_HPP
 
 #include <array>
 #include <bitset>
@@ -20,7 +20,7 @@
 #include <variant>
 #include <vector>
 
-#include "Types.hh"
+#include "Types.hpp"
 #include "Util.cpp"
 #include "RepresentationHandlers.cpp"
 

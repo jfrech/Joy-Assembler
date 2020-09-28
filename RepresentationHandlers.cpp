@@ -1,7 +1,7 @@
 #ifndef JOY_ASSEMBLER__REPRESENTATION_HANDLERS_CPP
 #define JOY_ASSEMBLER__REPRESENTATION_HANDLERS_CPP
 
-#include "Types.hh"
+#include "Types.hpp"
 #include "Util.cpp"
 
 namespace InstructionNameRepresentationHandler {

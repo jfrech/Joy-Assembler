@@ -1,5 +1,5 @@
-#ifndef JOY_ASSEMBLER__TYPES_HH
-#define JOY_ASSEMBLER__TYPES_HH
+#ifndef JOY_ASSEMBLER__TYPES_HPP
+#define JOY_ASSEMBLER__TYPES_HPP
 
 typedef uint8_t byte_t;
 typedef uint32_t word_t;
