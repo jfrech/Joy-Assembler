@@ -37,16 +37,16 @@ bool unitTest_Two_sComplement() {
     Util::rng_t rng{};
     for (uint_t j{0}; j < 0xfff; ++j) {
         uint32_t bits{rng.unif(0xff'ff'ff'ff)};
-        asserter(Util::asTwo_sComplement(
-            Util::fromTwo_sComplement(bits)) == bits,
+        asserter(Util::toTwo_sComplement<int32_t, uint32_t, 32>(
+            Util::fromTwo_sComplement<uint32_t, int32_t, 32>(bits)) == bits,
             "incorrect 2's complement behaviour on the following bits: "
                 + std::to_string(bits));
 
         int32_t small{static_cast<int32_t>(rng.unif(0xffffff))};
         uint32_t sign{rng.unif(1)};
         int32_t n{sign == 0 ? small : -small};
-        asserter(Util::fromTwo_sComplement(
-            Util::asTwo_sComplement(n)) == n,
+        asserter(Util::fromTwo_sComplement<uint32_t, int32_t, 32>(
+            Util::toTwo_sComplement<int32_t, uint32_t, 32>(n)) == n,
             "incorrect 2's complement behaviour on the following integer: "
                 + std::to_string(n));
     }

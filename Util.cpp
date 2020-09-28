@@ -82,21 +82,29 @@ namespace Util {
 
     template <typename Int, typename UInt, unsigned int BitWidth>
     inline constexpr UInt toTwo_sComplement(UInt const n) {
+        using _Int = typename std::make_signed<UInt>::type;
+        static_assert(std::is_same<Int, _Int>::value);
+        using _UInt = typename std::make_unsigned<Int>::type;
+        static_assert(std::is_same<UInt, _UInt>::value);
+
+        static_assert(sizeof (UInt) * 8 == BitWidth);
+        static_assert(sizeof (Int) * 8 == BitWidth);
+
         return n >= 0 ? static_cast<UInt>(n)
             : ~static_cast<UInt>(-n) + 1;
     }
     template <typename UInt, typename Int, unsigned int BitWidth>
     inline constexpr Int fromTwo_sComplement(UInt const bits) {
+        using _UInt = typename std::make_unsigned<Int>::type;
+        static_assert(std::is_same<UInt, _UInt>::value);
+        using _Int = typename std::make_signed<UInt>::type;
+        static_assert(std::is_same<Int, _Int>::value);
+
+        static_assert(sizeof (UInt) * 8 == BitWidth);
+        static_assert(sizeof (Int) * 8 == BitWidth);
+
         return !(bits & (UInt{1} << (BitWidth-1))) ?  static_cast<int32_t>(bits)
             : -static_cast<int32_t>(~bits + 1);
-    }
-
-    inline constexpr uint32_t asTwo_sComplement(int32_t const n) {
-        return toTwo_sComplement<int32_t, uint32_t, 32>(n);
-    }
-
-    inline constexpr int32_t fromTwo_sComplement(uint32_t const bits) {
-        return fromTwo_sComplement<uint32_t, int32_t, 32>(bits);
     }
 
     namespace IO {
@@ -241,7 +249,7 @@ namespace Util {
             oN = std::nullopt;
 
         if (oN.has_value())
-            return std::make_optional(static_cast<word_t>(
+            return std::make_optional(static_cast<word_t>(0xffff'ffff &
                 fromTwo_sComplement<uint64_t, int64_t, 64>(oN.value())));
         return std::nullopt;
     }

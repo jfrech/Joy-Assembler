@@ -355,8 +355,9 @@ class ComputationState {
                 registerA -= instruction.argument;
                 break;
             case InstructionName::NEG:
-                registerA = Util::asTwo_sComplement(
-                    -Util::fromTwo_sComplement(registerA));
+                registerA = Util::toTwo_sComplement<int32_t, uint32_t, 32>(
+                    -Util::fromTwo_sComplement<uint32_t, int32_t, 32>(
+                        registerA));
                 break;
 
             case InstructionName::SWP:
@@ -375,8 +376,9 @@ class ComputationState {
                 registerA += registerB;
                 break;
             case InstructionName::SUB:
-                registerA += Util::asTwo_sComplement(
-                    -Util::fromTwo_sComplement(registerB));
+                registerA += Util::toTwo_sComplement<int32_t, uint32_t, 32>(
+                    -Util::fromTwo_sComplement<uint32_t, int32_t, 32>(
+                        registerB));
                 break;
 
             case InstructionName::PTU:
@@ -388,7 +390,8 @@ class ComputationState {
                 if (mock)
                     break;
                 std::cout << static_cast<int32_t>(
-                    Util::fromTwo_sComplement(registerA)) << "\n";
+                    Util::fromTwo_sComplement<uint32_t, int32_t, 32>(
+                        registerA)) << "\n";
                 break;
             case InstructionName::PTB:
                 if (mock)
@@ -463,7 +466,8 @@ class ComputationState {
 
     private: void updateFlags() {
         flagAZero = registerA == 0;
-        flagANegative = Util::fromTwo_sComplement(registerA) < 0;
+        flagANegative = Util::fromTwo_sComplement<uint32_t, int32_t, 32>(
+            registerA) < 0;
         flagAEven = registerA % 2 == 0; }
 
     private: byte_t loadMemory(
