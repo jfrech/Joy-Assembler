@@ -241,13 +241,21 @@ namespace Util {
                         oN = std::nullopt; }
             }
 
-        constexpr long long int const min32{-(1LL << 31)}, max32{(1LL << 32)-1};
-        if (oN.has_value() && (oN.value() < min32 || oN.value() > max32))
-            oN = std::nullopt;
+        // signed
+        constexpr long long int const min32{-(1LL << 31)}, max32{(1LL << 31)-1};
+        static_assert(std::numeric_limits<int32_t>::min() == min32);
+        static_assert(std::numeric_limits<int32_t>::max() == max32);
+        if (oN.has_value() && (oN.value() >= min32 || oN.value() <= max32))
+            return std::make_optional(toTwo_sComplement<int32_t, uint32_t, 32>(
+                static_cast<int32_t>(oN.value())));
 
-        if (oN.has_value())
-            return std::make_optional(static_cast<word_t>(0xffff'ffff &
-                fromTwo_sComplement<uint64_t, int64_t, 64>(oN.value())));
+        // unsigned
+        if (
+            oN.has_value() && oN.value() >= 0
+            && oN.value() <= std::numeric_limits<uint32_t>::max()
+        )
+            return std::make_optional(static_cast<uint32_t>(oN.value()));
+
         return std::nullopt;
     }
 
