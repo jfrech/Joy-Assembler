@@ -241,20 +241,19 @@ namespace Util {
                         oN = std::nullopt; }
             }
 
-        // signed
-        constexpr long long int const min32{-(1LL << 31)}, max32{(1LL << 31)-1};
-        static_assert(std::numeric_limits<int32_t>::min() == min32);
-        static_assert(std::numeric_limits<int32_t>::max() == max32);
-        if (oN.has_value() && (oN.value() >= min32 || oN.value() <= max32))
+        constexpr long long int const
+            min32s{-(1LL << 31)}, max32s{(1LL << 31)-1},
+            min32u{0x0000'0000}, max32u{0xffff'ffff};
+        static_assert(std::numeric_limits<int32_t>::min() == min32s);
+        static_assert(std::numeric_limits<int32_t>::max() == max32s);
+        static_assert(std::numeric_limits<uint32_t>::min() == min32u);
+        static_assert(std::numeric_limits<uint32_t>::max() == max32u);
+
+        if (oN.has_value() && min32u <= oN.value() && oN.value() <= max32u)
+            return std::make_optional(static_cast<uint32_t>(oN.value()));
+        if (oN.has_value() && min32s <= oN.value() && oN.value() <= max32s)
             return std::make_optional(toTwo_sComplement<int32_t, uint32_t, 32>(
                 static_cast<int32_t>(oN.value())));
-
-        // unsigned
-        if (
-            oN.has_value() && oN.value() >= 0
-            && oN.value() <= std::numeric_limits<uint32_t>::max()
-        )
-            return std::make_optional(static_cast<uint32_t>(oN.value()));
 
         return std::nullopt;
     }
