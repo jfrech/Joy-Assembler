@@ -3,6 +3,7 @@
 
 typedef uint8_t byte_t;
 typedef uint32_t word_t;
+typedef uint64_t uint_t;
 
 enum class MemoryMode : bool { LittleEndian, BigEndian };
 enum class MemorySemantic : uint8_t {
@@ -24,7 +25,7 @@ struct InstructionDefinition {
         std::string_view nameRepresentation{"(unused instruction)"};
         bool requiresArgument{false};
         std::optional<word_t> optionalArgument{std::nullopt};
-        uint64_t microInstructions{0};
+        uint_t microInstructions{0};
 };
 
 constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{
@@ -33,12 +34,12 @@ constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{
         std::underlying_type<InstructionName>::type, byte_t>::value);
     std::array<InstructionDefinition, 256> defs{};
 
-    uint64_t const ioPenalty{32};
+    uint_t const ioPenalty{32};
 
     auto const withArgument{[&defs](
         InstructionName const name, std::string_view const&nameRepresentation,
         std::optional<word_t> const&optionalArgument,
-        uint64_t const microInstructions
+        uint_t const microInstructions
     ) {
         defs[static_cast<std::underlying_type<InstructionName>::type>(name)] =
             InstructionDefinition{true, name, nameRepresentation,
@@ -47,7 +48,7 @@ constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{
 
     auto const withoutArgument{[&defs](
         InstructionName const name, std::string_view const&nameRepresentation,
-        uint64_t const microInstructions
+        uint_t const microInstructions
     ) {
         defs[static_cast<std::underlying_type<InstructionName>::type>(name)]
             = InstructionDefinition{true, name, nameRepresentation, false,
@@ -130,7 +131,7 @@ struct ComputationStateDebug {
 };
 
 struct ComputationStateStatistics {
-    uint64_t nInstructions, nMicroInstructions;
+    uint_t nInstructions, nMicroInstructions;
 
     ComputationStateStatistics operator-(
         ComputationStateStatistics const&statistics

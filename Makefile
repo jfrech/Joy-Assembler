@@ -1,6 +1,7 @@
 CPPC = g++
 #CPPC = clang++
-CPPFLAGS = -std=c++17 -Wall -Wpedantic -Wextra -Werror -O3
+
+CPPFLAGS = -std=c++17 -Wall -Wpedantic -Wextra -Werror -Wswitch-enum -O3
 
 JoyAssembler: JoyAssembler.cpp Types.hh Util.cpp UTF8.cpp Parser.cpp \
               Computation.cpp Log.cpp UnitTests.cpp RepresentationHandlers.cpp \

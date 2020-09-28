@@ -5,8 +5,9 @@
 
 #include "Includes.hh"
 
-static_assert(sizeof (long long int) >= sizeof (uint64_t));
+static_assert(sizeof (int64_t) == sizeof (long long int));
 static_assert(sizeof (std::size_t) >= sizeof (uint32_t));
+static_assert(sizeof (uint_t) >= sizeof (std::size_t));
 
 int main(int const argc, char const*argv[]) {
     std::ios_base::sync_with_stdio(false);

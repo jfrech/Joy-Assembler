@@ -52,11 +52,11 @@ namespace InstructionNameRepresentationHandler {
     #undef I
     #undef FACTORY
 
-    constexpr uint64_t microInstructions(InstructionName const name) {
+    constexpr uint_t microInstructions(InstructionName const name) {
         return ([]() {
             static_assert(std::is_same<
                 std::underlying_type<InstructionName>::type, byte_t>::value);
-            std::array<uint64_t, 256> lookupTable{};
+            std::array<uint_t, 256> lookupTable{};
 
             for (InstructionDefinition const &idef : instructionDefinitions)
                 lookupTable[static_cast<std::underlying_type<InstructionName>

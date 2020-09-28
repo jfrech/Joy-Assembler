@@ -5,16 +5,15 @@
 
 class Parser {
     private:
-        typedef uint64_t line_number_t;
         typedef std::tuple<InstructionName, std::optional<std::string>>
             parsingInstruction;
         typedef word_t parsingData;
 
     private:
         std::set<std::filesystem::path> parsedFilepaths;
-        std::vector<std::tuple<std::filesystem::path, line_number_t,
+        std::vector<std::tuple<std::filesystem::path, uint_t,
             std::variant<parsingInstruction, parsingData>>> parsing;
-        std::map<std::string, std::tuple<line_number_t, std::string>>
+        std::map<std::string, std::tuple<uint_t, std::string>>
             definitions;
         bool stackInstructionWasUsed;
         std::optional<word_t> stackBeginning;
@@ -64,7 +63,7 @@ class Parser {
     { ; }
 
     public: bool error(
-        std::filesystem::path const&filepath, line_number_t const lineNumber,
+        std::filesystem::path const&filepath, uint_t const lineNumber,
         std::string const&msg
     ) const {
         std::cerr << "parsing: file " << filepath << ", ln " << lineNumber
@@ -130,7 +129,7 @@ class Parser {
 
         /***/
 
-        line_number_t lineNumber{1};
+        uint_t lineNumber{1};
         std::string ln{};
 
         auto pushData = [&](uint32_t const data) {
@@ -180,7 +179,7 @@ class Parser {
             , [&](std::smatch const&smatch) {
                 log("parsing `data` ...");
                 std::string commaSeparated{std::string{smatch[1]} + ","};
-                for (uint64_t elemNr{1}; commaSeparated != ""; ++elemNr) {
+                for (uint_t elemNr{1}; commaSeparated != ""; ++elemNr) {
                     auto dataError = [&](
                         std::string const&msg, std::string const&detail
                     ) {
@@ -400,17 +399,17 @@ class Parser {
     }
 
     private: bool pragmas(std::filesystem::path const&filepath) {
-        auto const flag{[&](line_number_t const lineNumber, bool &flg, std::string const&tf) {
+        auto const flag{[&](uint_t const lineNumber, bool &flg, std::string const&tf) {
             if (tf != "false" && tf != "true")
                 return error(filepath, lineNumber, "invalid boolean: " + tf);
             flg = tf == "true";
             return true; }};
 
         std::vector<std::tuple<std::string,
-            std::function<bool(line_number_t, std::string const&)>
+            std::function<bool(uint_t, std::string const&)>
         >> const pragmaActions {
             {"pragma_memory-mode", [&](
-                line_number_t lineNumber, std::string const&mm
+                uint_t lineNumber, std::string const&mm
             ) {
                 if (mm == "little-endian") {
                     pragmaMemoryMode = MemoryMode::LittleEndian;
@@ -423,7 +422,7 @@ class Parser {
             }},
 
             {"pragma_rng-seed", [&](
-                line_number_t lineNumber, std::string const&rs
+                uint_t lineNumber, std::string const&rs
             ) {
                 std::optional<word_t> oRNGSeed{
                     Util::stringToOptionalUInt32(rs)};
@@ -435,25 +434,25 @@ class Parser {
             }},
 
             {"pragma_static-program", [&](
-                line_number_t lineNumber, std::string const&tf
+                uint_t lineNumber, std::string const&tf
             ) {
                 return flag(lineNumber, pragmaStaticProgram, tf);
             }},
 
             {"pragma_static-stack-check", [&](
-                line_number_t lineNumber, std::string const&tf
+                uint_t lineNumber, std::string const&tf
             ) {
                 return flag(lineNumber, pragmaStaticStackCheck, tf);
             }},
 
             {"pragma_embed-profiler-output", [&](
-                line_number_t lineNumber, std::string const&tf
+                uint_t lineNumber, std::string const&tf
             ) {
                 return flag(lineNumber, embedProfilerOutput, tf);
             }},
 
             {"pragma_memory-size", [&](
-                line_number_t lineNumber, std::string const&ms
+                uint_t lineNumber, std::string const&ms
             ) {
                 if (ms == "minimal")
                     ;

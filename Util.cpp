@@ -80,14 +80,23 @@ namespace Util {
         }
     }
 
+    template <typename Int, typename UInt, unsigned int BitWidth>
+    inline constexpr UInt toTwo_sComplement(UInt const n) {
+        return n >= 0 ? static_cast<UInt>(n)
+            : ~static_cast<UInt>(-n) + 1;
+    }
+    template <typename UInt, typename Int, unsigned int BitWidth>
+    inline constexpr Int fromTwo_sComplement(UInt const bits) {
+        return !(bits & (UInt{1} << (BitWidth-1))) ?  static_cast<int32_t>(bits)
+            : -static_cast<int32_t>(~bits + 1);
+    }
+
     inline constexpr uint32_t asTwo_sComplement(int32_t const n) {
-        return n >= 0 ? static_cast<uint32_t>(n)
-            : ~static_cast<uint32_t>(-n) + 1;
+        return toTwo_sComplement<int32_t, uint32_t, 32>(n);
     }
 
     inline constexpr int32_t fromTwo_sComplement(uint32_t const bits) {
-        return !(bits & (1ull << 31)) ?  static_cast<int32_t>(bits)
-            : -static_cast<int32_t>(~bits + 1);
+        return fromTwo_sComplement<uint32_t, int32_t, 32>(bits);
     }
 
     namespace IO {
@@ -200,6 +209,9 @@ namespace Util {
     }
 
     std::optional<word_t> stringToOptionalUInt32(std::string const&s) {
+        static_assert(sizeof (int64_t) == sizeof (long long int));
+        static_assert(sizeof (long long int) > sizeof (word_t));
+
         std::optional<long long int> oN{std::nullopt};
 
         std::vector<std::tuple<std::string,
@@ -224,13 +236,13 @@ namespace Util {
                         oN = std::nullopt; }
             }
 
-        static_assert(sizeof (long long int) > sizeof (word_t));
         constexpr long long int const min32{-(1LL << 31)}, max32{(1LL << 32)-1};
         if (oN.has_value() && (oN.value() < min32 || oN.value() > max32))
             oN = std::nullopt;
 
         if (oN.has_value())
-            return std::make_optional(static_cast<word_t>(oN.value()));
+            return std::make_optional(static_cast<word_t>(
+                fromTwo_sComplement<uint64_t, int64_t, 64>(oN.value())));
         return std::nullopt;
     }
 
@@ -260,23 +272,23 @@ namespace Util {
             c = std::toupper(c);
         return str; }
 
-    uint64_t LevenshteinDistance(std::string const&s, std::string const&t) {
+    uint_t LevenshteinDistance(std::string const&s, std::string const&t) {
         /* see "https://people.cs.pitt.edu/~kirk/cs1501/Pruhs/Fall2006/
             Assignments/editdistance/Levenshtein%20Distance.htm" */
-        uint64_t n{s.size()}, m{t.size()};
+        std::size_t n{s.size()}, m{t.size()};
         if (n <= 0 || m <= 0)
             return std::max(n, m);
 
-        std::vector<std::vector<uint64_t>> d(m+1,
-            std::vector<uint64_t>(n+1, 0U));
-        for (uint64_t r = 0; r <= n; ++r)
+        std::vector<std::vector<uint_t>> d(m+1,
+            std::vector<uint_t>(n+1, uint_t{0}));
+        for (std::size_t r{0}; r <= n; ++r)
             d[0][r] = r;
-        for (uint64_t c = 0; c <= m; ++c)
+        for (std::size_t c{0}; c <= m; ++c)
             d[c][0] = c;
 
-        for (uint64_t j = 1; j <= m; ++j)
-            for (uint64_t i = 1; i <= n; ++i) {
-                uint64_t cost = s[i-1] == t[j-1] ? 0 : 1;
+        for (std::size_t j{1}; j <= m; ++j)
+            for (std::size_t i{1}; i <= n; ++i) {
+                uint_t cost{s[i-1] == t[j-1] ? uint_t{0} : uint_t{1}};
                 d[j][i] = std::min(std::min(
                     d[j][i-1] + 1,
                     d[j-1][i] + 1),

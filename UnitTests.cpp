@@ -12,12 +12,12 @@ bool unitTest_LevenshteinDistance() {
     bool testStatus{true};
     auto asserter{asserterFactory(testStatus)};
 
-    auto test = [](std::string s, std::string t, uint64_t d) {
+    auto test = [](std::string s, std::string t, uint_t d) {
         return Util::LevenshteinDistance(s, t) == d
             && Util::LevenshteinDistance(t, s) == d;
     };
 
-    std::vector<std::tuple<std::string, std::string, uint64_t>> const cases{
+    std::vector<std::tuple<std::string, std::string, uint_t>> const cases{
         {"", "", 0},
         {"GUMBO", "GAMBOL", 2},
         {"a", "b", 1},
@@ -35,7 +35,7 @@ bool unitTest_Two_sComplement() {
     auto asserter{asserterFactory(testStatus)};
 
     Util::rng_t rng{};
-    for (uint64_t j{0}; j < 0xfff; ++j) {
+    for (uint_t j{0}; j < 0xfff; ++j) {
         uint32_t bits{rng.unif(0xff'ff'ff'ff)};
         asserter(Util::asTwo_sComplement(
             Util::fromTwo_sComplement(bits)) == bits,
