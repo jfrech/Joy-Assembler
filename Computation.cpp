@@ -121,7 +121,7 @@ class ComputationState {
             InstructionNameRepresentationHandler::toString(
                 InstructionNameRepresentationHandler::fromByteCode(
                     loadMemory(registerPC, std::nullopt)))};
-        word_t argument{loadMemory4(false, registerPC+1)};
+        word_t argument{loadMemory4(registerPC+1, false)};
         print(Util::ANSI_COLORS::paint(Util::ANSI_COLORS
                 ::INSTRUCTION_NAME, opCodeName)
             + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS
