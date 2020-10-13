@@ -1,5 +1,5 @@
-CPPC = g++
-#CPPC = clang++
+#CPPC = g++
+CPPC = clang++
 
 CPPFLAGS = -std=c++17 -Wall -Wpedantic -Wextra -Werror -Wswitch-enum -O3
 

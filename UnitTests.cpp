@@ -4,6 +4,7 @@ std::function<void(bool const, std::string const&)> asserterFactory(bool &testSt
     return [&testStatus](bool const microTest, std::string const&errorMessage) -> void {
         if (microTest)
             return;
+        testStatus = false;
         std::cerr << "MICROTEST FAILURE: " << errorMessage << std::endl;
     };
 }

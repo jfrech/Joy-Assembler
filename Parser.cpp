@@ -32,7 +32,7 @@ class Parser {
 
         std::optional<std::vector<MemorySemantic>> oMemorySemantics;
 
-        mutable bool ok;
+        //TODO remove? mutable bool ok;
 
         Util::rng_t rng;
 
@@ -57,7 +57,7 @@ class Parser {
 
         oMemorySemantics{std::nullopt},
 
-        ok{true},
+        //TODO remove? ok{true},
 
         rng{}
     { ; }
