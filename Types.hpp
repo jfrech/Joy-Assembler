@@ -28,82 +28,95 @@ struct InstructionDefinition {
         uint_t microInstructions{0};
 };
 
-constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{
-    []() {
-    static_assert(std::is_same<
-        std::underlying_type<InstructionName>::type, byte_t>::value);
-    std::array<InstructionDefinition, 256> defs{};
+namespace InstructionDefinitionsUtil {
+    using InstructionDefinitionsArray = std::array<InstructionDefinition, 256>;
 
-    uint_t const ioPenalty{32};
-
-    auto const withArgument{[&defs](
-        InstructionName const name, std::string_view const&nameRepresentation,
+    constexpr void wArg(
+        InstructionDefinitionsArray &ida,
+        InstructionName const name, std::string_view const nameRepresentation,
         std::optional<word_t> const&optionalArgument,
         uint_t const microInstructions
     ) {
-        defs[static_cast<std::underlying_type<InstructionName>::type>(name)] =
+        ida[static_cast<std::underlying_type<InstructionName>::type>(name)] =
             InstructionDefinition{true, name, nameRepresentation,
                 optionalArgument == std::nullopt, optionalArgument,
-                microInstructions}; }};
+                microInstructions};
+    }
 
-    auto const withoutArgument{[&defs](
-        InstructionName const name, std::string_view const&nameRepresentation,
+    constexpr void woArg(
+        InstructionDefinitionsArray &ida,
+        InstructionName const name, std::string_view const nameRepresentation,
         uint_t const microInstructions
     ) {
-        defs[static_cast<std::underlying_type<InstructionName>::type>(name)]
-            = InstructionDefinition{true, name, nameRepresentation, false,
-                std::nullopt, microInstructions}; }};
+        ida[static_cast<std::underlying_type<InstructionName>::type>(name)] =
+            InstructionDefinition{true, name, nameRepresentation,
+                false, std::nullopt, microInstructions};
+    }
 
-    withArgument(InstructionName::NOP, "NOP", std::optional<word_t>{0}, 1);
-    withArgument(InstructionName::LDA, "LDA", std::nullopt, 4);
-    withArgument(InstructionName::LDB, "LDB", std::nullopt, 4);
-    withArgument(InstructionName::STA, "STA", std::nullopt, 4);
-    withArgument(InstructionName::STB, "STB", std::nullopt, 4);
-    withArgument(InstructionName::LIA, "LIA", std::optional<word_t>{0}, 6);
-    withArgument(InstructionName::SIA, "SIA", std::optional<word_t>{0}, 6);
-    withoutArgument(InstructionName::LPC, "LPC", 2);
-    withoutArgument(InstructionName::SPC, "SPC", 2);
-    withArgument(InstructionName::LYA, "LYA", std::nullopt, 4);
-    withArgument(InstructionName::SYA, "SYA", std::nullopt, 4);
-    withArgument(InstructionName::JMP, "JMP", std::nullopt, 2);
-    withArgument(InstructionName::JN , "JN" , std::nullopt, 3);
-    withArgument(InstructionName::JNN, "JNN", std::nullopt, 3);
-    withArgument(InstructionName::JZ , "JZ" , std::nullopt, 3);
-    withArgument(InstructionName::JNZ, "JNZ", std::nullopt, 3);
-    withArgument(InstructionName::JP , "JP" , std::nullopt, 3);
-    withArgument(InstructionName::JNP, "JNP", std::nullopt, 3);
-    withArgument(InstructionName::JE , "JE" , std::nullopt, 3);
-    withArgument(InstructionName::JNE, "JNE", std::nullopt, 3);
-    withArgument(InstructionName::CAL, "CAL", std::nullopt, 11);
-    withoutArgument(InstructionName::RET, "RET", 9);
-    withoutArgument(InstructionName::PSH, "PSH", 9);
-    withoutArgument(InstructionName::POP, "POP", 9);
-    withArgument(InstructionName::LSA, "LSA", std::optional<word_t>{0}, 6);
-    withArgument(InstructionName::SSA, "SSA", std::optional<word_t>{0}, 6);
-    withoutArgument(InstructionName::LSC, "LSC", 2);
-    withoutArgument(InstructionName::SSC, "SSC", 2);
-    withArgument(InstructionName::MOV, "MOV", std::nullopt, 2);
-    withoutArgument(InstructionName::NOT, "NOT", 1);
-    withArgument(InstructionName::SHL, "SHL", std::optional<word_t>{1}, 1);
-    withArgument(InstructionName::SHR, "SHR", std::optional<word_t>{1}, 1);
-    withArgument(InstructionName::INC, "INC", std::optional<word_t>{1}, 1);
-    withArgument(InstructionName::DEC, "DEC", std::optional<word_t>{1}, 1);
-    withoutArgument(InstructionName::NEG, "NEG", 1);
-    withoutArgument(InstructionName::SWP, "SWP", 3);
-    withoutArgument(InstructionName::ADD, "ADD", 2);
-    withoutArgument(InstructionName::SUB, "SUB", 2);
-    withoutArgument(InstructionName::AND, "AND", 2);
-    withoutArgument(InstructionName::OR , "OR" , 2);
-    withoutArgument(InstructionName::XOR, "XOR", 2);
-    withoutArgument(InstructionName::GET, "GET", ioPenalty+2);
-    withoutArgument(InstructionName::GTC, "GTC", ioPenalty+2);
-    withoutArgument(InstructionName::PTU, "PTU", 1+ioPenalty+1);
-    withoutArgument(InstructionName::PTS, "PTS", 1+ioPenalty+1);
-    withoutArgument(InstructionName::PTB, "PTB", 1+ioPenalty+1);
-    withoutArgument(InstructionName::PTC, "PTC", 1+ioPenalty+1);
-    withoutArgument(InstructionName::RND, "RND", ioPenalty+2);
-    withoutArgument(InstructionName::HLT, "HLT", 1);
-    return defs; }()};
+    constexpr uint_t const ioPenalty{32};
+
+    constexpr InstructionDefinitionsArray build() {
+        static_assert(std::is_same<
+            std::underlying_type<InstructionName>::type, byte_t>::value);
+
+        InstructionDefinitionsArray ida{};
+
+        wArg(ida, InstructionName::NOP, "NOP", std::optional<word_t>{0}, 1);
+        wArg(ida, InstructionName::LDA, "LDA", std::nullopt, 4);
+        wArg(ida, InstructionName::LDB, "LDB", std::nullopt, 4);
+        wArg(ida, InstructionName::STA, "STA", std::nullopt, 4);
+        wArg(ida, InstructionName::STB, "STB", std::nullopt, 4);
+        wArg(ida, InstructionName::LIA, "LIA", std::optional<word_t>{0}, 6);
+        wArg(ida, InstructionName::SIA, "SIA", std::optional<word_t>{0}, 6);
+        woArg(ida, InstructionName::LPC, "LPC", 2);
+        woArg(ida, InstructionName::SPC, "SPC", 2);
+        wArg(ida, InstructionName::LYA, "LYA", std::nullopt, 4);
+        wArg(ida, InstructionName::SYA, "SYA", std::nullopt, 4);
+        wArg(ida, InstructionName::JMP, "JMP", std::nullopt, 2);
+        wArg(ida, InstructionName::JN , "JN" , std::nullopt, 3);
+        wArg(ida, InstructionName::JNN, "JNN", std::nullopt, 3);
+        wArg(ida, InstructionName::JZ , "JZ" , std::nullopt, 3);
+        wArg(ida, InstructionName::JNZ, "JNZ", std::nullopt, 3);
+        wArg(ida, InstructionName::JP , "JP" , std::nullopt, 3);
+        wArg(ida, InstructionName::JNP, "JNP", std::nullopt, 3);
+        wArg(ida, InstructionName::JE , "JE" , std::nullopt, 3);
+        wArg(ida, InstructionName::JNE, "JNE", std::nullopt, 3);
+        wArg(ida, InstructionName::CAL, "CAL", std::nullopt, 11);
+        woArg(ida, InstructionName::RET, "RET", 9);
+        woArg(ida, InstructionName::PSH, "PSH", 9);
+        woArg(ida, InstructionName::POP, "POP", 9);
+        wArg(ida, InstructionName::LSA, "LSA", std::optional<word_t>{0}, 6);
+        wArg(ida, InstructionName::SSA, "SSA", std::optional<word_t>{0}, 6);
+        woArg(ida, InstructionName::LSC, "LSC", 2);
+        woArg(ida, InstructionName::SSC, "SSC", 2);
+        wArg(ida, InstructionName::MOV, "MOV", std::nullopt, 2);
+        woArg(ida, InstructionName::NOT, "NOT", 1);
+        wArg(ida, InstructionName::SHL, "SHL", std::optional<word_t>{1}, 1);
+        wArg(ida, InstructionName::SHR, "SHR", std::optional<word_t>{1}, 1);
+        wArg(ida, InstructionName::INC, "INC", std::optional<word_t>{1}, 1);
+        wArg(ida, InstructionName::DEC, "DEC", std::optional<word_t>{1}, 1);
+        woArg(ida, InstructionName::NEG, "NEG", 1);
+        woArg(ida, InstructionName::SWP, "SWP", 3);
+        woArg(ida, InstructionName::ADD, "ADD", 2);
+        woArg(ida, InstructionName::SUB, "SUB", 2);
+        woArg(ida, InstructionName::AND, "AND", 2);
+        woArg(ida, InstructionName::OR , "OR" , 2);
+        woArg(ida, InstructionName::XOR, "XOR", 2);
+        woArg(ida, InstructionName::GET, "GET", ioPenalty+2);
+        woArg(ida, InstructionName::GTC, "GTC", ioPenalty+2);
+        woArg(ida, InstructionName::PTU, "PTU", 1+ioPenalty+1);
+        woArg(ida, InstructionName::PTS, "PTS", 1+ioPenalty+1);
+        woArg(ida, InstructionName::PTB, "PTB", 1+ioPenalty+1);
+        woArg(ida, InstructionName::PTC, "PTC", 1+ioPenalty+1);
+        woArg(ida, InstructionName::RND, "RND", ioPenalty+2);
+        woArg(ida, InstructionName::HLT, "HLT", 1);
+
+        return ida;
+    }
+}
+
+constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{
+    InstructionDefinitionsUtil::build()};
 
 struct Instruction {
     public:
