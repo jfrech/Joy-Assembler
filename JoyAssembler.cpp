@@ -1,4 +1,4 @@
-/* Jonathan Frech, August and September 2020 */
+/* Jonathan Frech, August to October 2020 */
 /* A minimalistic toy assembler written in C++17. */
 
 #include "Includes.hpp"

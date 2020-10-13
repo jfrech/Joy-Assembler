@@ -5,6 +5,7 @@
 #include "Util.cpp"
 
 namespace InstructionNameRepresentationHandler {
+
     InstructionName fromByteCode(byte_t const opCode) {
         std::optional<InstructionName> oName{
             instructionDefinitions[opCode].name};
@@ -36,6 +37,7 @@ namespace InstructionNameRepresentationHandler {
                 return std::make_optional(idef.name);
         return std::nullopt; }
 
+    // TODO refactor
     #define I(INS) InstructionName::INS
     #define FACTORY(IDENT, INSTRS) \
         bool IDENT(InstructionName const name) { \
@@ -53,12 +55,13 @@ namespace InstructionNameRepresentationHandler {
     #undef FACTORY
 
     uint_t constexpr microInstructions(InstructionName const name) {
+        /* TODO change to not use lambda as in InstructionDefinitions */
         return ([]() {
             static_assert(std::is_same<
                 std::underlying_type<InstructionName>::type, byte_t>::value);
             std::array<uint_t, 256> lookupTable{};
 
-            for (InstructionDefinition const &idef : instructionDefinitions)
+            for (InstructionDefinition const&idef : instructionDefinitions)
                 lookupTable[static_cast<std::underlying_type<InstructionName>
                     ::type>(idef.name)] = idef.microInstructions;
 
@@ -67,6 +70,7 @@ namespace InstructionNameRepresentationHandler {
 }
 
 namespace InstructionRepresentationHandler {
+
     std::string toString(Instruction const&instruction) {
         return InstructionNameRepresentationHandler::toString(instruction.name)
                + " 0x" + Util::UInt32AsPaddedHex(instruction.argument); }

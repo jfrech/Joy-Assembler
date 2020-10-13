@@ -10,7 +10,7 @@ enum class MemorySemantic : uint8_t {
     InstructionHead, Instruction, DataHead, Data };
 
 enum class InstructionName : byte_t {
-    /* The order in which the following enum identifiers appear defines
+    /* The order in which the following enum identifiers appear *defines*
        their op-code. */
     NOP, LDA, LDB, STA, STB, LIA, SIA, LPC, SPC, LYA, SYA, JMP, JN, JNN, JZ,
     JNZ, JP, JNP, JE, JNE, CAL, RET, PSH, POP, LSA, SSA, LSC, SSC, MOV, NOT,
@@ -30,6 +30,7 @@ struct InstructionDefinition {
 
 namespace InstructionDefinitionsUtil {
     using InstructionDefinitionsArray = std::array<InstructionDefinition, 256>;
+    uint_t constexpr ioPenalty{32};
 
     constexpr void wArg(
         InstructionDefinitionsArray &ida,
@@ -52,8 +53,6 @@ namespace InstructionDefinitionsUtil {
             InstructionDefinition{true, name, nameRepresentation,
                 false, std::nullopt, microInstructions};
     }
-
-    uint_t constexpr ioPenalty{32};
 
     constexpr InstructionDefinitionsArray build() {
         static_assert(std::is_same<
@@ -126,8 +125,9 @@ struct Instruction {
         bool operator==(Instruction const& instruction) const {
             return name == instruction.name
                 && argument == instruction.argument; }
+
         bool operator!=(Instruction const& instruction) const {
-            return !operator==(instruction); }
+            return !(*this == instruction); }
 };
 
 struct ComputationStateDebug {

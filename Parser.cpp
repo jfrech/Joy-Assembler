@@ -32,8 +32,6 @@ class Parser {
 
         std::optional<std::vector<MemorySemantic>> oMemorySemantics;
 
-        //TODO remove? mutable bool ok;
-
         Util::rng_t rng;
 
     public: Parser() :
@@ -56,8 +54,6 @@ class Parser {
         embedProfilerOutput{false},
 
         oMemorySemantics{std::nullopt},
-
-        //TODO remove? ok{true},
 
         rng{}
     { ; }
@@ -112,16 +108,17 @@ class Parser {
             return parseFiles(filepath.lexically_normal(), memPtr);
 
         if (!std::filesystem::exists(filepath))
-            return error("file does not exist");
+            return error("file does not exist: " + std::string{filepath});
         if (!std::filesystem::is_regular_file(filepath))
-            return error("not a regular file");
+            return error("not a regular file: " + std::string{filepath});
         if (Util::std20::contains(parsedFilepaths, filepath))
-            return error("recursive file inclusion; not parsing file twice");
+            return error("recursive file inclusion; not parsing file twice: "
+                + std::string{filepath});
         parsedFilepaths.insert(filepath);
 
         std::ifstream f{filepath};
         if (!f.is_open())
-            return error("unable to read file");
+            return error("unable to read file: " + std::string{filepath});
 
         std::string const regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
         std::string const regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
@@ -132,20 +129,21 @@ class Parser {
         uint_t lineNumber{1};
         std::string ln{};
 
-        auto pushData = [&](uint32_t const data) {
+        auto const pushData{[&](uint32_t const data) {
             parsing.push_back(std::make_tuple(filepath, lineNumber,
                 parsingData{data}));
             memPtr += 4;
-        };
-        auto pushInstruction = [&](
+        }};
+
+        auto const pushInstruction{[&](
             InstructionName const name, std::optional<std::string> const&oArg
         ) {
             parsing.push_back(std::make_tuple(filepath, lineNumber,
                 parsingInstruction{std::make_tuple(name, oArg)}));
             memPtr += 5;
-        };
+        }};
 
-        auto define = [&](std::string k, std::string v) {
+        auto const define{[&](std::string k, std::string v) {
             if (Util::std20::contains(definitions, k))
                 return error(filepath, lineNumber,
                     "duplicate definition: " + k);
@@ -155,11 +153,12 @@ class Parser {
             pragmas(filepath);
 
             return true;
-        };
+        }};
 
         std::vector<std::tuple<
             std::string, std::function<bool(std::smatch const&)>
         >> const onMatch{
+
             { "^(" + regexIdentifier + ") ?:= ?(" + regexValue + ")$"
             , [&](std::smatch const&smatch) {
                 return define(std::string{smatch[1]}, std::string{smatch[2]});
@@ -365,17 +364,18 @@ class Parser {
                 pushInstruction(name, oArg);
                 return true;
             }},
+
         };
 
-        auto parseLine = [&](std::string const&_ln) {
-            std::string const ln = [](std::string ln) {
+        auto parseLine{[&](std::string const&_ln) {
+            std::string const ln{[](std::string ln) {
                 ln = std::regex_replace(ln, std::regex{"^;.*$"}, "");
                 ln = std::regex_replace(ln, std::regex{"([^\\\\]);.*$"}, "$1");
                 ln = std::regex_replace(ln, std::regex{"\\s+"}, " ");
                 ln = std::regex_replace(ln, std::regex{"^ +"}, "");
                 ln = std::regex_replace(ln, std::regex{" +$"}, "");
                 return ln;
-            }(_ln);
+            }(_ln)};
             if (ln == "")
                 return true;
 
@@ -386,28 +386,32 @@ class Parser {
                 if (std::regex_match(ln, smatch, std::regex{regexString}))
                     return f(smatch);
             }
+
             return false;
-        };
+        }};
 
         for (; std::getline(f, ln); ++lineNumber)
             if (!parseLine(ln))
                 return error(filepath, lineNumber, "incomprehensible");
-
         memorySize = memPtr;
 
         return true;
     }
 
     private: bool pragmas(std::filesystem::path const&filepath) {
-        auto const flag{[&](uint_t const lineNumber, bool &flg, std::string const&tf) {
+        auto const flag{[&](
+            uint_t const lineNumber, bool &flg, std::string const&tf
+        ) {
             if (tf != "false" && tf != "true")
                 return error(filepath, lineNumber, "invalid boolean: " + tf);
             flg = tf == "true";
-            return true; }};
+            return true;
+        }};
 
         std::vector<std::tuple<std::string,
             std::function<bool(uint_t, std::string const&)>
         >> const pragmaActions {
+
             {"pragma_memory-mode", [&](
                 uint_t lineNumber, std::string const&mm
             ) {
@@ -470,11 +474,12 @@ class Parser {
                     memorySize = m; }
                 return true;
             }},
+
         };
 
-        for (auto [pragma, action] : pragmaActions)
+        for (auto const&[pragma, action] : pragmaActions)
             if (Util::std20::contains(definitions, pragma)) {
-                auto [lineNumber, definition] = definitions[pragma];
+                auto const&[lineNumber, definition]{definitions[pragma]};
                 if (!action(lineNumber, definition))
                     return false; }
 
@@ -498,11 +503,11 @@ class Parser {
         for (auto const&[filepath, lineNumber, p] : parsing) {
             if (std::holds_alternative<parsingData>(p)) {
                 memorySemantics.push_back(MemorySemantic::DataHead);
-                for (std::size_t j = 0; j < 3; j++)
+                for (std::size_t j{0}; j < 3; j++)
                     memorySemantics.push_back(MemorySemantic::Data); }
             else if (std::holds_alternative<parsingInstruction>(p)) {
                 memorySemantics.push_back(MemorySemantic::InstructionHead);
-                for (std::size_t j = 0; j < 4; j++)
+                for (std::size_t j{0}; j < 4; j++)
                     memorySemantics.push_back(MemorySemantic::Instruction); }
             else {
                 error("internal error (memory semantics): parsing piece holds "
@@ -532,11 +537,11 @@ class Parser {
                 if (memPtr > stackBeginning)
                     memPtrGTStackBeginningAndNonDataOccurred = true;
 
-                auto [name, oArg] = std::get<parsingInstruction>(p);
+                auto [name, oArg]{std::get<parsingInstruction>(p)};
                 std::optional<word_t> oValue{std::nullopt};
                 if (oArg.has_value()) {
                     if (Util::std20::contains(definitions, oArg.value())) {
-                        auto [_, definition] = definitions[oArg.value()];
+                        auto const&[_, definition]{definitions[oArg.value()]};
                         oArg = std::make_optional(definition); }
 
                     if (oArg.value() == "")
@@ -610,10 +615,12 @@ class Parser {
                     if (!oValue.has_value())
                         oValue = optionalValue; }
 
-                word_t argument = oValue.value_or(0x00000000);
+                word_t const argument{oValue.value_or(0x00000000)};
                 Instruction instruction{name, argument};
                 log("instruction " + InstructionRepresentationHandler
                     ::toString(instruction));
+
+
 
 
                 /* TODO Consider possibly moving the following block into `ComputationState::storeInstruction`? TODO */
@@ -627,6 +634,8 @@ class Parser {
                             + InstructionRepresentationHandler
                                 ::toString(instruction) + ": " + e.value());
                 }
+
+
 
 
                 memPtr += cs.storeInstruction(memPtr, instruction);
