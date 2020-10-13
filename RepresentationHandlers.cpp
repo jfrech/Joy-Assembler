@@ -52,7 +52,7 @@ namespace InstructionNameRepresentationHandler {
     #undef I
     #undef FACTORY
 
-    constexpr uint_t microInstructions(InstructionName const name) {
+    uint_t constexpr microInstructions(InstructionName const name) {
         return ([]() {
             static_assert(std::is_same<
                 std::underlying_type<InstructionName>::type, byte_t>::value);

@@ -104,7 +104,7 @@ namespace Util {
     }
 
     namespace IO {
-        constexpr std::chrono::duration const waitTime{
+        std::chrono::duration constexpr waitTime{
             std::chrono::milliseconds(400)};
 
         void wait() {
@@ -241,9 +241,8 @@ namespace Util {
                         oN = std::nullopt; }
             }
 
-        constexpr long long int const
-            min32s{-(1LL << 31)}, max32s{(1LL << 31)-1},
-            min32u{0x0000'0000}, max32u{0xffff'ffff};
+        long long int constexpr min32s{-(1LL << 31)}, max32s{(1LL << 31)-1};
+        long long int constexpr min32u{0x0000'0000}, max32u{0xffff'ffff};
         static_assert(std::numeric_limits<int32_t>::min() == min32s);
         static_assert(std::numeric_limits<int32_t>::max() == max32s);
         static_assert(std::numeric_limits<uint32_t>::min() == min32u);

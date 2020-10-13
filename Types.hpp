@@ -53,7 +53,7 @@ namespace InstructionDefinitionsUtil {
                 false, std::nullopt, microInstructions};
     }
 
-    constexpr uint_t const ioPenalty{32};
+    uint_t constexpr ioPenalty{32};
 
     constexpr InstructionDefinitionsArray build() {
         static_assert(std::is_same<
@@ -115,7 +115,7 @@ namespace InstructionDefinitionsUtil {
     }
 }
 
-constexpr std::array<InstructionDefinition, 256> const instructionDefinitions{
+std::array<InstructionDefinition, 256> constexpr instructionDefinitions{
     InstructionDefinitionsUtil::build()};
 
 struct Instruction {
