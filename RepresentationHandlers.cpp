@@ -28,12 +28,12 @@ namespace InstructionNameRepresentationHandler {
     std::string toString(InstructionName const name) {
         for (InstructionDefinition const&idef : instructionDefinitions)
             if (idef.name == name)
-                return std::string{idef.nameRepresentation};
-        return std::string{instructionDefinitions[0xff].nameRepresentation}; }
+                return idef.getNameRepresentation();
+        return instructionDefinitions[0xff].getNameRepresentation(); }
 
     std::optional<InstructionName> from_string(std::string const&repr) {
         for (InstructionDefinition const&idef : instructionDefinitions)
-            if (idef.nameRepresentation == Util::stringToUpper(repr))
+            if (idef.getNameRepresentation() == Util::stringToUpper(repr))
                 return std::make_optional(idef.name);
         return std::nullopt; }
 

@@ -1,11 +1,11 @@
-#CPPC = g++
-CPPC = clang++
+CPPC = g++
+#CPPC = clang++
 
 CPPFLAGS = -std=c++17 -Wall -Wpedantic -Wextra -Werror -Wswitch-enum -O3
 
 SOURCES = $(wildcard *.cpp *.hpp)
 
-JoyAssembler: $(SOURCES)
+JoyAssembler: Makefile $(SOURCES)
 	make unit-tests
 	
 	./set-build-status.sh failing

@@ -19,38 +19,43 @@ enum class InstructionName : byte_t {
 };
 
 struct InstructionDefinition {
-    public:
-        bool opCodeUsed{false};
-        InstructionName name{InstructionName::NOP};
-        std::string_view nameRepresentation{"(unused instruction)"};
-        bool requiresArgument{false};
-        std::optional<word_t> optionalArgument{std::nullopt};
-        uint_t microInstructions{0};
+    bool opCodeUsed{false};
+    InstructionName name{InstructionName::NOP};
+    char const*_nameRepresentation{};
+    bool requiresArgument{false};
+    std::optional<word_t> optionalArgument{std::nullopt};
+    uint_t microInstructions{0};
+
+    std::string getNameRepresentation() const {
+        if (!_nameRepresentation)
+            return std::string{"erroneous-instruction"};
+        return std::string{_nameRepresentation};
+    }
 };
 
 namespace InstructionDefinitionsUtil {
     using InstructionDefinitionsArray = std::array<InstructionDefinition, 256>;
     uint_t constexpr ioPenalty{32};
 
-    constexpr void wArg(
+    constexpr void instructionWithArgument(
         InstructionDefinitionsArray &ida,
-        InstructionName const name, std::string_view const nameRepresentation,
+        InstructionName const name, char const*_nameRepresentation,
         std::optional<word_t> const&optionalArgument,
         uint_t const microInstructions
     ) {
         ida[static_cast<std::underlying_type<InstructionName>::type>(name)] =
-            InstructionDefinition{true, name, nameRepresentation,
+            InstructionDefinition{true, name, _nameRepresentation,
                 optionalArgument == std::nullopt, optionalArgument,
                 microInstructions};
     }
 
-    constexpr void woArg(
+    constexpr void instructionWithoutArgument(
         InstructionDefinitionsArray &ida,
-        InstructionName const name, std::string_view const nameRepresentation,
+        InstructionName const name, char const*_nameRepresentation,
         uint_t const microInstructions
     ) {
         ida[static_cast<std::underlying_type<InstructionName>::type>(name)] =
-            InstructionDefinition{true, name, nameRepresentation,
+            InstructionDefinition{true, name, _nameRepresentation,
                 false, std::nullopt, microInstructions};
     }
 
@@ -60,55 +65,57 @@ namespace InstructionDefinitionsUtil {
 
         InstructionDefinitionsArray ida{};
 
-        wArg(ida, InstructionName::NOP, "NOP", std::optional<word_t>{0}, 1);
-        wArg(ida, InstructionName::LDA, "LDA", std::nullopt, 4);
-        wArg(ida, InstructionName::LDB, "LDB", std::nullopt, 4);
-        wArg(ida, InstructionName::STA, "STA", std::nullopt, 4);
-        wArg(ida, InstructionName::STB, "STB", std::nullopt, 4);
-        wArg(ida, InstructionName::LIA, "LIA", std::optional<word_t>{0}, 6);
-        wArg(ida, InstructionName::SIA, "SIA", std::optional<word_t>{0}, 6);
-        woArg(ida, InstructionName::LPC, "LPC", 2);
-        woArg(ida, InstructionName::SPC, "SPC", 2);
-        wArg(ida, InstructionName::LYA, "LYA", std::nullopt, 4);
-        wArg(ida, InstructionName::SYA, "SYA", std::nullopt, 4);
-        wArg(ida, InstructionName::JMP, "JMP", std::nullopt, 2);
-        wArg(ida, InstructionName::JN , "JN" , std::nullopt, 3);
-        wArg(ida, InstructionName::JNN, "JNN", std::nullopt, 3);
-        wArg(ida, InstructionName::JZ , "JZ" , std::nullopt, 3);
-        wArg(ida, InstructionName::JNZ, "JNZ", std::nullopt, 3);
-        wArg(ida, InstructionName::JP , "JP" , std::nullopt, 3);
-        wArg(ida, InstructionName::JNP, "JNP", std::nullopt, 3);
-        wArg(ida, InstructionName::JE , "JE" , std::nullopt, 3);
-        wArg(ida, InstructionName::JNE, "JNE", std::nullopt, 3);
-        wArg(ida, InstructionName::CAL, "CAL", std::nullopt, 11);
-        woArg(ida, InstructionName::RET, "RET", 9);
-        woArg(ida, InstructionName::PSH, "PSH", 9);
-        woArg(ida, InstructionName::POP, "POP", 9);
-        wArg(ida, InstructionName::LSA, "LSA", std::optional<word_t>{0}, 6);
-        wArg(ida, InstructionName::SSA, "SSA", std::optional<word_t>{0}, 6);
-        woArg(ida, InstructionName::LSC, "LSC", 2);
-        woArg(ida, InstructionName::SSC, "SSC", 2);
-        wArg(ida, InstructionName::MOV, "MOV", std::nullopt, 2);
-        woArg(ida, InstructionName::NOT, "NOT", 1);
-        wArg(ida, InstructionName::SHL, "SHL", std::optional<word_t>{1}, 1);
-        wArg(ida, InstructionName::SHR, "SHR", std::optional<word_t>{1}, 1);
-        wArg(ida, InstructionName::INC, "INC", std::optional<word_t>{1}, 1);
-        wArg(ida, InstructionName::DEC, "DEC", std::optional<word_t>{1}, 1);
-        woArg(ida, InstructionName::NEG, "NEG", 1);
-        woArg(ida, InstructionName::SWP, "SWP", 3);
-        woArg(ida, InstructionName::ADD, "ADD", 2);
-        woArg(ida, InstructionName::SUB, "SUB", 2);
-        woArg(ida, InstructionName::AND, "AND", 2);
-        woArg(ida, InstructionName::OR , "OR" , 2);
-        woArg(ida, InstructionName::XOR, "XOR", 2);
-        woArg(ida, InstructionName::GET, "GET", ioPenalty+2);
-        woArg(ida, InstructionName::GTC, "GTC", ioPenalty+2);
-        woArg(ida, InstructionName::PTU, "PTU", 1+ioPenalty+1);
-        woArg(ida, InstructionName::PTS, "PTS", 1+ioPenalty+1);
-        woArg(ida, InstructionName::PTB, "PTB", 1+ioPenalty+1);
-        woArg(ida, InstructionName::PTC, "PTC", 1+ioPenalty+1);
-        woArg(ida, InstructionName::RND, "RND", ioPenalty+2);
-        woArg(ida, InstructionName::HLT, "HLT", 1);
+        //instructionWithArgument(ida, InstructionName::NOP, "NOP", std::optional<word_t>{0}, 1);
+        /*
+        instructionWithArgument(ida, InstructionName::LDA, "LDA", std::nullopt, 4);
+        instructionWithArgument(ida, InstructionName::LDB, "LDB", std::nullopt, 4);
+        instructionWithArgument(ida, InstructionName::STA, "STA", std::nullopt, 4);
+        instructionWithArgument(ida, InstructionName::STB, "STB", std::nullopt, 4);
+        instructionWithArgument(ida, InstructionName::LIA, "LIA", std::optional<word_t>{0}, 6);
+        instructionWithArgument(ida, InstructionName::SIA, "SIA", std::optional<word_t>{0}, 6);
+        instructionWithoutArgument(ida, InstructionName::LPC, "LPC", 2);
+        instructionWithoutArgument(ida, InstructionName::SPC, "SPC", 2);
+        instructionWithArgument(ida, InstructionName::LYA, "LYA", std::nullopt, 4);
+        instructionWithArgument(ida, InstructionName::SYA, "SYA", std::nullopt, 4);
+        instructionWithArgument(ida, InstructionName::JMP, "JMP", std::nullopt, 2);
+        instructionWithArgument(ida, InstructionName::JN , "JN" , std::nullopt, 3);
+        instructionWithArgument(ida, InstructionName::JNN, "JNN", std::nullopt, 3);
+        instructionWithArgument(ida, InstructionName::JZ , "JZ" , std::nullopt, 3);
+        instructionWithArgument(ida, InstructionName::JNZ, "JNZ", std::nullopt, 3);
+        instructionWithArgument(ida, InstructionName::JP , "JP" , std::nullopt, 3);
+        instructionWithArgument(ida, InstructionName::JNP, "JNP", std::nullopt, 3);
+        instructionWithArgument(ida, InstructionName::JE , "JE" , std::nullopt, 3);
+        instructionWithArgument(ida, InstructionName::JNE, "JNE", std::nullopt, 3);
+        instructionWithArgument(ida, InstructionName::CAL, "CAL", std::nullopt, 11);
+        instructionWithoutArgument(ida, InstructionName::RET, "RET", 9);
+        instructionWithoutArgument(ida, InstructionName::PSH, "PSH", 9);
+        instructionWithoutArgument(ida, InstructionName::POP, "POP", 9);
+        instructionWithArgument(ida, InstructionName::LSA, "LSA", std::optional<word_t>{0}, 6);
+        instructionWithArgument(ida, InstructionName::SSA, "SSA", std::optional<word_t>{0}, 6);
+        instructionWithoutArgument(ida, InstructionName::LSC, "LSC", 2);
+        instructionWithoutArgument(ida, InstructionName::SSC, "SSC", 2);
+        instructionWithArgument(ida, InstructionName::MOV, "MOV", std::nullopt, 2);
+        instructionWithoutArgument(ida, InstructionName::NOT, "NOT", 1);
+        instructionWithArgument(ida, InstructionName::SHL, "SHL", std::optional<word_t>{1}, 1);
+        instructionWithArgument(ida, InstructionName::SHR, "SHR", std::optional<word_t>{1}, 1);
+        instructionWithArgument(ida, InstructionName::INC, "INC", std::optional<word_t>{1}, 1);
+        instructionWithArgument(ida, InstructionName::DEC, "DEC", std::optional<word_t>{1}, 1);
+        instructionWithoutArgument(ida, InstructionName::NEG, "NEG", 1);
+        instructionWithoutArgument(ida, InstructionName::SWP, "SWP", 3);
+        instructionWithoutArgument(ida, InstructionName::ADD, "ADD", 2);
+        instructionWithoutArgument(ida, InstructionName::SUB, "SUB", 2);
+        instructionWithoutArgument(ida, InstructionName::AND, "AND", 2);
+        instructionWithoutArgument(ida, InstructionName::OR , "OR" , 2);
+        instructionWithoutArgument(ida, InstructionName::XOR, "XOR", 2);
+        instructionWithoutArgument(ida, InstructionName::GET, "GET", ioPenalty+2);
+        instructionWithoutArgument(ida, InstructionName::GTC, "GTC", ioPenalty+2);
+        instructionWithoutArgument(ida, InstructionName::PTU, "PTU", 1+ioPenalty+1);
+        instructionWithoutArgument(ida, InstructionName::PTS, "PTS", 1+ioPenalty+1);
+        instructionWithoutArgument(ida, InstructionName::PTB, "PTB", 1+ioPenalty+1);
+        instructionWithoutArgument(ida, InstructionName::PTC, "PTC", 1+ioPenalty+1);
+        instructionWithoutArgument(ida, InstructionName::RND, "RND", ioPenalty+2);
+        instructionWithoutArgument(ida, InstructionName::HLT, "HLT", 1);
+        // */
 
         return ida;
     }
@@ -118,42 +125,34 @@ std::array<InstructionDefinition, 256> constexpr instructionDefinitions{
     InstructionDefinitionsUtil::build()};
 
 struct Instruction {
-    public:
-        InstructionName name;
-        word_t argument;
+    InstructionName name;
+    word_t argument;
 
-        bool operator==(Instruction const& instruction) const {
-            return name == instruction.name
-                && argument == instruction.argument; }
+    public: bool operator==(Instruction const& instruction) const {
+        return name == instruction.name
+            && argument == instruction.argument; }
 
-        bool operator!=(Instruction const& instruction) const {
-            return !(*this == instruction); }
+    public: bool operator!=(Instruction const& instruction) const {
+        return !(*this == instruction); }
 };
 
 struct ComputationStateDebug {
-    public:
-        word_t highestUsedMemoryLocation;
-        bool doWaitForUser, doVisualizeSteps;
-        std::optional<std::tuple<word_t, word_t>> stackBoundaries;
-
-    public: ComputationStateDebug() :
-        highestUsedMemoryLocation{0},
-        doWaitForUser{false}, doVisualizeSteps{false},
-        stackBoundaries{std::nullopt}
-    { ; }
+    word_t highestUsedMemoryLocation{0};
+    bool doWaitForUser{false}, doVisualizeSteps{false};
+    std::optional<std::tuple<word_t, word_t>> stackBoundaries{std::nullopt};
 };
 
 struct ComputationStateStatistics {
     uint_t nInstructions, nMicroInstructions;
 
-    ComputationStateStatistics operator-(
+    public: ComputationStateStatistics operator-(
         ComputationStateStatistics const&statistics
     ) const {
         return ComputationStateStatistics{
             nInstructions - statistics.nInstructions,
             nMicroInstructions - statistics.nMicroInstructions}; }
 
-    std::string toString() const {
+    public: std::string toString() const {
         return "#" + std::to_string(nInstructions) + ": "
             + std::to_string(nMicroInstructions); }
 };
