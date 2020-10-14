@@ -21,11 +21,14 @@ enum class InstructionName : byte_t {
 struct InstructionDefinition {
     bool opCodeUsed{false};
     InstructionName name{InstructionName::NOP};
+    /* a slight hack since neither `std::string` nor `std::string_view`
+       work properly in C++17 `constexpr` contexts */
     char const*_nameRepresentation{};
     bool requiresArgument{false};
     std::optional<word_t> optionalArgument{std::nullopt};
     uint_t microInstructions{0};
 
+    /* a slight hack; see `_nameRepresentation` */
     std::string getNameRepresentation() const {
         if (!_nameRepresentation)
             return std::string{"erroneous-instruction"};
@@ -65,8 +68,7 @@ namespace InstructionDefinitionsUtil {
 
         InstructionDefinitionsArray ida{};
 
-        //instructionWithArgument(ida, InstructionName::NOP, "NOP", std::optional<word_t>{0}, 1);
-        /*
+        instructionWithArgument(ida, InstructionName::NOP, "NOP", std::optional<word_t>{0}, 1);
         instructionWithArgument(ida, InstructionName::LDA, "LDA", std::nullopt, 4);
         instructionWithArgument(ida, InstructionName::LDB, "LDB", std::nullopt, 4);
         instructionWithArgument(ida, InstructionName::STA, "STA", std::nullopt, 4);
@@ -115,7 +117,6 @@ namespace InstructionDefinitionsUtil {
         instructionWithoutArgument(ida, InstructionName::PTC, "PTC", 1+ioPenalty+1);
         instructionWithoutArgument(ida, InstructionName::RND, "RND", ioPenalty+2);
         instructionWithoutArgument(ida, InstructionName::HLT, "HLT", 1);
-        // */
 
         return ida;
     }

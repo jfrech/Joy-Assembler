@@ -54,9 +54,8 @@ namespace InstructionNameRepresentationHandler {
     #undef I
     #undef FACTORY
 
-    uint_t constexpr microInstructions(InstructionName const name) {
-        /* TODO change to not use lambda as in InstructionDefinitions */
-        return ([]() {
+    namespace MicroInstructionsUtil {
+        /* TODO `constexpr` causes an internal compiler error */ std::array<uint_t, 256> build() {
             static_assert(std::is_same<
                 std::underlying_type<InstructionName>::type, byte_t>::value);
             std::array<uint_t, 256> lookupTable{};
@@ -66,7 +65,15 @@ namespace InstructionNameRepresentationHandler {
                     ::type>(idef.name)] = idef.microInstructions;
 
             return lookupTable;
-        }())[static_cast<std::underlying_type<InstructionName>::type>(name)]; }
+        }
+
+        std::array<uint_t, 256> const /* TODO `constexpr` requires build() to be `constexpr` */ lookupTable{build()};
+    }
+
+
+    constexpr uint_t microInstructions(InstructionName const name) {
+        return MicroInstructionsUtil::lookupTable[
+            static_cast<std::underlying_type<InstructionName>::type>(name)]; }
 }
 
 namespace InstructionRepresentationHandler {
