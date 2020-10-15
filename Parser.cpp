@@ -108,17 +108,17 @@ class Parser {
             return parseFiles(filepath.lexically_normal(), memPtr);
 
         if (!std::filesystem::exists(filepath))
-            return error("file does not exist: " + std::string{filepath});
+            return error("file does not exist: " + filepath.u8string());
         if (!std::filesystem::is_regular_file(filepath))
-            return error("not a regular file: " + std::string{filepath});
+            return error("not a regular file: " + filepath.u8string());
         if (Util::std20::contains(parsedFilepaths, filepath))
             return error("recursive file inclusion; not parsing file twice: "
-                + std::string{filepath});
+                + filepath.u8string());
         parsedFilepaths.insert(filepath);
 
         std::ifstream f{filepath};
         if (!f.is_open())
-            return error("unable to read file: " + std::string{filepath});
+            return error("unable to read file: " + filepath.u8string());
 
         std::string const regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
         std::string const regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
