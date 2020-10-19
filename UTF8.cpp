@@ -1,4 +1,4 @@
-/* Jonathan Frech, August 2020 */
+/* Jonathan Frech, August and October 2020 */
 /* A C++17 UTF-8 decoding and encoding implementation. */
 
 #ifndef UTF8_CPP
@@ -97,6 +97,13 @@ namespace UTF8 {
             if (invalid)
                 return err();
 
+            auto const checkRune{[&](
+                std::size_t const min, std::size_t const max
+            ) {
+                return !runes.empty()
+                    && min <= runes.back() && runes.back() <= max;
+            }};
+
             buf.push_back(b);
 
             if ((buf[0] & 0b1'0000000) == 0b0'0000000) {
@@ -107,6 +114,8 @@ namespace UTF8 {
                 runes.push_back(static_cast<rune_t>(
                        0b0'1111111 & buf[0]));
                 buf.clear();
+                if (!checkRune(0x00, 0x7f))
+                    return err();
                 return false; }
 
             else if ((buf[0] & 0b111'00000) == 0b110'00000) {
@@ -118,6 +127,8 @@ namespace UTF8 {
                       (0b000'11111 & buf[0]) <<  6
                     | (0b00'111111 & buf[1])));
                 buf.clear();
+                if (!checkRune(0x80, 0x07ff))
+                    return err();
                 return false; }
 
             else if ((buf[0] & 0b1111'0000) == 0b1110'0000) {
@@ -130,6 +141,8 @@ namespace UTF8 {
                     | (0b00'111111 & buf[1]) <<  6
                     | (0b00'111111 & buf[2])));
                 buf.clear();
+                if (!checkRune(0x0800, 0xffff))
+                    return err();
                 return false; }
 
             else if ((buf[0] & 0b11111'000) == 0b11110'000) {
@@ -143,6 +156,8 @@ namespace UTF8 {
                     | (0b00'111111 & buf[2]) <<  6
                     | (0b00'111111 & buf[3])));
                 buf.clear();
+                if (!checkRune(0x10000, 0x10ffff))
+                    return err();
                 return false; }
 
             else
