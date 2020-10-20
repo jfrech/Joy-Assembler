@@ -29,7 +29,7 @@ while read prg; do
         && printf 'may perform platform-dependend.\n      To recalibrate all ' \
         && printf 'pristine hashes, ' \
         && printf '\33[3mfundamentally altering all tests\33[0m, you may run ' \
-        && printf '\n          % ./test/.superb.sh\n' && exit 1
+        && printf '\n          %% ./test/.superb.sh\n' && exit 1
 
     printf '        \33[38;5;154m[SUC]\33[0m memory dump hash match\n'
 done || exit 1

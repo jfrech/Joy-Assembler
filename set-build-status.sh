@@ -1,14 +1,15 @@
 #! /bin/sh
 
 readme="$(dirname "$(realpath "$0")")/README.md"
+readmeTmp="$(dirname "$readme")/.~$(basename "$readme")"
 
 isoDate () {
     date +'%Y-%m-%dT%H:%M:%S%:z'
 }
 buildInfo () {
-    sed --in-place \
-        "$(printf 's!^\*\*Build: .*$!**Build: %s** (%s)!' "$1" "$(isoDate)")" \
-        "$readme"
+    sed "$(printf 's!^\*\*Build: .*$!**Build: %s** (%s)!' "$1" "$(isoDate)")" \
+        "$readme" > "$readmeTmp"
+    mv "$readmeTmp" "$readme"
 }
 
 case "$1" in
