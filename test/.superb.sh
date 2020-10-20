@@ -6,6 +6,7 @@ make -C "$root/.." || exit 1
 
 pristineHashes="$root/pristine-hashes"
 programs="$root/programs"
+mkdir -p "$pristineHashes" "$programs"
 
 rm -rf "$pristineHashes"
 mkdir -p "$pristineHashes"

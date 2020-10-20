@@ -1,6 +1,6 @@
 jmp @main
 
-include "test-012_include-me.asm"
+include "test-011_include-me.asm"
 
 main:
     mov 5
