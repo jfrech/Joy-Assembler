@@ -5,9 +5,9 @@
 
 class Parser {
     private:
-        typedef std::tuple<InstructionName, std::optional<std::string>>
-            parsingInstruction;
-        typedef word_t parsingData;
+        using parsingInstruction = std::tuple<
+            InstructionName, std::optional<std::string>>;
+        using parsingData = word_t;
 
     private:
         std::set<std::filesystem::path> parsedFilepaths;

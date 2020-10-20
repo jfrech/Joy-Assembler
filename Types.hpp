@@ -1,13 +1,14 @@
 #ifndef JOY_ASSEMBLER__TYPES_HPP
 #define JOY_ASSEMBLER__TYPES_HPP
 
-typedef uint8_t byte_t;
-typedef uint32_t word_t;
-typedef uint64_t uint_t;
+using byte_t = uint8_t;
+using word_t = uint32_t;
+using uint_t = uint64_t;
 
 enum class MemoryMode : bool { LittleEndian, BigEndian };
 enum class MemorySemantic : uint8_t {
-    InstructionHead, Instruction, DataHead, Data };
+    InstructionHead, Instruction, DataHead, Data
+};
 
 enum class InstructionName : byte_t {
     /* The order in which the following enum identifiers appear *defines*
@@ -129,12 +130,14 @@ struct Instruction {
     InstructionName name;
     word_t argument;
 
-    public: bool operator==(Instruction const& instruction) const {
+    bool operator==(Instruction const& instruction) const {
         return name == instruction.name
-            && argument == instruction.argument; }
+            && argument == instruction.argument;
+    }
 
-    public: bool operator!=(Instruction const& instruction) const {
-        return !(*this == instruction); }
+    bool operator!=(Instruction const& instruction) const {
+        return !(*this == instruction);
+    }
 };
 
 struct ComputationStateDebug {
@@ -146,16 +149,18 @@ struct ComputationStateDebug {
 struct ComputationStateStatistics {
     uint_t nInstructions, nMicroInstructions;
 
-    public: ComputationStateStatistics operator-(
+    ComputationStateStatistics operator-(
         ComputationStateStatistics const&statistics
     ) const {
         return ComputationStateStatistics{
             nInstructions - statistics.nInstructions,
-            nMicroInstructions - statistics.nMicroInstructions}; }
+            nMicroInstructions - statistics.nMicroInstructions};
+    }
 
-    public: std::string toString() const {
+    std::string toString() const {
         return "#" + std::to_string(nInstructions) + ": "
-            + std::to_string(nMicroInstructions); }
+            + std::to_string(nMicroInstructions);
+    }
 };
 
 #endif

@@ -12,7 +12,8 @@ int main(int const argc, char const*argv[]) {
 
     if (argc < 2) {
         std::cerr << "please provide an input joy assembly file" << std::endl;
-        return EXIT_FAILURE; }
+        return EXIT_FAILURE;
+    }
 
     Parser parser{};
     std::optional<ComputationState> oCS{parser.parse(
@@ -20,17 +21,21 @@ int main(int const argc, char const*argv[]) {
 
     if (!oCS.has_value()) {
         std::cerr << "parsing failed" << std::endl;
-        return EXIT_FAILURE; }
+        return EXIT_FAILURE;
+    }
     ComputationState cs{std::move(oCS.value())};
 
-    if (argc > 2 && std::string{argv[2]} != "memory-dump")
+    if (argc > 2 && std::string{argv[2]} != "memory-dump") {
         if (!parser.commandlineArg(cs, std::string{argv[2]})) {
             std::cerr << "unknown commandline argument" << std::endl;
-            return EXIT_FAILURE; }
+            return EXIT_FAILURE;
+        }
+    }
 
     if (argc > 2 && std::string{argv[2]} == "memory-dump") {
         do cs.memoryDump(); while (cs.step()); cs.memoryDump();
-        return EXIT_SUCCESS; }
+        return EXIT_SUCCESS;
+    }
 
     do cs.visualize(); while (cs.step());
 

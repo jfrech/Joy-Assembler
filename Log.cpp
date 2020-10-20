@@ -7,7 +7,8 @@
 bool constexpr doLog{false};
 
 void log(std::string const&msg) {
-    if (doLog)
-        std::clog << msg << std::endl; }
+    if constexpr (doLog)
+        std::clog << msg << std::endl;
+}
 
 #endif

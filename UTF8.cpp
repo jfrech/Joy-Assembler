@@ -10,8 +10,8 @@
 #include <vector>
 
 namespace UTF8 {
-    typedef uint32_t rune_t;
-    typedef uint8_t byte_t;
+    using rune_t = uint32_t;
+    using byte_t = uint8_t;
 
     constexpr rune_t const NULL_RUNE = static_cast<rune_t>(0x00000000);
     constexpr rune_t const ERROR_RUNE = static_cast<rune_t>(0x0000fffd);
@@ -30,14 +30,16 @@ namespace UTF8 {
             if (rune <= 0x7f) {
                 bytes.push_back(static_cast<byte_t>(
                     0b0'0000000 | ( rune        & 0b0'1111111)));
-                return true; }
+                return true;
+            }
 
             else if (rune <= 0x07ff) {
                 bytes.push_back(static_cast<byte_t>(
                     0b110'00000 | ((rune >>  6) & 0b000'11111)));
                 bytes.push_back(static_cast<byte_t>(
                     0b10'000000 | ( rune        & 0b00'111111)));
-                return true; }
+                return true;
+            }
 
             else if (rune <= 0xffff) {
                 bytes.push_back(static_cast<byte_t>(
@@ -46,7 +48,8 @@ namespace UTF8 {
                     0b10'000000 | ((rune >>  6) & 0b00'111111)));
                 bytes.push_back(static_cast<byte_t>(
                     0b10'000000 | ( rune        & 0b00'111111)));
-                return true; }
+                return true;
+            }
 
             else if (rune <= 0x10ffff) {
                 bytes.push_back(static_cast<byte_t>(
@@ -57,7 +60,8 @@ namespace UTF8 {
                     0b10'000000 | ((rune >>  6) & 0b00'111111)));
                 bytes.push_back(static_cast<byte_t>(
                     0b10'000000 | ( rune        & 0b00'111111)));
-                return true; }
+                return true;
+            }
 
             else
                 return err();
@@ -68,10 +72,12 @@ namespace UTF8 {
                 bytes, ok)};
             bytes.clear();
             ok = true;
-            return bytesOk; }
+            return bytesOk;
+        }
 
         private: bool err() {
-            return ok = false; }
+            return ok = false;
+        }
     };
 
     class Decoder {
@@ -85,7 +91,8 @@ namespace UTF8 {
             buf{},
             ok{true}
         {
-            buf.reserve(4); }
+            buf.reserve(4);
+        }
 
         /* return value signals if another byte is required */
         public: bool decode(byte_t const b) {
@@ -93,7 +100,8 @@ namespace UTF8 {
             for (std::size_t j = 1; j < 4; ++j) {
                 if (j >= buf.size())
                     break;
-                invalid |= ((0b11'000000 & buf[j]) != 0b10'000000); }
+                invalid |= ((0b11'000000 & buf[j]) != 0b10'000000);
+            }
             if (invalid)
                 return err();
 
@@ -116,7 +124,8 @@ namespace UTF8 {
                 buf.clear();
                 if (!checkRune(0x00, 0x7f))
                     return err();
-                return false; }
+                return false;
+            }
 
             else if ((buf[0] & 0b111'00000) == 0b110'00000) {
                 if (buf.size() < 2)
@@ -129,7 +138,8 @@ namespace UTF8 {
                 buf.clear();
                 if (!checkRune(0x80, 0x07ff))
                     return err();
-                return false; }
+                return false;
+            }
 
             else if ((buf[0] & 0b1111'0000) == 0b1110'0000) {
                 if (buf.size() < 3)
@@ -143,7 +153,8 @@ namespace UTF8 {
                 buf.clear();
                 if (!checkRune(0x0800, 0xffff))
                     return err();
-                return false; }
+                return false;
+            }
 
             else if ((buf[0] & 0b11111'000) == 0b11110'000) {
                 if (buf.size() < 4)
@@ -158,7 +169,8 @@ namespace UTF8 {
                 buf.clear();
                 if (!checkRune(0x10000, 0x10ffff))
                     return err();
-                return false; }
+                return false;
+            }
 
             else
                 return err();
@@ -173,12 +185,14 @@ namespace UTF8 {
             runes.clear();
             buf.clear();
             ok = true;
-            return runesOk; }
+            return runesOk;
+        }
 
         private: bool err() {
             runes.push_back(ERROR_RUNE);
             buf.clear();
-            return ok = false; }
+            return ok = false;
+        }
     };
 
     std::optional<std::string> utf8string(std::vector<rune_t> const&runes) {
@@ -198,10 +212,12 @@ namespace UTF8 {
 
 namespace UTF8IO {
     void putByte(UTF8::byte_t const b) {
-        std::cout.put(b); }
+        std::cout.put(b);
+    }
 
     UTF8::byte_t getByte() {
-        return std::cin.get(); }
+        return std::cin.get();
+    }
 
     void putRune(UTF8::rune_t const rune) {
         UTF8::Encoder encoder{};
@@ -210,7 +226,8 @@ namespace UTF8IO {
         if (!ok)
             return;
         for (UTF8::byte_t b : bytes)
-            putByte(b); }
+            putByte(b);
+    }
 
     UTF8::rune_t getRune() {
         UTF8::Decoder decoder{};
@@ -219,7 +236,8 @@ namespace UTF8IO {
         auto [runes, ok] = decoder.finish();
         if (!ok || runes.size() != 1)
             return UTF8::ERROR_RUNE;
-        return runes.front(); }
+        return runes.front();
+    }
 }
 
 #endif

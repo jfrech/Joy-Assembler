@@ -14,20 +14,24 @@
 #include "UTF8.cpp"
 
 namespace Util {
+
     /* custom C++20 standard library feature implementations */
     namespace std20 {
         /* a custom std::map::contains (C++20) implementation */
         template<typename K, typename V>
         inline constexpr bool contains(std::map<K, V> const&map, K const&key) {
-            return map.count(key) != 0; }
+            return map.count(key) != 0;
+        }
 
         /* a custom std::set::contains (C++20) implementation */
         template<typename V>
         inline constexpr bool contains(std::set<V> const&set, V const&value) {
-            return set.count(value) != 0; }
+            return set.count(value) != 0;
+        }
     }
 
     namespace ANSI_COLORS {
+        /* TODO verify */
         auto esc{[](std::string const&code) {
 #ifdef NO_ANSI_COLORS
                 return "";
@@ -53,11 +57,14 @@ namespace Util {
         std::string const MEMORY_SEMANTICS__DATA{esc("38;5;92")};
 
         std::string paint(std::string const&ansi, std::string const&text) {
-            return ansi + text + CLEAR; }
+            return ansi + text + CLEAR;
+        }
 
         auto paintFactory(std::string const&ansi) {
             return [&ansi](std::string const&text) {
-                return paint(ansi, text); }; }
+                return paint(ansi, text);
+            };
+        }
 
         std::string memorySemanticColor(MemorySemantic const sem) {
             switch (sem) {
@@ -108,11 +115,11 @@ namespace Util {
             std::chrono::milliseconds(400)};
 
         void wait() {
-            std::this_thread::sleep_for(waitTime); }
+            std::this_thread::sleep_for(waitTime);
+        }
     }
 
-    template<typename T>
-    class Stream {
+    template<typename T> class Stream {
         private:
             std::size_t p;
             std::vector<T> values;
@@ -122,17 +129,19 @@ namespace Util {
             p{0},
             values{values},
             zeroValue{zeroValue}
-        { ; }
+        {}
 
         public: T read() {
-            return exhausted() ? zeroValue : values.at(p++); }
+            return exhausted() ? zeroValue : values.at(p++);
+        }
 
         public: bool exhausted() const {
-            return p >= values.size(); }
+            return p >= values.size();
+        }
     };
 
     std::optional<std::vector<UTF8::rune_t>> parseString(std::string const&s) {
-        std::map<UTF8::rune_t, UTF8::rune_t> const&oneRuneEscapes = {
+        std::map<UTF8::rune_t, UTF8::rune_t> const oneRuneEscapes = {
             {static_cast<UTF8::rune_t>('0'),  static_cast<UTF8::rune_t>('\0')},
             {static_cast<UTF8::rune_t>('a'),  static_cast<UTF8::rune_t>('\a')},
             {static_cast<UTF8::rune_t>('b'),  static_cast<UTF8::rune_t>('\b')},
@@ -147,7 +156,7 @@ namespace Util {
             {static_cast<UTF8::rune_t>('\''), static_cast<UTF8::rune_t>('\'')},
             {static_cast<UTF8::rune_t>(';'), static_cast<UTF8::rune_t>(';')}, */
         };
-        std::map<UTF8::rune_t, uint8_t> const&nibbleEscapes{[]() {
+        std::map<UTF8::rune_t, uint8_t> const nibbleEscapes{[]() {
             std::map<UTF8::rune_t, uint8_t> nibbleEscapes{};
             for (uint8_t j = 0; j < 10; ++j)
                 nibbleEscapes.insert({static_cast<UTF8::rune_t>('0'+j), j});
@@ -171,14 +180,16 @@ namespace Util {
             UTF8::rune_t rune{stream.read()};
             if (rune != static_cast<UTF8::rune_t>('\\')) {
                 unescaped.push_back(rune);
-                continue; }
+                continue;
+            }
             if (stream.exhausted())
                 return std::nullopt;
 
             UTF8::rune_t const emprisonedRune{stream.read()};
             if (std20::contains(oneRuneEscapes, emprisonedRune)) {
                 unescaped.push_back(oneRuneEscapes.at(emprisonedRune));
-                continue; }
+                continue;
+            }
 
             UTF8::rune_t const shortU = static_cast<UTF8::rune_t>('u');
             UTF8::rune_t const longU = static_cast<UTF8::rune_t>('U');
@@ -192,14 +203,17 @@ namespace Util {
                     if (!std20::contains(nibbleEscapes, emprisonedNibble))
                         return std::nullopt;
                     escapedRune <<= 4;
-                    escapedRune |= 0xf & nibbleEscapes.at(emprisonedNibble); }
+                    escapedRune |= 0xf & nibbleEscapes.at(emprisonedNibble);
+                }
                 unescaped.push_back(escapedRune);
-                continue; }
+                continue;
+            }
 
             // e.g. `\1` is the escape code for `1`
             unescaped.push_back(emprisonedRune);
 
-            return std::nullopt; }
+            return std::nullopt;
+        }
 
         if (unescaped.size() < 1 || unescaped.front()
                                  != static_cast<UTF8::rune_t>('"'))
@@ -233,12 +247,14 @@ namespace Util {
         for (auto const&[regexString, lambda, base] : actions)
             if (!oN.has_value()) {
                 std::smatch smatch{};
-                if (std::regex_match(s, smatch, std::regex{regexString}))
+                if (std::regex_match(s, smatch, std::regex{regexString})) {
                     try {
                         oN = std::make_optional(std::stoll(lambda(
-                            std::string{smatch[1]}), nullptr, base)); }
-                    catch (std::invalid_argument const&_) {
-                        oN = std::nullopt; }
+                            std::string{smatch[1]}), nullptr, base));
+                    } catch (std::invalid_argument const&_) {
+                        oN = std::nullopt;
+                    }
+                }
             }
 
         long long int constexpr min32s{-(1LL << 31)}, max32s{(1LL << 31)-1};
@@ -260,28 +276,33 @@ namespace Util {
     std::string UInt32AsPaddedHex(uint32_t const n) {
         char buf[9];
         std::snprintf(buf, 9, "%08x", n);
-        return std::string{buf}; }
+        return std::string{buf};
+    }
 
     std::string UInt8AsPaddedHex(uint8_t const n) {
         char buf[3];
         std::snprintf(buf, 3, "%02x", n);
-        return std::string{buf}; }
+        return std::string{buf};
+    }
 
     std::string UNibbleAsPaddedHex(uint8_t const n) {
         char buf[2];
         std::snprintf(buf, 2, "%01x", n & 0xf);
-        return std::string{buf}; }
+        return std::string{buf};
+    }
 
     std::string UBitAsPaddedHex(uint8_t const n) {
         char buf[2];
         std::snprintf(buf, 2, "%01x", n & 0x1);
-        return std::string{buf}; }
+        return std::string{buf};
+    }
 
     std::string stringToUpper(std::string const&_str) {
         std::string str{_str};
         for (auto &c : str)
             c = std::toupper(c);
-        return str; }
+        return str;
+    }
 
     uint_t LevenshteinDistance(std::string const&s, std::string const&t) {
         /* see "https://people.cs.pitt.edu/~kirk/cs1501/Pruhs/Fall2006/
@@ -297,16 +318,19 @@ namespace Util {
         for (std::size_t c{0}; c <= m; ++c)
             d[c][0] = c;
 
-        for (std::size_t j{1}; j <= m; ++j)
+        for (std::size_t j{1}; j <= m; ++j) {
             for (std::size_t i{1}; i <= n; ++i) {
                 uint_t cost{s[i-1] == t[j-1] ? uint_t{0} : uint_t{1}};
                 d[j][i] = std::min(std::min(
                     d[j][i-1] + 1,
                     d[j-1][i] + 1),
                     d[j-1][i-1] + cost
-                ); }
+                );
+            }
+        }
 
-        return d[m][n]; }
+        return d[m][n];
+    }
 
     std::vector<std::string> sortByLevenshteinDistanceTo(
         std::vector<std::string> const&v, std::string const&r
@@ -314,33 +338,39 @@ namespace Util {
         std::vector<std::string> w{v};
         std::sort(w.begin(), w.end(), [r](auto s, auto t) {
             return LevenshteinDistance(r, s) <= LevenshteinDistance(r, t); });
-        return w; }
+        return w;
+    }
 
     class rng_t {
         private:
             std::mt19937 rng;
+
         public: rng_t() :
             rng{std::random_device{}()}
-        { ; }
+        {}
 
         public: void seed(word_t const seed) {
-            rng.seed(seed); }
+            rng.seed(seed);
+        }
 
         public: word_t unif(word_t const n) {
             std::uniform_int_distribution<word_t> unif{0, n};
-            return unif(rng); }
+            return unif(rng);
+        }
 
         std::vector<word_t> unif(word_t const size, word_t const n) {
             std::uniform_int_distribution<word_t> unif{0, n};
             std::vector<word_t> v{std::vector<word_t>(size)};
             std::generate(v.begin(), v.end(), [&]() { return unif(rng); });
-            return v; }
+            return v;
+        }
 
         std::vector<word_t> perm(word_t const size) {
             std::vector<word_t> v{std::vector<word_t>(size)};
             std::iota(v.begin(), v.end(), 0);
             std::shuffle(v.begin(), v.end(), rng);
-            return v; }
+            return v;
+        }
     };
 }
 

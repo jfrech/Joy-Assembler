@@ -23,19 +23,22 @@ namespace InstructionNameRepresentationHandler {
                 continue;
             if (instructionDefinitions[opCode].name == name)
                 return static_cast<byte_t>(opCode); }
-        return 0x00; }
+        return 0x00;
+    }
 
     std::string toString(InstructionName const name) {
         for (InstructionDefinition const&idef : instructionDefinitions)
             if (idef.name == name)
                 return idef.getNameRepresentation();
-        return instructionDefinitions[0xff].getNameRepresentation(); }
+        return instructionDefinitions[0xff].getNameRepresentation();
+    }
 
     std::optional<InstructionName> from_string(std::string const&repr) {
         for (InstructionDefinition const&idef : instructionDefinitions)
             if (idef.getNameRepresentation() == Util::stringToUpper(repr))
                 return std::make_optional(idef.name);
-        return std::nullopt; }
+        return std::nullopt;
+    }
 
     // TODO refactor
     #define I(INS) InstructionName::INS
@@ -70,17 +73,18 @@ namespace InstructionNameRepresentationHandler {
         std::array<uint_t, 256> const /* TODO `constexpr` requires build() to be `constexpr` */ lookupTable{build()};
     }
 
-
     constexpr uint_t microInstructions(InstructionName const name) {
         return MicroInstructionsUtil::lookupTable[
-            static_cast<std::underlying_type<InstructionName>::type>(name)]; }
+            static_cast<std::underlying_type<InstructionName>::type>(name)];
+    }
 }
 
 namespace InstructionRepresentationHandler {
 
     std::string toString(Instruction const&instruction) {
         return InstructionNameRepresentationHandler::toString(instruction.name)
-               + " 0x" + Util::UInt32AsPaddedHex(instruction.argument); }
+               + " 0x" + Util::UInt32AsPaddedHex(instruction.argument);
+    }
 
     std::optional<std::string> staticallyValidInstruction(
         std::vector<MemorySemantic> const&memorySemantics,
@@ -105,7 +109,9 @@ namespace InstructionRepresentationHandler {
                     != MemorySemantic::Data
                 )
                     return std::make_optional("static analysis detected a "
-                        "misaligned data error (non-head)"); }
+                        "misaligned data error (non-head)");
+        }
+
         if (
             InstructionNameRepresentationHandler
                 ::doesPointAtDataByte(instruction.name)
@@ -120,7 +126,9 @@ namespace InstructionRepresentationHandler {
                     != MemorySemantic::Data
             )
                 return std::make_optional("static analysis detected a "
-                    "misaligned data error (byte)"); }
+                    "misaligned data error (byte)");
+        }
+
         if (
             InstructionNameRepresentationHandler
                 ::doesPointAtInstruction(instruction.name)
@@ -139,7 +147,8 @@ namespace InstructionRepresentationHandler {
                         != MemorySemantic::Instruction
                 )
                     return std::make_optional("static analysis detected a "
-                        "misaligned instruction error (non-head)"); }
+                        "misaligned instruction error (non-head)");
+        }
 
         return std::nullopt;
     }
