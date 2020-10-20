@@ -1,10 +1,10 @@
 # Joy Assembler
-A minimalistic toy assembler written in C++ by Jonathan Frech, August and September 2020.
+A minimalistic toy assembler written in C++ by Jonathan Frech, August to October 2020.
 
 # Building
 Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-10-20T03:35:36+02:00)
+**Build: 🟩 passing** (2020-10-20T03:38:39+02:00)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
