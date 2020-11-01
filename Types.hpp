@@ -35,6 +35,10 @@ struct InstructionDefinition {
             return std::string{"erroneous-instruction"};
         return std::string{_nameRepresentation};
     }
+
+    bool doesTakeArgument() const {
+        return requiresArgument || optionalArgument != std::nullopt;
+    }
 };
 
 namespace InstructionDefinitionsUtil {

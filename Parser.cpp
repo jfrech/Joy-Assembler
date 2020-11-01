@@ -148,8 +148,6 @@ class Parser {
                 return error(filepath, lineNumber,
                     "duplicate definition: " + k);
             definitions[k] = std::make_tuple(lineNumber, v);
-
-            /* TODO inefficient? */
             pragmas(filepath);
 
             return true;
@@ -342,26 +340,23 @@ class Parser {
                         ::toString(oName.value())
                     + " " + oArg.value_or("(no arg.)"));
 
-                /* TODO refactor */
                 InstructionName const name{oName.value()};
-                InstructionDefinition const idef{instructionDefinitions[InstructionNameRepresentationHandler::toByteCode(name)]};
-                bool const takesArgument{idef.requiresArgument || idef.optionalArgument != std::nullopt};
-                std::optional<word_t> const optionalArgument{idef.optionalArgument};
-
-                if (oArg.has_value() && !takesArgument)
+                InstructionDefinition const idef{instructionDefinitions[
+                    InstructionNameRepresentationHandler::toByteCode(name)]};
+                if (oArg.has_value() && !idef.doesTakeArgument())
                     return error(filepath, lineNumber,
                       "instruction takes no argument: "
                       + InstructionNameRepresentationHandler
                           ::toString(name));
                 if (
-                    !oArg.has_value() && takesArgument
-                    && !optionalArgument.has_value()
+                    !oArg.has_value() && idef.doesTakeArgument()
+                    && !idef.optionalArgument.has_value()
                 )
                     return error(filepath, lineNumber, "instruction requires "
                         "an argument: " + InstructionNameRepresentationHandler
                             ::toString(name));
-
                 pushInstruction(name, oArg);
+
                 return true;
             }},
 
@@ -599,21 +594,19 @@ class Parser {
                     }
                 }
 
-                /* TODO refactor */
-                InstructionDefinition const idef{instructionDefinitions[InstructionNameRepresentationHandler::toByteCode(name)]};
-                bool const hasArgument{idef.requiresArgument || idef.optionalArgument != std::nullopt};
-                std::optional<word_t> const optionalValue{idef.optionalArgument};
-                if (!hasArgument && oValue.has_value())
+                InstructionDefinition const idef{instructionDefinitions[
+                    InstructionNameRepresentationHandler::toByteCode(name)]};
+                if (!idef.doesTakeArgument() && oValue.has_value())
                     return error(filepath, lineNumber, "superfluous argument: "
                         + InstructionNameRepresentationHandler::toString(name)
                         + " " + std::to_string(oValue.value()));
-                if (hasArgument) {
-                    if (!optionalValue.has_value() && !oValue.has_value())
+                if (idef.doesTakeArgument()) {
+                    if (!idef.optionalArgument.has_value() && !oValue.has_value())
                         return error(filepath, lineNumber, "requiring "
                             "argument: " + InstructionNameRepresentationHandler
                                 ::toString(name));
                     if (!oValue.has_value())
-                        oValue = optionalValue; }
+                        oValue = idef.optionalArgument; }
 
                 word_t const argument{oValue.value_or(0x00000000)};
                 Instruction instruction{name, argument};
