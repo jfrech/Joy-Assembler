@@ -42,7 +42,7 @@ class Parser {
         stackBeginning{std::nullopt},
         stackEnd{std::nullopt},
 
-        memorySize{/*TODO possible gcc bug when writing `-1`*/},
+        memorySize{/*TODO possible odd gcc diagnostic when writing `-1`*/},
         memoryIsDynamic{false},
 
         pragmaMemoryMode{MemoryMode::LittleEndian},
@@ -514,8 +514,6 @@ class Parser {
     }
 
     private: bool parseAssemble(ComputationState &cs) {
-        log("@@@ parseAssemble @@@");
-
         bool memPtrGTStackBeginningAndNonDataOccurred{false};
         bool haltInstructionWasUsed{false};
 
@@ -612,24 +610,6 @@ class Parser {
                 Instruction instruction{name, argument};
                 log("instruction " + InstructionRepresentationHandler
                     ::toString(instruction));
-
-
-
-
-                /* TODO Consider possibly moving the following block into `ComputationState::storeInstruction`? TODO */
-                if (oMemorySemantics.has_value()) {
-                    std::optional<std::string> e{
-                        InstructionRepresentationHandler
-                        ::staticallyValidInstruction(
-                            oMemorySemantics.value(), instruction)};
-                    if (e.has_value())
-                        return error(filepath, lineNumber, "instruction "
-                            + InstructionRepresentationHandler
-                                ::toString(instruction) + ": " + e.value());
-                }
-
-
-
 
                 memPtr += cs.storeInstruction(memPtr, instruction);
 

@@ -9,6 +9,15 @@ enum class MemoryMode : bool { LittleEndian, BigEndian };
 enum class MemorySemantic : uint8_t {
     InstructionHead, Instruction, DataHead, Data
 };
+using WordMemorySemantic = std::array<std::optional<MemorySemantic>, 4>;
+WordMemorySemantic constexpr wordMemorySemanticInstruction{
+    std::make_optional(MemorySemantic::InstructionHead), std::make_optional(MemorySemantic::Instruction),
+    std::make_optional(MemorySemantic::Instruction), std::make_optional(MemorySemantic::Instruction)};
+WordMemorySemantic constexpr wordMemorySemanticData{
+    std::make_optional(MemorySemantic::DataHead), std::make_optional(MemorySemantic::Data),
+    std::make_optional(MemorySemantic::Data), std::make_optional(MemorySemantic::Data)};
+WordMemorySemantic constexpr wordMemorySemanticNone{
+    std::nullopt, std::nullopt, std::nullopt, std::nullopt};
 
 enum class InstructionName : byte_t {
     /* The order in which the following enum identifiers appear *defines*

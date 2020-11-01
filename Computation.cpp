@@ -121,7 +121,7 @@ class ComputationState {
             InstructionNameRepresentationHandler::toString(
                 InstructionNameRepresentationHandler::fromByteCode(
                     loadMemory(registerPC, std::nullopt)))};
-        word_t argument{loadMemory4(registerPC+1, false)};
+        word_t argument{loadMemory4(registerPC+1, wordMemorySemanticInstruction)};
         print(Util::ANSI_COLORS::paint(Util::ANSI_COLORS
                 ::INSTRUCTION_NAME, opCodeName)
             + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS
@@ -241,22 +241,22 @@ class ComputationState {
                 break;
 
             case InstructionName::LDA:
-                registerA = loadMemory4(instruction.argument);
+                registerA = loadMemory4(instruction.argument, wordMemorySemanticData);
                 break;
             case InstructionName::LDB:
-                registerB = loadMemory4(instruction.argument);
+                registerB = loadMemory4(instruction.argument, wordMemorySemanticData);
                 break;
             case InstructionName::STA:
-                storeMemory4(instruction.argument, registerA);
+                storeMemory4(instruction.argument, registerA, wordMemorySemanticData);
                 break;
             case InstructionName::STB:
-                storeMemory4(instruction.argument, registerB);
+                storeMemory4(instruction.argument, registerB, wordMemorySemanticData);
                 break;
             case InstructionName::LIA:
-                registerA = loadMemory4(registerB + instruction.argument);
+                registerA = loadMemory4(registerB + instruction.argument, wordMemorySemanticData);
                 break;
             case InstructionName::SIA:
-                storeMemory4(registerB + instruction.argument, registerA);
+                storeMemory4(registerB + instruction.argument, registerA, wordMemorySemanticData);
                 break;
             case InstructionName::LPC:
                 registerA = registerPC;
@@ -441,15 +441,25 @@ class ComputationState {
     public: word_t storeInstruction(
             word_t const m, Instruction const instruction
     ) {
+        if (oMemorySemantics.has_value()) {
+            std::optional<std::string> e{
+                InstructionRepresentationHandler
+                ::staticallyValidInstruction(
+                    oMemorySemantics.value(), instruction)};
+            if (e.has_value())
+                err("instruction " + InstructionRepresentationHandler
+                    ::toString(instruction) + ": " + e.value());
+        }
+
         storeMemory(m, InstructionNameRepresentationHandler
             ::toByteCode(instruction.name), MemorySemantic::InstructionHead);
-        storeMemory4(1+m, instruction.argument, false/*TODO MemorySemantic::Instruction*/);
+        storeMemory4(1+m, instruction.argument, wordMemorySemanticNone/*TODO why none*/);
         debug.highestUsedMemoryLocation = 0;
         return 5;
     }
 
     public: word_t storeData(word_t const m, word_t const data) {
-        storeMemory4(m, data);
+        storeMemory4(m, data, wordMemorySemanticNone/*TODO why none*/);
         debug.highestUsedMemoryLocation = 0;
         return 4;
     }
@@ -458,7 +468,7 @@ class ComputationState {
         byte_t opCode{loadMemory(
             registerPC++, MemorySemantic::InstructionHead)};
         word_t argument{loadMemory4(
-            (registerPC += 4) - 4, false/*TODO MemorySemantic::Instruction*/)};
+            (registerPC += 4) - 4, wordMemorySemanticNone/*TODO why none*/)};
 
         return Instruction{InstructionNameRepresentationHandler
             ::fromByteCode(opCode), argument};
@@ -524,29 +534,22 @@ class ComputationState {
 
     private: word_t loadMemory4(
         word_t const m,
-        bool const doStaticAnalysis=true
+        WordMemorySemantic const&wordMemorySemantic
     ) {
-        std::optional<MemorySemantic> const saData{
-            doStaticAnalysis ? std::make_optional(MemorySemantic::Data)
-                : std::nullopt};
-        std::optional<MemorySemantic> const saDataHead{
-            doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead)
-                : std::nullopt};
-
         byte_t b3{0}, b2{0}, b1{0}, b0{0};
         switch (memoryMode) {
             case MemoryMode::LittleEndian:
-                b3 = loadMemory(m+3, saData);
-                b2 = loadMemory(m+2, saData);
-                b1 = loadMemory(m+1, saData);
-                b0 = loadMemory(m+0, saDataHead);
+                b3 = loadMemory(m+3, wordMemorySemantic[3]);
+                b2 = loadMemory(m+2, wordMemorySemantic[2]);
+                b1 = loadMemory(m+1, wordMemorySemantic[1]);
+                b0 = loadMemory(m+0, wordMemorySemantic[0]);
                 break;
 
             case MemoryMode::BigEndian:
-                b3 = loadMemory(m+0, saDataHead);
-                b2 = loadMemory(m+1, saData);
-                b1 = loadMemory(m+2, saData);
-                b0 = loadMemory(m+3, saData);
+                b3 = loadMemory(m+0, wordMemorySemantic[3]);
+                b2 = loadMemory(m+1, wordMemorySemantic[2]);
+                b1 = loadMemory(m+2, wordMemorySemantic[1]);
+                b0 = loadMemory(m+3, wordMemorySemantic[0]);
                 break;
         }
 
@@ -555,32 +558,25 @@ class ComputationState {
 
     private: void storeMemory4(
         word_t const m, word_t const w,
-        bool const doStaticAnalysis=true
+        WordMemorySemantic const&wordMemorySemantic
     ) {
-        std::optional<MemorySemantic> const saData{
-            doStaticAnalysis ? std::make_optional(MemorySemantic::Data)
-                : std::nullopt};
-        std::optional<MemorySemantic> const saDataHead{
-            doStaticAnalysis ? std::make_optional(MemorySemantic::DataHead)
-                : std::nullopt};
-
         byte_t const b3{static_cast<byte_t>((w >> 24) & 0xff)};
         byte_t const b2{static_cast<byte_t>((w >> 16) & 0xff)};
         byte_t const b1{static_cast<byte_t>((w >>  8) & 0xff)};
         byte_t const b0{static_cast<byte_t>( w        & 0xff)};
         switch (memoryMode) {
             case MemoryMode::LittleEndian:
-                storeMemory(m+3, b3, saData);
-                storeMemory(m+2, b2, saData);
-                storeMemory(m+1, b1, saData);
-                storeMemory(m+0, b0, saDataHead);
+                storeMemory(m+3, b3, wordMemorySemantic[3]);
+                storeMemory(m+2, b2, wordMemorySemantic[1]);
+                storeMemory(m+1, b1, wordMemorySemantic[2]);
+                storeMemory(m+0, b0, wordMemorySemantic[0]);
                 break;
 
             case MemoryMode::BigEndian:
-                storeMemory(m+0, b3, saData);
-                storeMemory(m+1, b2, saData);
-                storeMemory(m+2, b1, saData);
-                storeMemory(m+3, b0, saDataHead);
+                storeMemory(m+0, b3, wordMemorySemantic[3]);
+                storeMemory(m+1, b2, wordMemorySemantic[1]);
+                storeMemory(m+2, b1, wordMemorySemantic[2]);
+                storeMemory(m+3, b0, wordMemorySemantic[0]);
                 break;
         }
     }
@@ -601,11 +597,11 @@ class ComputationState {
 
     private: word_t loadMemory4Stack(word_t const m) {
         assureStackBoundaries("loadMemory4Stack", m);
-        return loadMemory4(m); }
+        return loadMemory4(m, wordMemorySemanticData); }
 
     private: void storeMemory4Stack(word_t const m, word_t const w) {
         assureStackBoundaries("storeMemory4Stack", m);
-        storeMemory4(m, w); }
+        storeMemory4(m, w, wordMemorySemanticData); }
 
     private: bool err(std::string const&msg) const {
         std::cerr << "ComputationState: " << msg << std::endl;
