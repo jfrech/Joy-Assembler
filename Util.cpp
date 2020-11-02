@@ -30,6 +30,14 @@ namespace Util {
         }
     }
 
+    template<typename T, std::size_t N>
+    constexpr bool contains(std::array<T, N> const&array, T const&x) {
+        for (T const&y : array)
+            if (x == y)
+                return true;
+        return false;
+    }
+
     namespace ANSI_COLORS {
         /* TODO verify */
         auto esc{[](std::string const&code) {

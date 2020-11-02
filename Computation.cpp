@@ -121,7 +121,7 @@ class ComputationState {
             InstructionNameRepresentationHandler::toString(
                 InstructionNameRepresentationHandler::fromByteCode(
                     loadMemory(registerPC, std::nullopt)))};
-        word_t argument{loadMemory4(registerPC+1, wordMemorySemanticInstruction)};
+        word_t argument{loadMemory4(registerPC+1, wordMemorySemanticInstructionData)};
         print(Util::ANSI_COLORS::paint(Util::ANSI_COLORS
                 ::INSTRUCTION_NAME, opCodeName)
             + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS
@@ -453,13 +453,14 @@ class ComputationState {
 
         storeMemory(m, InstructionNameRepresentationHandler
             ::toByteCode(instruction.name), MemorySemantic::InstructionHead);
-        storeMemory4(1+m, instruction.argument, wordMemorySemanticNone/*TODO why none*/);
+        storeMemory4(1+m, instruction.argument,
+            wordMemorySemanticNone/*TODO Why no semantic check?*/);
         debug.highestUsedMemoryLocation = 0;
         return 5;
     }
 
     public: word_t storeData(word_t const m, word_t const data) {
-        storeMemory4(m, data, wordMemorySemanticNone/*TODO why none*/);
+        storeMemory4(m, data, wordMemorySemanticData);
         debug.highestUsedMemoryLocation = 0;
         return 4;
     }
@@ -468,7 +469,7 @@ class ComputationState {
         byte_t opCode{loadMemory(
             registerPC++, MemorySemantic::InstructionHead)};
         word_t argument{loadMemory4(
-            (registerPC += 4) - 4, wordMemorySemanticNone/*TODO why none*/)};
+            (registerPC += 4) - 4, wordMemorySemanticInstructionData)};
 
         return Instruction{InstructionNameRepresentationHandler
             ::fromByteCode(opCode), argument};

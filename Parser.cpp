@@ -615,7 +615,7 @@ class Parser {
 
                 haltInstructionWasUsed |= InstructionName::HLT == name;
                 stackInstructionWasUsed |= InstructionNameRepresentationHandler
-                    ::isStackInstruction(name);
+                    ::doesPointAtStack(name);
             } else
                 return error("internal error: parsing piece holds invalid "
                     "alternative");

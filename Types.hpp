@@ -10,8 +10,8 @@ enum class MemorySemantic : uint8_t {
     InstructionHead, Instruction, DataHead, Data
 };
 using WordMemorySemantic = std::array<std::optional<MemorySemantic>, 4>;
-WordMemorySemantic constexpr wordMemorySemanticInstruction{
-    std::make_optional(MemorySemantic::InstructionHead), std::make_optional(MemorySemantic::Instruction),
+WordMemorySemantic constexpr wordMemorySemanticInstructionData{
+    std::make_optional(MemorySemantic::Instruction), std::make_optional(MemorySemantic::Instruction),
     std::make_optional(MemorySemantic::Instruction), std::make_optional(MemorySemantic::Instruction)};
 WordMemorySemantic constexpr wordMemorySemanticData{
     std::make_optional(MemorySemantic::DataHead), std::make_optional(MemorySemantic::Data),

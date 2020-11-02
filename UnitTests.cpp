@@ -22,7 +22,7 @@ bool unitTest_LevenshteinDistance() {
         {"", "", 0},
         {"GUMBO", "GAMBOL", 2},
         {"a", "b", 1},
-        /* TODO */
+        /* ... more unit tests could not hurt ... */
     };
     for (auto const&[s, t, d] : cases)
         asserter(test(s, t, d), "incorrect Levenshtein distance on inputs '"

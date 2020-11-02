@@ -40,22 +40,34 @@ namespace InstructionNameRepresentationHandler {
         return std::nullopt;
     }
 
-    // TODO refactor
-    #define I(INS) InstructionName::INS
-    #define FACTORY(IDENT, INSTRS) \
-        bool IDENT(InstructionName const name) { \
-            return Util::std20::contains(std::set<InstructionName>/*{*/ \
-                INSTRS/*}*/, name); }
-    FACTORY(isStackInstruction, ({
-        I(CAL), I(RET), I(PSH), I(POP), I(LSA), I(SSA), I(LSC), I(SSC)}))
-    FACTORY(doesPointAtData, ({
-        I(LDA), I(LDB), I(STA), I(STB)}))
-    FACTORY(doesPointAtDataByte, ({
-        I(LYA), I(SYA)}))
-    FACTORY(doesPointAtInstruction, ({
-        I(JMP), I(JN), I(JNN), I(JZ), I(JNZ), I(JP), I(JNP), I(JE), I(JNE)}))
-    #undef I
-    #undef FACTORY
+    bool doesPointAtStack(InstructionName const name) {
+        return Util::contains(std::array{
+            InstructionName::CAL, InstructionName::RET,
+            InstructionName::PSH, InstructionName::POP,
+            InstructionName::LSA, InstructionName::SSA,
+            InstructionName::LSC, InstructionName::SSC,
+        }, name);
+    }
+    bool doesPointAtData(InstructionName const name) {
+        return Util::contains(std::array{
+            InstructionName::LDA, InstructionName::LDB,
+            InstructionName::STA, InstructionName::STB,
+        }, name);
+    }
+    bool doesPointAtDataByte(InstructionName const name) {
+        return Util::contains(std::array{
+            InstructionName::LYA, InstructionName::SYA,
+        }, name);
+    }
+    bool doesPointAtInstruction(InstructionName const name) {
+        return Util::contains(std::array{
+            InstructionName::JMP,
+            InstructionName::JN, InstructionName::JNN,
+            InstructionName::JZ, InstructionName::JNZ,
+            InstructionName::JP, InstructionName::JNP,
+            InstructionName::JE, InstructionName::JNE,
+        }, name);
+    }
 
     namespace MicroInstructionsUtil {
         /* TODO `constexpr` causes an internal compiler error */ std::array<uint_t, 256> build() {
