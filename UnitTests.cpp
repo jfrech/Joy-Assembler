@@ -1,7 +1,11 @@
 #include "Includes.hpp"
 
-std::function<void(bool const, std::string const&)> asserterFactory(bool &testStatus) {
-    return [&testStatus](bool const microTest, std::string const&errorMessage) -> void {
+std::function<void(bool const, std::string const&)> asserterFactory(
+    bool &testStatus
+) {
+    return [&testStatus](
+        bool const microTest, std::string const&errorMessage
+    ) -> void {
         if (microTest)
             return;
         testStatus = false;

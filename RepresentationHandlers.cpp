@@ -70,7 +70,8 @@ namespace InstructionNameRepresentationHandler {
     }
 
     namespace MicroInstructionsUtil {
-        /* TODO `constexpr` causes an internal compiler error */ std::array<uint_t, 256> build() {
+        /* TODO `constexpr` causes an internal compiler error */
+        std::array<uint_t, 256> build() {
             static_assert(std::is_same<
                 std::underlying_type<InstructionName>::type, byte_t>::value);
             std::array<uint_t, 256> lookupTable{};
@@ -82,7 +83,8 @@ namespace InstructionNameRepresentationHandler {
             return lookupTable;
         }
 
-        std::array<uint_t, 256> const /* TODO `constexpr` requires build() to be `constexpr` */ lookupTable{build()};
+        /* TODO `constexpr` requires build() to be `constexpr` */
+        std::array<uint_t, 256> const lookupTable{build()};
     }
 
     constexpr uint_t microInstructions(InstructionName const name) {

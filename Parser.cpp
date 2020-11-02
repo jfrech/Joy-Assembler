@@ -42,7 +42,7 @@ class Parser {
         stackBeginning{std::nullopt},
         stackEnd{std::nullopt},
 
-        memorySize{/*TODO possible odd gcc diagnostic when writing `-1`*/},
+        memorySize{/*TODO possibly odd gcc diagnostic when writing `-1`*/},
         memoryIsDynamic{false},
 
         pragmaMemoryMode{MemoryMode::LittleEndian},
@@ -599,7 +599,10 @@ class Parser {
                         + InstructionNameRepresentationHandler::toString(name)
                         + " " + std::to_string(oValue.value()));
                 if (idef.doesTakeArgument()) {
-                    if (!idef.optionalArgument.has_value() && !oValue.has_value())
+                    if (
+                        !idef.optionalArgument.has_value()
+                        && !oValue.has_value()
+                    )
                         return error(filepath, lineNumber, "requiring "
                             "argument: " + InstructionNameRepresentationHandler
                                 ::toString(name));

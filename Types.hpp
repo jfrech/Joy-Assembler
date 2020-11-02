@@ -11,16 +11,20 @@ enum class MemorySemantic : uint8_t {
 };
 using WordMemorySemantic = std::array<std::optional<MemorySemantic>, 4>;
 WordMemorySemantic constexpr wordMemorySemanticInstructionData{
-    std::make_optional(MemorySemantic::Instruction), std::make_optional(MemorySemantic::Instruction),
-    std::make_optional(MemorySemantic::Instruction), std::make_optional(MemorySemantic::Instruction)};
+    std::make_optional(MemorySemantic::Instruction),
+    std::make_optional(MemorySemantic::Instruction),
+    std::make_optional(MemorySemantic::Instruction),
+    std::make_optional(MemorySemantic::Instruction)};
 WordMemorySemantic constexpr wordMemorySemanticData{
-    std::make_optional(MemorySemantic::DataHead), std::make_optional(MemorySemantic::Data),
-    std::make_optional(MemorySemantic::Data), std::make_optional(MemorySemantic::Data)};
+    std::make_optional(MemorySemantic::DataHead),
+    std::make_optional(MemorySemantic::Data),
+    std::make_optional(MemorySemantic::Data),
+    std::make_optional(MemorySemantic::Data)};
 WordMemorySemantic constexpr wordMemorySemanticNone{
     std::nullopt, std::nullopt, std::nullopt, std::nullopt};
 
 enum class InstructionName : byte_t {
-    /* The order in which the following enum identifiers appear *defines*
+    /* The order in which the following enum identifiers appear **defines**
        their op-code. */
     NOP, LDA, LDB, STA, STB, LIA, SIA, LPC, SPC, LYA, SYA, JMP, JN, JNN, JZ,
     JNZ, JP, JNP, JE, JNE, CAL, RET, PSH, POP, LSA, SSA, LSC, SSC, MOV, NOT,
@@ -82,55 +86,104 @@ namespace InstructionDefinitionsUtil {
 
         InstructionDefinitionsArray ida{};
 
-        instructionWithArgument(ida, InstructionName::NOP, "NOP", std::optional<word_t>{0}, 1);
-        instructionWithArgument(ida, InstructionName::LDA, "LDA", std::nullopt, 4);
-        instructionWithArgument(ida, InstructionName::LDB, "LDB", std::nullopt, 4);
-        instructionWithArgument(ida, InstructionName::STA, "STA", std::nullopt, 4);
-        instructionWithArgument(ida, InstructionName::STB, "STB", std::nullopt, 4);
-        instructionWithArgument(ida, InstructionName::LIA, "LIA", std::optional<word_t>{0}, 6);
-        instructionWithArgument(ida, InstructionName::SIA, "SIA", std::optional<word_t>{0}, 6);
-        instructionWithoutArgument(ida, InstructionName::LPC, "LPC", 2);
-        instructionWithoutArgument(ida, InstructionName::SPC, "SPC", 2);
-        instructionWithArgument(ida, InstructionName::LYA, "LYA", std::nullopt, 4);
-        instructionWithArgument(ida, InstructionName::SYA, "SYA", std::nullopt, 4);
-        instructionWithArgument(ida, InstructionName::JMP, "JMP", std::nullopt, 2);
-        instructionWithArgument(ida, InstructionName::JN , "JN" , std::nullopt, 3);
-        instructionWithArgument(ida, InstructionName::JNN, "JNN", std::nullopt, 3);
-        instructionWithArgument(ida, InstructionName::JZ , "JZ" , std::nullopt, 3);
-        instructionWithArgument(ida, InstructionName::JNZ, "JNZ", std::nullopt, 3);
-        instructionWithArgument(ida, InstructionName::JP , "JP" , std::nullopt, 3);
-        instructionWithArgument(ida, InstructionName::JNP, "JNP", std::nullopt, 3);
-        instructionWithArgument(ida, InstructionName::JE , "JE" , std::nullopt, 3);
-        instructionWithArgument(ida, InstructionName::JNE, "JNE", std::nullopt, 3);
-        instructionWithArgument(ida, InstructionName::CAL, "CAL", std::nullopt, 11);
-        instructionWithoutArgument(ida, InstructionName::RET, "RET", 9);
-        instructionWithoutArgument(ida, InstructionName::PSH, "PSH", 9);
-        instructionWithoutArgument(ida, InstructionName::POP, "POP", 9);
-        instructionWithArgument(ida, InstructionName::LSA, "LSA", std::optional<word_t>{0}, 6);
-        instructionWithArgument(ida, InstructionName::SSA, "SSA", std::optional<word_t>{0}, 6);
-        instructionWithoutArgument(ida, InstructionName::LSC, "LSC", 2);
-        instructionWithoutArgument(ida, InstructionName::SSC, "SSC", 2);
-        instructionWithArgument(ida, InstructionName::MOV, "MOV", std::nullopt, 2);
-        instructionWithoutArgument(ida, InstructionName::NOT, "NOT", 1);
-        instructionWithArgument(ida, InstructionName::SHL, "SHL", std::optional<word_t>{1}, 1);
-        instructionWithArgument(ida, InstructionName::SHR, "SHR", std::optional<word_t>{1}, 1);
-        instructionWithArgument(ida, InstructionName::INC, "INC", std::optional<word_t>{1}, 1);
-        instructionWithArgument(ida, InstructionName::DEC, "DEC", std::optional<word_t>{1}, 1);
-        instructionWithoutArgument(ida, InstructionName::NEG, "NEG", 1);
-        instructionWithoutArgument(ida, InstructionName::SWP, "SWP", 3);
-        instructionWithoutArgument(ida, InstructionName::ADD, "ADD", 2);
-        instructionWithoutArgument(ida, InstructionName::SUB, "SUB", 2);
-        instructionWithoutArgument(ida, InstructionName::AND, "AND", 2);
-        instructionWithoutArgument(ida, InstructionName::OR , "OR" , 2);
-        instructionWithoutArgument(ida, InstructionName::XOR, "XOR", 2);
-        instructionWithoutArgument(ida, InstructionName::GET, "GET", ioPenalty+2);
-        instructionWithoutArgument(ida, InstructionName::GTC, "GTC", ioPenalty+2);
-        instructionWithoutArgument(ida, InstructionName::PTU, "PTU", 1+ioPenalty+1);
-        instructionWithoutArgument(ida, InstructionName::PTS, "PTS", 1+ioPenalty+1);
-        instructionWithoutArgument(ida, InstructionName::PTB, "PTB", 1+ioPenalty+1);
-        instructionWithoutArgument(ida, InstructionName::PTC, "PTC", 1+ioPenalty+1);
-        instructionWithoutArgument(ida, InstructionName::RND, "RND", ioPenalty+2);
-        instructionWithoutArgument(ida, InstructionName::HLT, "HLT", 1);
+        instructionWithArgument(ida,
+            InstructionName::NOP, "NOP", std::optional<word_t>{0}, 1);
+        instructionWithArgument(ida,
+            InstructionName::LDA, "LDA", std::nullopt, 4);
+        instructionWithArgument(ida,
+            InstructionName::LDB, "LDB", std::nullopt, 4);
+        instructionWithArgument(ida,
+            InstructionName::STA, "STA", std::nullopt, 4);
+        instructionWithArgument(ida,
+            InstructionName::STB, "STB", std::nullopt, 4);
+        instructionWithArgument(ida,
+            InstructionName::LIA, "LIA", std::optional<word_t>{0}, 6);
+        instructionWithArgument(ida,
+            InstructionName::SIA, "SIA", std::optional<word_t>{0}, 6);
+        instructionWithoutArgument(ida,
+            InstructionName::LPC, "LPC", 2);
+        instructionWithoutArgument(ida,
+            InstructionName::SPC, "SPC", 2);
+        instructionWithArgument(ida,
+            InstructionName::LYA, "LYA", std::nullopt, 4);
+        instructionWithArgument(ida,
+            InstructionName::SYA, "SYA", std::nullopt, 4);
+        instructionWithArgument(ida,
+            InstructionName::JMP, "JMP", std::nullopt, 2);
+        instructionWithArgument(ida,
+            InstructionName::JN , "JN" , std::nullopt, 3);
+        instructionWithArgument(ida,
+            InstructionName::JNN, "JNN", std::nullopt, 3);
+        instructionWithArgument(ida,
+            InstructionName::JZ , "JZ" , std::nullopt, 3);
+        instructionWithArgument(ida,
+            InstructionName::JNZ, "JNZ", std::nullopt, 3);
+        instructionWithArgument(ida,
+            InstructionName::JP , "JP" , std::nullopt, 3);
+        instructionWithArgument(ida,
+            InstructionName::JNP, "JNP", std::nullopt, 3);
+        instructionWithArgument(ida,
+            InstructionName::JE , "JE" , std::nullopt, 3);
+        instructionWithArgument(ida,
+            InstructionName::JNE, "JNE", std::nullopt, 3);
+        instructionWithArgument(ida,
+            InstructionName::CAL, "CAL", std::nullopt, 11);
+        instructionWithoutArgument(ida,
+            InstructionName::RET, "RET", 9);
+        instructionWithoutArgument(ida,
+            InstructionName::PSH, "PSH", 9);
+        instructionWithoutArgument(ida,
+            InstructionName::POP, "POP", 9);
+        instructionWithArgument(ida,
+            InstructionName::LSA, "LSA", std::optional<word_t>{0}, 6);
+        instructionWithArgument(ida,
+            InstructionName::SSA, "SSA", std::optional<word_t>{0}, 6);
+        instructionWithoutArgument(ida,
+            InstructionName::LSC, "LSC", 2);
+        instructionWithoutArgument(ida,
+            InstructionName::SSC, "SSC", 2);
+        instructionWithArgument(ida,
+            InstructionName::MOV, "MOV", std::nullopt, 2);
+        instructionWithoutArgument(ida,
+            InstructionName::NOT, "NOT", 1);
+        instructionWithArgument(ida,
+            InstructionName::SHL, "SHL", std::optional<word_t>{1}, 1);
+        instructionWithArgument(ida,
+            InstructionName::SHR, "SHR", std::optional<word_t>{1}, 1);
+        instructionWithArgument(ida,
+            InstructionName::INC, "INC", std::optional<word_t>{1}, 1);
+        instructionWithArgument(ida,
+            InstructionName::DEC, "DEC", std::optional<word_t>{1}, 1);
+        instructionWithoutArgument(ida,
+            InstructionName::NEG, "NEG", 1);
+        instructionWithoutArgument(ida,
+            InstructionName::SWP, "SWP", 3);
+        instructionWithoutArgument(ida,
+            InstructionName::ADD, "ADD", 2);
+        instructionWithoutArgument(ida,
+            InstructionName::SUB, "SUB", 2);
+        instructionWithoutArgument(ida,
+            InstructionName::AND, "AND", 2);
+        instructionWithoutArgument(ida,
+            InstructionName::OR , "OR" , 2);
+        instructionWithoutArgument(ida,
+            InstructionName::XOR, "XOR", 2);
+        instructionWithoutArgument(ida,
+            InstructionName::GET, "GET", ioPenalty+2);
+        instructionWithoutArgument(ida,
+            InstructionName::GTC, "GTC", ioPenalty+2);
+        instructionWithoutArgument(ida,
+            InstructionName::PTU, "PTU", 1+ioPenalty+1);
+        instructionWithoutArgument(ida,
+            InstructionName::PTS, "PTS", 1+ioPenalty+1);
+        instructionWithoutArgument(ida,
+            InstructionName::PTB, "PTB", 1+ioPenalty+1);
+        instructionWithoutArgument(ida,
+            InstructionName::PTC, "PTC", 1+ioPenalty+1);
+        instructionWithoutArgument(ida,
+            InstructionName::RND, "RND", ioPenalty+2);
+        instructionWithoutArgument(ida,
+            InstructionName::HLT, "HLT", 1);
 
         return ida;
     }

@@ -39,7 +39,6 @@ namespace Util {
     }
 
     namespace ANSI_COLORS {
-        /* TODO verify */
         auto esc{[](std::string const&code) {
 #ifdef NO_ANSI_COLORS
                 return "";

@@ -121,7 +121,8 @@ class ComputationState {
             InstructionNameRepresentationHandler::toString(
                 InstructionNameRepresentationHandler::fromByteCode(
                     loadMemory(registerPC, std::nullopt)))};
-        word_t argument{loadMemory4(registerPC+1, wordMemorySemanticInstructionData)};
+        word_t argument{loadMemory4(registerPC+1,
+            wordMemorySemanticInstructionData)};
         print(Util::ANSI_COLORS::paint(Util::ANSI_COLORS
                 ::INSTRUCTION_NAME, opCodeName)
             + " " + Util::ANSI_COLORS::paint(Util::ANSI_COLORS
@@ -241,22 +242,28 @@ class ComputationState {
                 break;
 
             case InstructionName::LDA:
-                registerA = loadMemory4(instruction.argument, wordMemorySemanticData);
+                registerA = loadMemory4(instruction.argument,
+                    wordMemorySemanticData);
                 break;
             case InstructionName::LDB:
-                registerB = loadMemory4(instruction.argument, wordMemorySemanticData);
+                registerB = loadMemory4(instruction.argument,
+                    wordMemorySemanticData);
                 break;
             case InstructionName::STA:
-                storeMemory4(instruction.argument, registerA, wordMemorySemanticData);
+                storeMemory4(instruction.argument, registerA,
+                    wordMemorySemanticData);
                 break;
             case InstructionName::STB:
-                storeMemory4(instruction.argument, registerB, wordMemorySemanticData);
+                storeMemory4(instruction.argument, registerB,
+                    wordMemorySemanticData);
                 break;
             case InstructionName::LIA:
-                registerA = loadMemory4(registerB + instruction.argument, wordMemorySemanticData);
+                registerA = loadMemory4(registerB + instruction.argument,
+                    wordMemorySemanticData);
                 break;
             case InstructionName::SIA:
-                storeMemory4(registerB + instruction.argument, registerA, wordMemorySemanticData);
+                storeMemory4(registerB + instruction.argument, registerA,
+                    wordMemorySemanticData);
                 break;
             case InstructionName::LPC:
                 registerA = registerPC;

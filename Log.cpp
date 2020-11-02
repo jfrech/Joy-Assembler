@@ -6,7 +6,7 @@
 
 bool constexpr doLog{false};
 
-void log(std::string const&msg) {
+inline void log(std::string const&msg) {
     if constexpr (doLog)
         std::clog << msg << std::endl;
 }
