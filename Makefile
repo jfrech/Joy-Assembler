@@ -1,7 +1,7 @@
-CPPC = g++
-#CPPC = clang++
+CPPC = g++ #clang++
 
-CPPFLAGS = -std=c++17 -Wall -Wpedantic -Wextra -Werror -Wswitch-enum -O3
+CPPFLAGS = -std=c++17 -lstdc++fs -O3 \
+    -Wall -Wpedantic -Wextra -Werror -Wswitch-enum
 
 SOURCES = $(wildcard *.cpp *.hpp)
 

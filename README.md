@@ -1,17 +1,17 @@
 # Joy Assembler
-A minimalistic toy assembler written in C++ by Jonathan Frech, August to October 2020.
+A minimalistic toy assembler written in C++ by Jonathan Frech, August to November 2020.
 
 # Building
-Joy Assembler requires the `C++17` standard and is best build using the provided `Makefile`.
+Joy Assembler requires the `C++17` standard and is best built using the provided `Makefile`.
 
-**Build: 🟩 passing** (2020-11-03T21:17:07+01:00)
+**Build: 🟩 passing** (2020-11-27T16:40:31+01:00)
 
 # Usage
 Joy Assembler provides a basic command-line interface:
 ````
 ./JoyAssembler <input-file.asm> [visualize | step | memory-dump]
 ````
-The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step thru (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `memory-dump` mocks any I/O and outputs a step-by-step memory dump to `stdout` whilst executing.
+The optional argument `visualize` allows one to see each instruction's execution, `step` allows to see and step through (by hitting `enter`) execution. Note that the instruction pointed to is the instruction that _will be executed_ in the next step, not the instruction that has been executed. `memory-dump` mocks any I/O and outputs a step-by-step memory dump to `stdout` whilst executing.
 
 # Architecture
 Joy Assembler mimics a 32-bit architecture. It has four 32-bit registers: two general-prupose registers `A` (**a**ccumulation) and `B` (o**b**erand) and two special-prupose registers `PC` (**p**rogram **c**ounter) and `SC` (**s**tack **c**ounter).
@@ -162,11 +162,11 @@ An argument can be specified as either a numeric constant (`0xdeadbeef`, `55`, `
 | `ptu`             | none                   | "**p**u**t** **u**nsigned"          | Output the unsigned numerical value of register `A` to `stdout`.                                                                                                    |
 | `pts`             | none                   | "**p**u**t** **s**igned"            | Output the signed numerical value of register `A` to `stdout`.                                                                                                      |
 | `ptb`             | none                   | "**p**u**t** **b**its"              | Output the bits of register `A` to `stdout`.                                                                                                                        |
-| `ptc`             | none                   | "**p**u**t** **u**nsigned"          | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`.                                                                                      |
+| `ptc`             | none                   | "**p**u**t** **c**haracter"         | Output the Unicode code point in register `A` to `stdout`, encoded as `utf-8`.                                                                                      |
 | **rnd**           |                        |                                     |                                                                                                                                                                     |
 | `rnd`             | none                   | "pseudo-**r**a**nd**om number"      | Call the value in register `A` `r`. Set `A` to a discretely uniformly distributed pseudo-random number in the range `[0..r]` (inclusive on both ends).              |
 | **hlt**           |                        |                                     |                                                                                                                                                                     |
 | `hlt`             | none                   | "**h**a**lt**"                      | Halt the machine.                                                                                                                                                   |
 
-# Example Programs
-Automatic tests can be performed by using `make test`, which tests programs in `test/programs`.
+# Testing
+Automatic tests can be performed by invoking `make test`, testing programs in `test/programs` and comparing their sha512-summed `memory-dump` output to `test/pristine-hashes`. Note that test files prefixed by `test-r-` make use of seeding pseudo-random number generators and thus behave platform-dependantly, possibly failing on some machines.
