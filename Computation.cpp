@@ -75,7 +75,7 @@ class ComputationState {
         word_t const w{16};
         print("       ");
         for (word_t x = 0; x < w; ++x)
-            print(paintFaint("_" + Util::UNibbleAsPaddedHex(x & 0xf) + " "));
+            print(" " + paintFaint("_" + Util::UNibbleAsPaddedHex(x & 0xf)));
         for (word_t y = 0; true; ++y) {
             print("\n    " + paintFaint(
                 Util::UInt8AsPaddedHex(y & 0xff) + "_"));
@@ -93,12 +93,18 @@ class ComputationState {
                         print(Util::ANSI_COLORS
                             ::memorySemanticColor(memorySemantics[m])); }
 
-                if (registerSC != 0) {
-                    if (registerSC <= pc+4 && pc+4 < registerSC + 4)
-                        print(Util::ANSI_COLORS::STACK_FAINT);
-                    if (registerSC <= pc && pc < registerSC + 4)
-                        print(Util::ANSI_COLORS::STACK);
+                if (debug.stackBoundaries.has_value()) {
+                    /* only visualize the stack if it has been
+                       statically declared */
+                    auto const[s0, s1]{debug.stackBoundaries.value()};
+                    if (s0 <= pc && pc < s1) {
+                        if (registerSC <= pc+4 && pc+4 < registerSC+4)
+                            print(Util::ANSI_COLORS::STACK_FAINT);
+                        else if (registerSC <= pc && pc < registerSC+4)
+                            print(Util::ANSI_COLORS::STACK);
+                    }
                 }
+
                 if (rPC <= pc && pc < rPC + 5)
                     print(pc == rPC ? Util::ANSI_COLORS::INSTRUCTION_NAME
                         : Util::ANSI_COLORS::INSTRUCTION_ARGUMENT);
@@ -595,11 +601,13 @@ class ComputationState {
         if (!debug.stackBoundaries.has_value())
             throw std::runtime_error{
                 callSite + ": no stack boundaries are defined"};
-        if (m < std::get<0>(debug.stackBoundaries.value()))
+
+        auto const[s0, s1]{debug.stackBoundaries.value()};
+        if (m < s0)
             throw std::runtime_error{callSite + ": stack underflow"};
-        if (m >= std::get<1>(debug.stackBoundaries.value()))
+        if (m >= s1)
             throw std::runtime_error{callSite + ": stack overflow"};
-        if ((m - std::get<0>(debug.stackBoundaries.value())) % 4 != 0)
+        if ((m - s0) % 4 != 0)
             throw std::runtime_error{callSite + ": stack misalignment"};
     }
 
