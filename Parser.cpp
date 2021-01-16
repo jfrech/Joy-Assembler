@@ -522,7 +522,12 @@ class Parser {
             if (std::holds_alternative<parsingData>(p)) {
                 word_t data{std::get<parsingData>(p)};
                 log("data value 0x" + Util::UInt32AsPaddedHex(data));
-                memPtr += cs.storeData(memPtr, data);
+                try {
+                    memPtr += cs.storeData(memPtr, data);
+                } catch (std::runtime_error const&e) {
+                    return error(filepath, lineNumber,
+                        std::string{"failed to store data: "} + e.what());
+                }
 
                 if (!memPtrGTStackBeginningAndNonDataOccurred)
                     stackEnd = std::make_optional(memPtr);
@@ -614,7 +619,13 @@ class Parser {
                 log("instruction " + InstructionRepresentationHandler
                     ::toString(instruction));
 
-                memPtr += cs.storeInstruction(memPtr, instruction);
+                try {
+                    memPtr += cs.storeInstruction(memPtr, instruction);
+                } catch (std::runtime_error const&e) {
+                    return error(filepath, lineNumber,
+                        std::string{"failed to store instruction: "}
+                        + e.what());
+                }
 
                 haltInstructionWasUsed |= InstructionName::HLT == name;
                 stackInstructionWasUsed |= InstructionNameRepresentationHandler

@@ -1,4 +1,4 @@
-CPPC = g++ #clang++
+CPPC = clang++ #g++
 
 CPPFLAGS = -std=c++17 -lstdc++fs -O3 \
     -Wall -Wpedantic -Wextra -Werror -Wswitch-enum
@@ -6,8 +6,6 @@ CPPFLAGS = -std=c++17 -lstdc++fs -O3 \
 SOURCES = $(wildcard *.cpp *.hpp)
 
 JoyAssembler: Makefile $(SOURCES)
-	make unit-tests
-	
 	./set-build-status.sh failing
 	$(CPPC) $(CPPFLAGS) JoyAssembler.cpp -o JoyAssembler
 	./set-build-status.sh passing
@@ -15,7 +13,7 @@ JoyAssembler: Makefile $(SOURCES)
 
 .PHONY: test
 test:
-	make UnitTests
+	make unit-tests
 	
 	make
 	./set-build-status.sh failing

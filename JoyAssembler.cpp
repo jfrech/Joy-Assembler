@@ -16,29 +16,34 @@ int main(int const argc, char const*argv[]) {
         return EXIT_FAILURE;
     }
 
-    Parser parser{};
-    std::optional<ComputationState> oCS{parser.parse(
-        std::filesystem::current_path() / std::string{argv[1]})};
+    try {
+        Parser parser{};
+        std::optional<ComputationState> oCS{parser.parse(
+            std::filesystem::current_path() / std::string{argv[1]})};
 
-    if (!oCS.has_value()) {
-        std::cerr << "parsing failed" << std::endl;
-        return EXIT_FAILURE;
-    }
-    ComputationState cs{std::move(oCS.value())};
-
-    if (argc > 2 && std::string{argv[2]} != "memory-dump") {
-        if (!parser.commandlineArg(cs, std::string{argv[2]})) {
-            std::cerr << "unknown commandline argument" << std::endl;
+        if (!oCS.has_value()) {
+            std::cerr << "parsing failed" << std::endl;
             return EXIT_FAILURE;
         }
-    }
+        ComputationState cs{std::move(oCS.value())};
 
-    if (argc > 2 && std::string{argv[2]} == "memory-dump") {
-        do cs.memoryDump(); while (cs.step()); cs.memoryDump();
-        return EXIT_SUCCESS;
-    }
+        if (argc > 2 && std::string{argv[2]} != "memory-dump") {
+            if (!parser.commandlineArg(cs, std::string{argv[2]})) {
+                std::cerr << "unknown commandline argument" << std::endl;
+                return EXIT_FAILURE;
+            }
+        }
 
-    do cs.visualize(); while (cs.step());
+        if (argc > 2 && std::string{argv[2]} == "memory-dump") {
+            do cs.memoryDump(); while (cs.step()); cs.memoryDump();
+            return EXIT_SUCCESS;
+        }
+
+        do cs.visualize(); while (cs.step());
+    } catch (std::runtime_error const&e) {
+        std::cerr << "error: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
