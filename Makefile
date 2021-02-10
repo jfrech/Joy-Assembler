@@ -12,11 +12,22 @@ JoyAssembler: Makefile $(SOURCES)
 
 .PHONY: install
 install:
+	make
+	
+	@printf '\n'
+	
 	@[ -e /usr/bin/joy-assembler ] \
-	    && printf 'already installed\n' || exit 0
+	    && printf 'already installed\n' \
+	    || exit 0
+	
+	@[ -e /usr/bin/joy-assembler ] \
+	    && ! cmp JoyAssembler /usr/bin/joy-assembler >/dev/null \
+	    && printf 'to update, use\n' \
+	    && printf '    rm -f /usr/bin/joy-assembler' \
+	    && printf ' && ln JoyAssembler /usr/bin/joy-assembler\n' \
+	    || exit 0
 	
 	@[ ! -e /usr/bin/joy-assembler ] \
-	    && make \
 	    && printf 'to install, use\n' \
 	    && printf '    ln JoyAssembler /usr/bin/joy-assembler\n' \
 	    || exit 0
