@@ -1,6 +1,5 @@
-CPPC=c++ -std=c++17 -lstdc++fs
-# If `-lstdc++fs` cannot be linked, one may attempt not explicitly linking it:
-#CPPC=c++ -std=c++17
+# If a linkage error occurs, one may attempt to link `-lstdc++fs`.
+CPPC=c++ -std=c++17
 CPPFLAGS=-O3 -Wall -Wpedantic -Wextra -Werror -Wswitch-enum
 
 SOURCES=$(wildcard *.cpp *.hpp)
