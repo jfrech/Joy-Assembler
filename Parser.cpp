@@ -120,8 +120,8 @@ class Parser {
         if (!f.is_open())
             return error("unable to read file: " + filepath.u8string());
 
-        std::string const regexIdentifier{"[.$_[:alpha:]-][.$_[:alnum:]-]*"};
-        std::string const regexValue{"[@.$'_[:alnum:]+-][.$'_[:alnum:]\\\\-]*"};
+        std::string const regexIdentifier{"[[:alpha:]_][[:alnum:]_$-]*"};
+        std::string const regexValue{"['@[:alnum:]+-][^,]*"};
         std::string const regexString{"\"([^\"]|\\\")*?\""};
 
         /***/

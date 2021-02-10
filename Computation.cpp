@@ -397,19 +397,19 @@ class ComputationState {
             case InstructionName::PTU:
                 if (mock)
                     break;
-                std::cout << static_cast<uint32_t>(registerA) << "\n";
+                std::cout << static_cast<uint32_t>(registerA);
                 break;
             case InstructionName::PTS:
                 if (mock)
                     break;
                 std::cout << static_cast<int32_t>(
                     Util::fromTwo_sComplement<uint32_t, int32_t, 32>(
-                        registerA)) << "\n";
+                        registerA));
                 break;
             case InstructionName::PTB:
                 if (mock)
                     break;
-                std::cout << "0b" << std::bitset<32>(registerA) << "\n";
+                std::cout << "0b" << std::bitset<32>(registerA);
                 break;
             case InstructionName::PTC:
                 if (mock)
